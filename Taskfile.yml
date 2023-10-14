@@ -1,0 +1,160 @@
+# Copyright (c) 2023 Tim <tbckr>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+# https://taskfile.dev
+
+version: '3'
+
+env:
+  GO111MODULE: on
+  GOPROXY: https://proxy.golang.org,direct
+  GOSUMDB: sum.golang.org
+
+vars:
+  DOCKER: '{{default "docker" .DOCKER}}'
+
+tasks:
+  setup:precommit:
+    desc: Setup git hooks
+    preconditions:
+      - which python3
+    cmds:
+      - python3 -m pip install --upgrade --user pre-commit
+      - pre-commit install
+
+  setup:go-tools:
+    desc: Install tools
+    preconditions:
+      - which go
+    cmds:
+      - go install github.com/google/addlicense@latest
+      - go install github.com/caarlos0/svu@latest
+      - go install golang.org/x/vuln/cmd/govulncheck@latest
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - go install github.com/goreleaser/goreleaser@latest
+
+  setup:
+    desc: Setup development environment
+    cmds:
+      - task: setup:precommit
+      - task: setup:go-tools
+
+  validate:devtools:
+    desc: Validate that all necessary devtools are installed
+    cmds:
+      - which go 1>/dev/null || (echo "go is not installed" && exit 1)
+      - which python3 1>/dev/null || (echo "python3 is not installed" && exit 1)
+      - which docker 1>/dev/null || (echo "docker is not installed" && exit 1)
+      - which task 1>/dev/null || (echo "task is not installed" && exit 1)
+      - which pre-commit 1>/dev/null || (echo "pre-commit is not installed" && exit 1)
+      - which addlicense 1>/dev/null || (echo "addlicense is not installed" && exit 1)
+      - which svu 1>/dev/null || (echo "svu is not installed" && exit 1)
+      - which goreleaser 1>/dev/null || (echo "goreleaser is not installed" && exit 1)
+
+  docs:
+    desc: Start documentation server
+    cmds:
+      - "{{.DOCKER}} run --rm -it -p 8000:8000 -v $PWD:/docs:ro --pull=always squidfunk/mkdocs-material"
+
+  license-header:
+    desc: Add license header to all files
+    cmds:
+      - |
+        addlicense -c "Tim <tbckr>" -l MIT -s -v \
+        -ignore "dist/**" \
+        -ignore ".idea/**" \
+        -ignore ".task/**" \
+        -ignore ".github/licenses.tmpl" \
+        -ignore "licenses/*" \
+        -ignore "venv/*" \
+        .
+
+  clean:
+    desc: Clean up
+    cmds:
+      - rm -rf dist/
+      - rm -rf coverage.txt
+      - rm -rf trident
+
+  prepare:
+    desc: Install dependencies
+    cmds:
+      - go mod tidy
+
+  build:
+    desc: Build the binary
+    sources:
+      - ./**/*.go
+    generates:
+      - ./trident
+    cmds:
+      - go build -o trident cmd/trident/main.go
+
+  test:
+    desc: Run tests
+    env:
+      LC_ALL: C
+    vars:
+      TEST_OPTIONS: '{{default "" .TEST_OPTIONS}}'
+      SOURCE_FILES: '{{default "./..." .SOURCE_FILES}}'
+      TEST_PATTERN: '{{default "." .TEST_PATTERN}}'
+    cmds:
+      - go test {{.TEST_OPTIONS}} -failfast -race -coverpkg=./... -covermode=atomic -coverprofile=coverage.txt {{.SOURCE_FILES}} -run {{.TEST_PATTERN}} -timeout=5m
+
+  cover:
+    desc: Open the cover tool
+    cmds:
+      - go tool cover -html=coverage.txt
+
+  fmt:
+    desc: gofumpt all code
+    cmds:
+      - gofumpt -w -l .
+
+  lint:
+    desc: Lint the code
+    cmds:
+      - task: lint:go
+
+  lint:go:
+    desc: Lint the code with golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  ci:
+    desc: Run all CI steps
+    cmds:
+      - task: setup
+      - task: build
+      - task: test
+
+  default:
+    desc: Runs the default tasks
+    cmds:
+      - task: ci
+
+  renovate:debug:
+    desc: Run the current renovate configuration in debug mode
+    vars:
+      Repo:
+        sh: git remote get-url origin | cut -d':' -f2 | sed 's/\.git//'
+    cmds:
+      - docker run --rm -v $(pwd):/usr/src/app:ro -e LOG_LEVEL=debug -e RENOVATE_CONFIG_FILE=renovate.json -e RENOVATE_TOKEN=${GITHUB_TOKEN} renovate/renovate:35 --dry-run {{.Repo}}

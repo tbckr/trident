@@ -1,0 +1,113 @@
+# Copyright (c) 2023 Tim <tbckr>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+name: release-please
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+
+permissions: { }
+
+concurrency:
+  group: ${{ github.workflow }}-$${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/create-github-app-token@49ce228ea7cddec9f88dd09c5b7740dbac82d7ba # v1
+        id: generate_token
+        with:
+          app_id: ${{ secrets.AUTOMATION_APP_ID }}
+          private_key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+
+      - uses: google-github-actions/release-please-action@ca6063f4ed81b55db15b8c42d1b6f7925866342d # v3
+        id: release
+        with:
+          command: manifest
+          token: ${{ steps.generate_token.outputs.token }}
+          default-branch: main
+
+      # Checkout repo
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          fetch-depth: 0
+      - run: git fetch --force --tags
+        if: ${{ steps.release.outputs.release_created }}
+
+      # Install necessary tools
+      - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          go-version: '>=1.21.1'
+          cache: true
+      - uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3
+        if: ${{ steps.release.outputs.release_created }}
+      - uses: anchore/sbom-action/download-syft@78fc58e266e87a38d4194b2137a3d4e9bcaf7ca1 # v0.14.3
+        if: ${{ steps.release.outputs.release_created }}
+
+      # Login to ghcr.io
+      - uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Release with goreleaser
+      - uses: goreleaser/goreleaser-action@7ec5c2b0c6cdda6e8bbb49444bc797dd33d74dd8 # v5
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+
+      # Update release PR
+      - uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          github-token: ${{ steps.generate_token.outputs.token }}
+          script: |
+            github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.release.outputs.pr }},
+              name: 'autorelease: tagged'
+            });
+
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.release.outputs.pr }},
+              labels: ['autorelease: published']
+            });

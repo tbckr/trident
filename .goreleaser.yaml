@@ -1,0 +1,331 @@
+# Copyright (c) 2023 Tim <tbckr>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+    - ./scripts/completions.sh
+    - ./scripts/manpages.sh
+
+env:
+  - GITHUB_USER=tbckr
+  - GITHUB_REPO=tbckr/trident
+  - IMAGE_NAME=ghcr.io/tbckr/trident
+#   - SCOOP_BUCKET=scoop-bucket
+#   - HOMEBREW_TAP=homebrew-tap
+
+gomod:
+  proxy: true
+  env:
+    - GOPROXY=https://proxy.golang.org,direct
+    - GOSUMDB=sum.golang.org
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    main: ./cmd/trident
+    binary: trident
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - "386"
+      - "amd64"
+      - "arm"
+      - "arm64"
+    goarm:
+      - 7
+    ignore:
+      - goos: windows
+        goarch: arm
+    ldflags:
+      - -X 'github.com/tbckr/trident/internal/buildinfo.version={{.Version}}'
+      - -X 'github.com/tbckr/trident/internal/buildinfo.commit={{.Commit}}'
+      - -X 'github.com/tbckr/trident/internal/buildinfo.commitDate={{.CommitDate}}'
+
+release:
+  github:
+    owner: tbckr
+    name: trident
+  mode: keep-existing
+
+archives:
+  - format: tar.gz
+    # this name template makes the OS and Arch compatible with the results of uname.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
+    format_overrides:
+    - goos: windows
+      format: zip
+    files:
+      - README.md
+      - LICENSE.md
+      - completions/*
+      - manpages/*
+
+sboms:
+  - artifacts: archive
+
+dockers:
+  -
+    id: "linux-amd64"
+    goos: linux
+    goarch: amd64
+    use: buildx
+    dockerfile: "Dockerfile.goreleaser"
+    image_templates:
+    - "{{.Env.IMAGE_NAME}}:latest-amd64"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}-amd64"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}-amd64"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}.{{.Patch}}-amd64"
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--platform=linux/amd64"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.description={{ .ProjectName }}"
+    - "--label=org.opencontainers.image.url=https://github.com/tbckr/{{ .ProjectName }}"
+    - "--label=org.opencontainers.image.source=https://github.com/tbckr/{{ .ProjectName }}"
+    - "--label=org.opencontainers.image.licenses=MIT"
+  -
+    id: "linux-arm64"
+    goos: linux
+    goarch: arm64
+    use: buildx
+    dockerfile: "Dockerfile.goreleaser"
+    image_templates:
+    - "{{.Env.IMAGE_NAME}}:latest-arm64"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}-arm64"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}-arm64"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}.{{.Patch}}-arm64"
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--platform=linux/arm64"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.description={{ .ProjectName }}"
+    - "--label=org.opencontainers.image.url=https://github.com/tbckr/{{ .ProjectName }}"
+    - "--label=org.opencontainers.image.source=https://github.com/tbckr/{{ .ProjectName }}"
+    - "--label=org.opencontainers.image.licenses=MIT"
+  -
+    id: "linux-armv7"
+    goos: linux
+    goarch: arm
+    goarm: 7
+    use: buildx
+    dockerfile: "Dockerfile.goreleaser"
+    image_templates:
+    - "{{.Env.IMAGE_NAME}}:latest-armv7"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}-armv7"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}-armv7"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}.{{.Patch}}-armv7"
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--platform=linux/arm64"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.description={{ .ProjectName }}"
+    - "--label=org.opencontainers.image.url=https://github.com/tbckr/{{ .ProjectName }}"
+    - "--label=org.opencontainers.image.source=https://github.com/tbckr/{{ .ProjectName }}"
+    - "--label=org.opencontainers.image.licenses=MIT"
+  -
+    id: "linux-386"
+    goos: linux
+    goarch: 386
+    use: buildx
+    dockerfile: "Dockerfile.goreleaser"
+    image_templates:
+    - "{{.Env.IMAGE_NAME}}:latest-386"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}-386"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}-386"
+    - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}.{{.Patch}}-386"
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--platform=linux/arm64"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.description={{ .ProjectName }}"
+    - "--label=org.opencontainers.image.url=https://github.com/tbckr/{{ .ProjectName }}"
+    - "--label=org.opencontainers.image.source=https://github.com/tbckr/{{ .ProjectName }}"
+    - "--label=org.opencontainers.image.licenses=MIT"
+
+docker_manifests:
+- name_template: "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}.{{.Patch}}"
+  image_templates:
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}.{{.Patch}}-amd64"
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}.{{.Patch}}-arm64"
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}.{{.Patch}}-armv7"
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}.{{.Patch}}-386"
+- name_template: "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}"
+  image_templates:
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}-amd64"
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}-arm64"
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}-armv7"
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}.{{.Minor}}-386"
+- name_template: "{{.Env.IMAGE_NAME}}:{{ .Major }}"
+  image_templates:
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}-amd64"
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}-arm64"
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}-armv7"
+  - "{{.Env.IMAGE_NAME}}:{{ .Major }}-386"
+- name_template: "{{.Env.IMAGE_NAME}}:latest"
+  image_templates:
+  - "{{.Env.IMAGE_NAME}}:latest-amd64"
+  - "{{.Env.IMAGE_NAME}}:latest-arm64"
+  - "{{.Env.IMAGE_NAME}}:latest-armv7"
+  - "{{.Env.IMAGE_NAME}}:latest-386"
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: Dependency updates
+      regexp: '^.*?(feat|fix)\(deps\)!?:.+$'
+      order: 300
+    - title: 'New Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 100
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 200
+    - title: 'Documentation updates'
+      regexp: ^.*?doc(\([[:word:]]+\))??!?:.+$
+      order: 400
+    - title: 'Build process updates'
+      regexp: ^.*?build(\([[:word:]]+\))??!?:.+$
+      order: 400
+    - title: Other work
+      order: 9999
+
+nfpms:
+  - file_name_template: '{{ .ConventionalFileName }}'
+    id: packages
+    description: |-
+     SGPT is a command-line tool that provides a convenient way to interact with OpenAI models,
+     enabling users to run queries, generate shell commands, produce code,
+     and create images from text directly from the terminal.
+    maintainer: tbckr
+    license: MIT
+    vendor: TRIDENT
+    bindir: /usr/bin
+    section: utils
+    contents:
+      - src: ./completions/trident.bash
+        dst: /usr/share/bash-completion/completions/trident
+        file_info:
+          mode: 0644
+      - src: ./completions/trident.fish
+        dst: /usr/share/fish/vendor_completions.d/trident.fish
+        file_info:
+          mode: 0644
+      - src: ./completions/trident.zsh
+        dst:  /usr/share/zsh/vendor-completions/_trident
+        file_info:
+          mode: 0644
+      - src: ./manpages/trident.1.gz
+        dst: /usr/share/man/man1/trident.1.gz
+        file_info:
+          mode: 0644
+      - src: ./LICENSE.md
+        dst: /usr/share/doc/trident/copyright
+        file_info:
+          mode: 0644
+    formats:
+    - deb
+    - rpm
+    - archlinux
+    - apk
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+
+scoops:
+  - repository:
+      owner: "{{ .Env.GITHUB_USER }}"
+      name: "{{ .Env.SCOOP_BUCKET }}"
+      token: "{{ .Env.SCOOP_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: "tbckr-automation[bot]"
+      email: "gh-automation@tb5.dev"
+    commit_msg_template: "chore: Scoop update for {{ .ProjectName }} version {{ .Tag }}"
+    description: |-
+     trident
+    license: MIT
+
+brews:
+  - repository:
+      owner: "{{ .Env.GITHUB_USER }}"
+      name: "{{ .Env.HOMEBREW_TAP }}"
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: "tbckr-automation[bot]"
+      email: "gh-automation@tb5.dev"
+    commit_msg_template: "chore: Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    folder: Formula
+    description: |-
+     trident
+    license: MIT
+    install: |-
+      bin.install "trident"
+      bash_completion.install "completions/trident.bash" => "trident"
+      zsh_completion.install "completions/trident.zsh" => "_trident"
+      fish_completion.install "completions/trident.fish"
+      man1.install "manpages/trident.1.gz"
+
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj

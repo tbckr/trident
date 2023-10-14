@@ -1,0 +1,82 @@
+# Copyright (c) 2023 Tim <tbckr>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+default_language_version:
+  # force all unspecified python hooks to run python3
+  python: python3
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-executables-have-shebangs
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.0
+    hooks:
+      - id: gitleaks-docker
+
+  # Text file hooks
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.37.0
+    hooks:
+      - id: markdownlint
+        args:
+          - --config=.mdl_config.yaml
+        files: \.(md|markdown)$
+
+  # GitHub Actions hooks
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.26.3
+    hooks:
+      - id: check-github-workflows
+        files: ^\.github/workflows/.*\.ya?ml$
+
+  - repo: local
+    hooks:
+      - id: license-header
+        name: add license header to files
+        entry: bash -c "task license-header"
+        language: system
+        pass_filenames: false
+      - id: goreleaser
+        name: check goreleaser config
+        entry: bash -c "goreleaser check"
+        language: system
+        files: ^\.goreleaser\.yaml$
+        pass_filenames: false
+      - id: golangci-lint
+        name: golangci-lint
+        description: Fast linters runner for Go.
+        entry: golangci-lint run --new-from-rev HEAD --fix
+        types: [ go ]
+        language: golang
+        require_serial: true
+        pass_filenames: false
+      - id: govulncheck
+        name: govulncheck
+        description: Check for vulnerable dependencies
+        entry: govulncheck ./...
+        types: [ go ]
+        language: golang
+        require_serial: true
+        pass_filenames: false

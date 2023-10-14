@@ -1,0 +1,55 @@
+# Copyright (c) 2023 Tim <tbckr>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+name: Table of Contents Generator
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - '.github/workflows/toc.yml'
+
+permissions: { }
+
+concurrency:
+  group: ${{ github.workflow }}-$${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  generateTOC:
+    name: TOC Generator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@49ce228ea7cddec9f88dd09c5b7740dbac82d7ba # v1
+        id: generate_token
+        with:
+          app_id: ${{ secrets.AUTOMATION_APP_ID }}
+          private_key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+      - name: TOC Generator
+        uses: technote-space/toc-generator@9e238e7974de5fcf7b17b7acc54c896160dda0a3 # v4
+        with:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          COMMIT_NAME: tbckr-automation[bot]
+          COMMIT_EMAIL: gh-automation@tb5.dev
+          TARGET_PATHS: "README.md,CONTRIBUTING.md"

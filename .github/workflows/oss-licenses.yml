@@ -1,0 +1,86 @@
+# Copyright (c) 2023 Tim <tbckr>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+name: oss-licenses
+
+on:
+  # run action when a change lands in the main branch which updates go.mod or
+  # our license template file. Also allow manual triggering.
+  push:
+    branches:
+      - main
+    paths:
+      - go.mod
+      - .github/licenses.tmpl
+      - .github/workflows/oss-licenses.yml
+      - scripts/oss-licenses.sh
+  workflow_dispatch:
+
+permissions: { }
+
+concurrency:
+  group: ${{ github.workflow }}-$${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  update-licenses:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
+
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4
+        with:
+          go-version-file: go.mod
+
+      - name: Install go-licenses
+        run: |
+          go install github.com/google/go-licenses@5348b744d0983d85713295ea08a20cca1654a45e # v1.6.0
+
+      - name: Run go-licenses
+        env:
+          # include all build tags to include platform-specific dependencies
+          GOFLAGS: "-tags=darwin,linux,windows"
+        run: |
+          ./scripts/oss-licenses.sh
+
+      - uses: actions/create-github-app-token@49ce228ea7cddec9f88dd09c5b7740dbac82d7ba # v1
+        id: generate_token
+        with:
+          app_id: ${{ secrets.AUTOMATION_APP_ID }}
+          private_key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+
+      - name: Send pull request
+        uses: peter-evans/create-pull-request@153407881ec5c347639a548ade7d8ad1d6740e38 # v5.0.2
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          author: tbckr-automation[bot] <gh-automation@tb5.dev>
+          committer: tbckr-automation[bot] <gh-automation@tb5.dev>
+          branch: licenses/oss-licenses
+          commit-message: "chore(licenses): update oss licenses"
+          title: "licenses: update oss licenses"
+          body: Triggered by ${{ github.repository }}@${{ github.sha }}
+          signoff: true
+          delete-branch: true
+          reviewers: tbckr

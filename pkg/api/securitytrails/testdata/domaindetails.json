@@ -1,0 +1,221 @@
+{
+  "alexa_rank": 371,
+  "apex_domain": "oracle.com",
+  "current_dns": {
+    "a": {
+      "first_seen": "2023-07-27",
+      "values": [
+        {
+          "h": null,
+          "ip": "147.154.26.35",
+          "ip_count": 1,
+          "ip_organization": "Oracle Corporation"
+        }
+      ]
+    },
+    "aaaa": {},
+    "mx": {
+      "first_seen": "2021-07-02",
+      "values": [
+        {
+          "hostname": "mxb-00069f01.gslb.pphosted.com",
+          "hostname_count": 85,
+          "hostname_organization": "Proofpoint, Inc.",
+          "priority": 20
+        },
+        {
+          "hostname": "mxa-00069f01.gslb.pphosted.com",
+          "hostname_count": 85,
+          "hostname_organization": "Proofpoint, Inc.",
+          "priority": 20
+        }
+      ]
+    },
+    "ns": {
+      "first_seen": "2022-08-14",
+      "values": [
+        {
+          "nameserver": "ns4.p04.dynect.net",
+          "nameserver_count": 4773,
+          "nameserver_organization": "Oracle Corporation"
+        },
+        {
+          "nameserver": "ns3.p04.dynect.net",
+          "nameserver_count": 4848,
+          "nameserver_organization": "Oracle Corporation"
+        },
+        {
+          "nameserver": "ns2.p04.dynect.net",
+          "nameserver_count": 4845,
+          "nameserver_organization": null
+        },
+        {
+          "nameserver": "ns1.p04.dynect.net",
+          "nameserver_count": 4871,
+          "nameserver_organization": "Oracle Corporation"
+        },
+        {
+          "nameserver": "a18-67.akam.net",
+          "nameserver_count": 4796,
+          "nameserver_organization": "Akamai International B.V."
+        },
+        {
+          "nameserver": "a13-65.akam.net",
+          "nameserver_count": 7730,
+          "nameserver_organization": "Akamai International B.V."
+        },
+        {
+          "nameserver": "a11-66.akam.net",
+          "nameserver_count": 15116,
+          "nameserver_organization": "Akamai International B.V."
+        },
+        {
+          "nameserver": "a1-160.akam.net",
+          "nameserver_count": 2229,
+          "nameserver_organization": "Akamai International B.V."
+        }
+      ]
+    },
+    "soa": {
+      "first_seen": "2018-09-10",
+      "values": [
+        {
+          "email": "hostmaster.oracle.com",
+          "email_count": 2852,
+          "ttl": 7200
+        }
+      ]
+    },
+    "txt": {
+      "first_seen": "2023-10-13",
+      "values": [
+        {
+          "value": "zoom-domain-verification = 31c4caad-f2b3-4ef8-8d92-26df2e836f3e"
+        },
+        {
+          "value": "zoom-domain-verification\n=\n31c4caad-f2b3-4ef8-8d92-26df2e836f3e"
+        },
+        {
+          "value": "yandex-verification: 4f894a8e737184e9"
+        },
+        {
+          "value": "webexdomainverification.LSOJ=4b3a4ca8-7b0a-4bbc-8816-686e1bb4ddf7"
+        },
+        {
+          "value": "webexdomainverification.LSOE=4e1c3c86-abf0-4902-8a84-b34420ef075c"
+        },
+        {
+          "value": "webexdomainverification.JRJC=6ac35490-0c1a-4729-b3fc-78a568159417"
+        },
+        {
+          "value": "webexdomainverification.JRGF=35895e43-87ca-4bdf-8feb-b7a0e22694f3"
+        },
+        {
+          "value": "webexdomainverification.JM3I=c1caad11-9eb5-4c76-877d-06dcfcb95db3"
+        },
+        {
+          "value": "webexdomainverification.JIOB=3bc19d00-8f37-45bd-9799-e8ffa9c77306"
+        },
+        {
+          "value": "webexdomainverification.HO6U=eeb397a4-2b0c-4475-ae07-56dfc4507757"
+        },
+        {
+          "value": "webexdomainverification.F00R=81ccb499-274a-447d-a54a-934bb0dafec4"
+        },
+        {
+          "value": "webexdomainverification.=e86664eb-38ad-46f7-aa1a-60203dfca9a0"
+        },
+        {
+          "value": "webexdomainverification.=d729667e-36b8-4d4a-bbb7-0f3069025573"
+        },
+        {
+          "value": "webexdomainverification.=d3071182-7ce2-4cb6-b315-90e9b7f866dc"
+        },
+        {
+          "value": "webexdomainverification.=cfeaa219-cb2c-458e-baea-d24703ba2355"
+        },
+        {
+          "value": "webexdomainverification.=bbd0294a-bc53-46f4-b21c-8dfab1cb7666"
+        },
+        {
+          "value": "webexdomainverification.=a3652afd-f531-4076-9a45-1e184df3a2d6"
+        },
+        {
+          "value": "webexdomainverification.=6d066ca0-8f37-48c6-8a96-1909343f9c23"
+        },
+        {
+          "value": "webexdomainverification.=603d007e-3304-48a2-b9bc-c8d22b669304"
+        },
+        {
+          "value": "webexdomainverification.=5c0fd5af-2fff-48d7-a138-10711dd460bb"
+        },
+        {
+          "value": "webexdomainverification.=2f927290-1d5f-4df2-b1bb-bbb71bea85a9"
+        },
+        {
+          "value": "webexdomainverification.=21e2aa9c-745f-4388-a31f-eac4f6c16444"
+        },
+        {
+          "value": "webexdomainverification.=1f146848-946a-45a1-b021-4b3d4ef924d6"
+        },
+        {
+          "value": "webexdomainverification.=04ce0c34-7d39-41dd-a3ba-627a30cd205c"
+        },
+        {
+          "value": "v=spf1 include:spf_s.oracle.com include:spf_r.oracle.com include:spf_c.oraclecloud.com include:spf_x.oracle.com include:spf_z.oracle.com include:stspg-customer.com ~all"
+        },
+        {
+          "value": "google-site-verification=Tpoo3Bhw4cI4JjPp4v2RZz3JzSNkYg98yPwOLanQ2gI"
+        },
+        {
+          "value": "google-site-verification=RzPlMxOfod0eiMchm-MP3BhdhPgDHzL2mE_mAD91IWg"
+        },
+        {
+          "value": "google-site-verification=IwkBNLXsgiyZ9wUuXa1-PynELZFJlYOduHp7uPcTfdo"
+        },
+        {
+          "value": "docusign=2be17354-8326-4a61-8700-8276a284f7f8"
+        },
+        {
+          "value": "docusign=061e3d77-6c9b-4908-afd2-b2f02c39ecf2"
+        },
+        {
+          "value": "cloudhealth=647661d7-af1e-4696-88b6-eed192d10e56"
+        },
+        {
+          "value": "ciscocidomainverification=1864e14e0478e40197a9f4b07e52f6add508db236b82a10b6aa2df2eac6fe75b"
+        },
+        {
+          "value": "atlassian-domain-verification=xpCgyo81RlS8Nywge8zAU0pqo89fXgqXNsCp9VVSIxP2j0Z9sthcjZbygEUlocRy"
+        },
+        {
+          "value": "atlassian-domain-verification=dKssjBiaoCdxRMWHZE/bBDYu4Wh4oJ6P6tJ/jxDKM37grHev0Qa5eWhnuAi1lJfJ"
+        },
+        {
+          "value": "amazonses:w4vl+NQAMony+agN9mt8H5MV4isrTCU3iFGSFSmgs7E="
+        },
+        {
+          "value": "amazonses:rJLKgYvappkvPl76X7w/Eeq6Qdk9AorogfUGE0NB0G8="
+        },
+        {
+          "value": "amazonses:bGS07pWw+FmfvUu4KgJNzF1GIZqr8BJrrqcw7NtMJlI="
+        },
+        {
+          "value": "amazonses:WiyIwuGeeSNOIz7rqmlfP1MfDGCQFLMv4MgUsvcUTWE="
+        },
+        {
+          "value": "adobe-idp-site-verification=897d22d1-bca0-4449-90a4-1ac86c506dcd"
+        },
+        {
+          "value": "MS=ms68450787"
+        },
+        {
+          "value": "5mqsjfm8mpy57x4xwfs8dbfrgx14vhs5"
+        }
+      ]
+    }
+  },
+  "endpoint": "/v1/domain/oracle.com",
+  "hostname": "oracle.com",
+  "subdomain_count": 40645
+}
