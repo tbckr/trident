@@ -1,0 +1,9 @@
+{
+  "release-type": "go",
+  "package-name": "trident",
+  "initial-version": "0.1.0",
+  "skip-github-release": "false",
+  "extra-files": [
+    "internal/buildinfo/version.go"
+  ]
+}
