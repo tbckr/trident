@@ -1,12 +1,11 @@
 # Custom
 /.idea
+/.direnv/
 
 dist/
 manpages/
 completions/
-.task/
 coverage.txt
-
 /trident
 
 ### VisualStudioCode template
