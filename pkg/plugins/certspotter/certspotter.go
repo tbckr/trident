@@ -41,6 +41,7 @@ func (c *CertspotterClient) FetchDomains(ctx context.Context, domain string) ([]
 	var results []CertspotterDomainResult
 	resp, err := c.R().
 		SetSuccessResult(&results).
+		SetContext(ctx).
 		Get(fetchURL)
 	if err != nil {
 		return nil, err
