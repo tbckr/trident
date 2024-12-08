@@ -23,9 +23,6 @@ package cli
 
 import (
 	"context"
-	"github.com/tbckr/trident/cmd/trident/cli/certspotter"
-	"github.com/tbckr/trident/cmd/trident/cli/hackertarget"
-	"github.com/tbckr/trident/cmd/trident/cli/securitytrails"
 	"io"
 	"log/slog"
 	"time"
@@ -33,7 +30,10 @@ import (
 	"github.com/imroc/req/v3"
 	"github.com/spf13/cobra"
 	"github.com/tbckr/trident/cmd/trident/cli/bracket"
+	"github.com/tbckr/trident/cmd/trident/cli/certspotter"
 	"github.com/tbckr/trident/cmd/trident/cli/crtsh"
+	"github.com/tbckr/trident/cmd/trident/cli/hackertarget"
+	"github.com/tbckr/trident/cmd/trident/cli/securitytrails"
 	"github.com/tbckr/trident/cmd/trident/cli/unbracket"
 	"github.com/tbckr/trident/pkg/cli"
 	"github.com/tbckr/trident/pkg/client"
@@ -152,6 +152,11 @@ func NewRootCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, 
 		return nil, err
 	}
 	viperConfig.SetDefault(config.ConfigKeyDisableDomainBrackets, false)
+
+	// Configure env mappings
+	if err := viperConfig.BindEnv(config.ConfigKeySecurityTrailsApiKey, "SECURITYTRAILS_API_KEY"); err != nil {
+		return nil, err
+	}
 
 	// Add Subcommands
 	cmd.AddCommand(

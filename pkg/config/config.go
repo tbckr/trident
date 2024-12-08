@@ -23,19 +23,27 @@ package config
 
 import (
 	"errors"
-	"github.com/spf13/viper"
-	"github.com/tbckr/trident/pkg/pap"
 	"os"
 	"path/filepath"
+
+	"github.com/spf13/viper"
+	"github.com/tbckr/trident/pkg/pap"
 )
 
 const (
 	appName               = "trident"
 	defaultDirPermissions = 0755
-	defaultConfig         = ``
 
+	// App specific keys
 	ConfigKeyPapLevel              = "papLevel"
 	ConfigKeyDisableDomainBrackets = "disableDomainBrackets"
+
+	// Plugin specific keys
+	ConfigKeySecurityTrailsApiKey = "securitytrails.apiKey"
+)
+
+var (
+	ErrApiKeyNotSet = errors.New("API key not set")
 )
 
 type Config struct {
@@ -100,4 +108,13 @@ func (c *Config) GetEnvironmentPapLevel() (pap.PapLevel, error) {
 func (c *Config) GetDisableDomainBrackets() bool {
 	// No check, because the default value is false
 	return c.GetBool(ConfigKeyDisableDomainBrackets)
+}
+
+func (c *Config) GetSecurityTrailsApiKey() (string, error) {
+	if !c.IsSet(ConfigKeySecurityTrailsApiKey) {
+		return "", &ApiKeyNotSetError{
+			Plugin: "SecurityTrails",
+		}
+	}
+	return c.GetString(ConfigKeySecurityTrailsApiKey), nil
 }

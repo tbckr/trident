@@ -7,8 +7,6 @@ import (
 )
 
 const (
-	source = "securitytrails"
-
 	baseURL = "https://api.securitytrails.com/v1"
 )
 
@@ -69,32 +67,22 @@ func (c *SecurityTrailsClient) Ping() (bool, error) {
 	return resp.StatusCode == 200, nil
 }
 
-func (c *SecurityTrailsClient) Subdomains(ctx context.Context, domain string, subdomainsOnly, includeInactive bool) (resp SubdomainResponse, err error) {
-	var r *req.Response
-	r, err = c.R().
+func (c *SecurityTrailsClient) GetSubdomains(ctx context.Context, domain string, subdomainsOnly, includeInactive bool) (resp SubdomainResponse, err error) {
+	_, err = c.R().
 		SetContext(ctx).
 		SetPathParam("hostname", domain).
 		SetQueryParam("children_only", fmt.Sprintf("%t", subdomainsOnly)).
 		SetQueryParam("include_inactive", fmt.Sprintf("%t", includeInactive)).
 		SetSuccessResult(&resp).
 		Get("/domain/{hostname}/subdomains")
-	if err != nil {
-		return
-	}
-	defer r.Body.Close()
 	return
 }
 
-func (c *SecurityTrailsClient) DomainDetails(ctx context.Context, domain string) (resp DomainDetailsResponse, err error) {
-	var r *req.Response
-	r, err = c.R().
+func (c *SecurityTrailsClient) GetDomainDetails(ctx context.Context, domain string) (resp DomainDetailsResponse, err error) {
+	_, err = c.R().
 		SetContext(ctx).
 		SetPathParam("hostname", domain).
 		SetSuccessResult(&resp).
 		Get("/domain/{hostname}")
-	if err != nil {
-		return
-	}
-	defer r.Body.Close()
 	return
 }
