@@ -23,6 +23,7 @@ package cli
 
 import (
 	"context"
+	"github.com/tbckr/trident/cmd/trident/cli/certspotter"
 	"io"
 	"log/slog"
 	"time"
@@ -155,6 +156,7 @@ func NewRootCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, 
 		bracket.NewBracketCmd().Cmd,
 		unbracket.NewBracketCmd().Cmd,
 		crtsh.NewCrtShCmd(viperConfig, reqClient).Cmd,
+		certspotter.NewCertspotterCmd(viperConfig, reqClient).Cmd,
 	)
 
 	root.Cmd = cmd
