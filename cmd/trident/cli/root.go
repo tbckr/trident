@@ -25,6 +25,7 @@ import (
 	"context"
 	"github.com/tbckr/trident/cmd/trident/cli/certspotter"
 	"github.com/tbckr/trident/cmd/trident/cli/hackertarget"
+	"github.com/tbckr/trident/cmd/trident/cli/securitytrails"
 	"io"
 	"log/slog"
 	"time"
@@ -159,6 +160,7 @@ func NewRootCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, 
 		crtsh.NewCrtShCmd(viperConfig, reqClient).Cmd,
 		certspotter.NewCertspotterCmd(viperConfig, reqClient).Cmd,
 		hackertarget.NewHackerTargetCmd(viperConfig, reqClient).Cmd,
+		securitytrails.NewSecurityTrailsCmd(viperConfig, reqClient).Cmd,
 	)
 
 	root.Cmd = cmd

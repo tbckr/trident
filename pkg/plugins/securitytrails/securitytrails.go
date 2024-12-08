@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/imroc/req/v3"
-	"log/slog"
 )
 
 const (
@@ -98,23 +97,4 @@ func (c *SecurityTrailsClient) DomainDetails(ctx context.Context, domain string)
 	}
 	defer r.Body.Close()
 	return
-}
-
-func (c *SecurityTrailsClient) FetchDomains(ctx context.Context, domain string) ([]string, error) {
-	slog.Debug("Fetching domains",
-		"source", source,
-		"domain", domain,
-	)
-
-	resp, err := c.Subdomains(ctx, domain, false, true) // TODO make this configurable via parameters
-	if err != nil {
-		return nil, err
-	}
-
-	slog.Debug("Retrieved domains",
-		"source", source,
-		"domain", domain,
-		"count", resp.SubdomainCount,
-	)
-	return resp.Subdomains, nil
 }
