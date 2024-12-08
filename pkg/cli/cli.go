@@ -128,7 +128,9 @@ func DomainFetcherCliCommand(cmd *cobra.Command, args []string, viperConfig *con
 				d = opsec.BracketDomain(d)
 			}
 			_, err = fmt.Fprintln(cmd.OutOrStdout(), d)
-			return err
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
