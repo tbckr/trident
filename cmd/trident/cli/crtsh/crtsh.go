@@ -67,7 +67,10 @@ Fetch domains from crt.sh`,
 
 func newDomainCmd(viperConfig *config.Config, reqClient *req.Client) *DomainCmd {
 	cmdStruct := &DomainCmd{
-		opts: client.DomainFetcherOptions{},
+		opts: client.DomainFetcherOptions{
+			OnlyUnique:     false,
+			OnlySubdomains: false,
+		},
 	}
 	cmd := &cobra.Command{
 		Use:     "domain [domains...]",

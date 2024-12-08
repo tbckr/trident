@@ -46,7 +46,10 @@ Fetch domains from certspotter`,
 
 func newDomainCmd(viperConfig *config.Config, reqClient *req.Client) *DomainCmd {
 	cmdStruct := &DomainCmd{
-		opts: client.DomainFetcherOptions{},
+		opts: client.DomainFetcherOptions{
+			OnlyUnique:     false,
+			OnlySubdomains: false,
+		},
 	}
 	cmd := &cobra.Command{
 		Use:     "domain [domains...]",
@@ -62,7 +65,7 @@ Fetch domains from certspotter`,
 			return cli.DomainFetcherCliCommand(cmd, args, viperConfig, certspotter.NewCertspotterClient(reqClient), cmdStruct.opts)
 		},
 	}
-	
+
 	cmd.Flags().BoolVarP(&cmdStruct.opts.OnlyUnique, "only-unique", "u", false, "Only unique domains")
 	cmd.Flags().BoolVarP(&cmdStruct.opts.OnlySubdomains, "only-subdomains", "s", false, "Only subdomains")
 
