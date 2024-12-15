@@ -22,5 +22,6 @@
 package cli
 
 const (
-	GroupPlugins = "plugins"
+	GroupPlugins     = "plugins"
+	GroupAggregators = "aggregators"
 )

@@ -32,6 +32,7 @@ import (
 	"github.com/tbckr/trident/cmd/trident/cli/bracket"
 	"github.com/tbckr/trident/cmd/trident/cli/certspotter"
 	"github.com/tbckr/trident/cmd/trident/cli/crtsh"
+	"github.com/tbckr/trident/cmd/trident/cli/describe"
 	"github.com/tbckr/trident/cmd/trident/cli/hackertarget"
 	"github.com/tbckr/trident/cmd/trident/cli/securitytrails"
 	"github.com/tbckr/trident/cmd/trident/cli/unbracket"
@@ -128,6 +129,11 @@ func NewRootCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, 
 		Title: "Plugin Commands",
 	}
 	cmd.AddGroup(pluginsGroup)
+	aggregatorsGroup := &cobra.Group{
+		ID:    cli.GroupAggregators,
+		Title: "Aggregate Commands",
+	}
+	cmd.AddGroup(aggregatorsGroup)
 
 	// verbosity level
 	cmd.PersistentFlags().BoolVarP(&root.verbose, "verbose", "v", false,
@@ -166,6 +172,7 @@ func NewRootCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, 
 		certspotter.NewCertspotterCmd(viperConfig, reqClient).Cmd,
 		hackertarget.NewHackerTargetCmd(viperConfig, reqClient).Cmd,
 		securitytrails.NewSecurityTrailsCmd(viperConfig, reqClient).Cmd,
+		describe.NewDescribeCmd(viperConfig, reqClient).Cmd,
 	)
 
 	root.Cmd = cmd

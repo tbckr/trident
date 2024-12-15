@@ -89,7 +89,6 @@ func run(cmd *cobra.Command, args []string, viperConfig *config.Config, reqClien
 		}
 	}
 	return nil
-
 }
 
 func newDomainCmd(viperConfig *config.Config, reqClient *req.Client) *DomainCmd {
@@ -105,6 +104,7 @@ Fetch domain information from securitytrails`,
 		DisableFlagsInUseLine: true,
 		PreRunE:               cli.PapPreRunCheck(viperConfig, pap.LevelAmber),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// TODO do we want to support multiple domains?
 			return run(cmd, args, viperConfig, reqClient, func(environmentPapLevel pap.PapLevel, client *plugin.SecurityTrailsClient, domain string) error {
 				// Query domain details
 				resp, err := client.GetDomainDetails(cmd.Context(), domain)

@@ -1,5 +1,11 @@
 package report
 
+type DomainDescriptionReport struct {
+	ApexDomain DomainReport
+	HostDomain DomainReport
+	Subdomains []string
+}
+
 type DomainReport struct {
 	Hostname     string
 	ApexDomain   string

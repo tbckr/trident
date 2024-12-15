@@ -8,6 +8,7 @@ import (
 	"github.com/tbckr/trident/pkg/report"
 )
 
+// TODO adapt this template to domain descriptions or create a new one
 const tmpl = `Hostname:{{ tab }}{{ .Hostname }}
 {{ if .ApexDomain }}Apex Domain:{{ tab }}{{ .ApexDomain }}{{ end }}
 {{- if .AlexaRank }}Alexa Rank:{{ tab }}{{ .AlexaRank }}{{ end }}
@@ -69,6 +70,21 @@ func customFuncs() template.FuncMap {
 func (w *Writer) WriteDomainReport(out io.Writer, domainReport report.DomainReport) error {
 	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	data := domainReport
+	err := w.t.Execute(tw, data)
+	if err != nil {
+		return err
+	}
+	err = tw.Flush()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// TODO refactor this function to use the same template as WriteDomainReport
+func (w *Writer) WriteDomainDescriptionReport(stdout io.Writer, description report.DomainDescriptionReport) error {
+	tw := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
+	data := description
 	err := w.t.Execute(tw, data)
 	if err != nil {
 		return err
