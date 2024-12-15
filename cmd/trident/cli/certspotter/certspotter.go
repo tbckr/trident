@@ -14,7 +14,7 @@ type CertspotterCmd struct {
 	Cmd *cobra.Command
 }
 
-type DomainCmd struct {
+type SubdomainCmd struct {
 	Cmd *cobra.Command
 
 	opts client.DomainFetcherOptions
@@ -37,27 +37,27 @@ Fetch domains from certspotter`,
 	}
 
 	cmd.AddCommand(
-		newDomainCmd(viperConfig, reqClient).Cmd,
+		newSubdomainCmd(viperConfig, reqClient).Cmd,
 	)
 
 	cmdStruct.Cmd = cmd
 	return cmdStruct
 }
 
-func newDomainCmd(viperConfig *config.Config, reqClient *req.Client) *DomainCmd {
-	cmdStruct := &DomainCmd{
+func newSubdomainCmd(viperConfig *config.Config, reqClient *req.Client) *SubdomainCmd {
+	cmdStruct := &SubdomainCmd{
 		opts: client.DomainFetcherOptions{
 			OnlyUnique:     false,
 			OnlySubdomains: false,
 		},
 	}
 	cmd := &cobra.Command{
-		Use:     "domain [domains...]",
-		Aliases: []string{"d", "domains"},
-		Short:   "Fetch domains from certspotter",
+		Use:     "subdomain [domains...]",
+		Aliases: []string{"s", "subdomains"},
+		Short:   "Fetch subdomains from certspotter",
 		Long: `PAP Level: AMBER
 
-Fetch domains from certspotter`,
+Fetch subdomains for provided domains from certspotter`,
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		PreRunE:               cli.PapPreRunCheck(viperConfig, pap.LevelAmber),
