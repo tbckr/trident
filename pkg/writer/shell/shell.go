@@ -16,6 +16,31 @@ const tmpl = `Hostname:{{ tab }}{{ .Hostname }}
 {{ if eq $index 0 }}A Records:{{ end }}{{ tab }}{{ $val.IP }}{{ with $val.Organization }}{{ tab }}{{ . }}{{ end }}
 {{- end }}
 {{- end }}
+{{- if .RecordReport.AAAA }}
+{{- range $index, $val := .RecordReport.AAAA }}
+{{ if eq $index 0 }}AAAA Records:{{ end }}{{ tab }}{{ $val.IP }}{{ with $val.Organization }}{{ tab }}{{ . }}{{ end }}
+{{- end }}
+{{- end }}
+{{- if .RecordReport.MX }}
+{{- range $index, $val := .RecordReport.MX }}
+{{ if eq $index 0 }}MX Records:{{ end }}{{ tab }}{{ $val.Hostname }}{{ tab }}{{ $val.Priority }}{{ with $val.Organization }}{{ tab }}{{ . }}{{ end }}
+{{- end }}
+{{- end }}
+{{- if .RecordReport.NS }}
+{{- range $index, $val := .RecordReport.NS }}
+{{ if eq $index 0 }}NS Records:{{ end }}{{ tab }}{{ $val.Nameserver }}{{ with $val.Organization }}{{ tab }}{{ . }}{{ end }}
+{{- end }}
+{{- end }}
+{{- if .RecordReport.SOA }}
+{{- range $index, $val := .RecordReport.SOA }}
+{{ if eq $index 0 }}SOA Records:{{ end }}{{ tab }}{{ $val.Email }}{{ tab }}{{ $val.Ttl }}
+{{- end }}
+{{- end }}
+{{- if .RecordReport.TXT }}
+{{- range $index, $val := .RecordReport.TXT }}
+{{ if eq $index 0 }}TXT Records:{{ end }}{{ tab }}{{ $val.Text }}
+{{- end }}
+{{- end }}
 `
 
 type Writer struct {
