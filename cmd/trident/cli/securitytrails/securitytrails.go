@@ -3,17 +3,16 @@ package securitytrails
 import (
 	"bufio"
 	"fmt"
-	"io"
-	"strings"
-	"text/tabwriter"
-
 	"github.com/imroc/req/v3"
 	"github.com/spf13/cobra"
 	"github.com/tbckr/trident/pkg/cli"
 	"github.com/tbckr/trident/pkg/config"
 	"github.com/tbckr/trident/pkg/opsec"
 	"github.com/tbckr/trident/pkg/pap"
-	"github.com/tbckr/trident/pkg/plugins/securitytrails"
+	plugin "github.com/tbckr/trident/pkg/plugins/securitytrails"
+	securitytrailsReport "github.com/tbckr/trident/pkg/report/securitytrails"
+	"github.com/tbckr/trident/pkg/writer/shell"
+	"strings"
 )
 
 type SecurityTrailsCmd struct {
@@ -55,7 +54,7 @@ Fetch data from securitytrails`,
 	return cmdStruct
 }
 
-func run(cmd *cobra.Command, args []string, viperConfig *config.Config, reqClient *req.Client, handler func(environmentPapLevel pap.PapLevel, client *securitytrails.SecurityTrailsClient, domain string) error) error {
+func run(cmd *cobra.Command, args []string, viperConfig *config.Config, reqClient *req.Client, handler func(environmentPapLevel pap.PapLevel, client *plugin.SecurityTrailsClient, domain string) error) error {
 	// Get input
 	input, err := cli.InputFromCli(cmd, args)
 	if err != nil {
@@ -78,7 +77,7 @@ func run(cmd *cobra.Command, args []string, viperConfig *config.Config, reqClien
 	}
 
 	// Build client
-	client := securitytrails.NewSecurityTrailsClient(reqClient, apiKey)
+	client := plugin.NewSecurityTrailsClient(reqClient, apiKey)
 
 	var domain string
 	for sc.Scan() {
@@ -106,86 +105,32 @@ Fetch domain information from securitytrails`,
 		DisableFlagsInUseLine: true,
 		PreRunE:               cli.PapPreRunCheck(viperConfig, pap.LevelAmber),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(cmd, args, viperConfig, reqClient, func(environmentPapLevel pap.PapLevel, client *securitytrails.SecurityTrailsClient, domain string) error {
+			return run(cmd, args, viperConfig, reqClient, func(environmentPapLevel pap.PapLevel, client *plugin.SecurityTrailsClient, domain string) error {
+				// Query domain details
 				resp, err := client.GetDomainDetails(cmd.Context(), domain)
 				if err != nil {
 					return err
 				}
 
-				tw := tabwriter.NewWriter(cmd.OutOrStderr(), 0, 0, 1, ' ', 0)
+				// Generate report
+				rep := securitytrailsReport.GenerateDomainReport(resp, pap.IsEscapeData(environmentPapLevel))
 
-				hostname := resp.Hostname
-				apexDomain := resp.ApexDomain
-				alexaRank := resp.AlexaRank
-				a := resp.CurrentDNS.A.Values
-				aaaa := resp.CurrentDNS.AAAA.Values
-				//mx := resp.CurrentDNS.MX.Values
-				//ns := resp.CurrentDNS.NS.Values
-				//soa := resp.CurrentDNS.SOA.Values
-				//txt := resp.CurrentDNS.TXT.Values
-
-				// Escape, if necessary
-				if pap.IsEscapeData(environmentPapLevel) && !viperConfig.GetDisableDomainBrackets() {
-					hostname = opsec.BracketDomain(hostname)
-					apexDomain = opsec.BracketDomain(apexDomain)
-					for i := range a {
-						a[i]["ip"] = opsec.BracketDomain(a[i]["ip"].(string))
-					}
-					for i := range aaaa {
-						aaaa[i]["ip"] = opsec.BracketDomain(aaaa[i]["ip"].(string))
-					}
-				}
-
-				// Print
-				_, err = fmt.Fprintf(tw, "Hostname:\t%s\n", hostname)
+				// Write report to shell
+				var w *shell.Writer
+				w, err = shell.NewShellWriter()
 				if err != nil {
 					return err
 				}
-				_, err = fmt.Fprintf(tw, "Apex Domain:\t%s\n", apexDomain)
+				err = w.WriteDomainReport(cmd.OutOrStdout(), rep)
 				if err != nil {
 					return err
 				}
-				if alexaRank != 0 {
-					_, err = fmt.Fprintf(tw, "Alexa Rank:\t%d\n", alexaRank)
-					if err != nil {
-						return err
-					}
-				}
-				err = printRecords(tw, "A", a)
-				if err != nil {
-					return err
-				}
-				err = printRecords(tw, "AAAA", aaaa)
-				if err != nil {
-					return err
-				}
-
-				err = tw.Flush()
-				if err != nil {
-					return err
-				}
-
 				return nil
 			})
 		},
 	}
 	cmdStruct.Cmd = cmd
 	return cmdStruct
-}
-
-func printRecords(out io.Writer, prefix string, records []map[string]interface{}) error {
-	for index, record := range records {
-		if index == 0 {
-			prefix = fmt.Sprintf("%s Records:", prefix)
-		} else {
-			prefix = ""
-		}
-		_, err := fmt.Fprintf(out, "%s\t%s\t%s\n", prefix, record["ip"], record["ip_organization"])
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func newSubdomainCmd(viperConfig *config.Config, reqClient *req.Client) *SubdomainCmd {
@@ -201,7 +146,7 @@ Fetch domains from securitytrails`,
 		DisableFlagsInUseLine: true,
 		PreRunE:               cli.PapPreRunCheck(viperConfig, pap.LevelAmber),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(cmd, args, viperConfig, reqClient, func(environmentPapLevel pap.PapLevel, client *securitytrails.SecurityTrailsClient, domain string) error {
+			return run(cmd, args, viperConfig, reqClient, func(environmentPapLevel pap.PapLevel, client *plugin.SecurityTrailsClient, domain string) error {
 				resp, err := client.GetSubdomains(cmd.Context(), domain, cmdStruct.subdomainsOnly, cmdStruct.includeInactive)
 				for _, d := range resp.Subdomains {
 					d = fmt.Sprintf("%s.%s", d, domain)
