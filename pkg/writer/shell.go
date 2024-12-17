@@ -1,4 +1,4 @@
-package shell
+package writer
 
 import (
 	"io"
@@ -9,7 +9,7 @@ import (
 )
 
 // TODO adapt this template to domain descriptions or create a new one
-const tmpl = `Hostname:{{ tab }}{{ .Hostname }}
+const shellTmpl = `Hostname:{{ tab }}{{ .Hostname }}
 {{ if .ApexDomain }}Apex Domain:{{ tab }}{{ .ApexDomain }}{{ end }}
 {{- if .AlexaRank }}Alexa Rank:{{ tab }}{{ .AlexaRank }}{{ end }}
 {{- if .RecordReport.A }}
@@ -44,16 +44,16 @@ const tmpl = `Hostname:{{ tab }}{{ .Hostname }}
 {{- end }}
 `
 
-type Writer struct {
+type ShellWriter struct {
 	t template.Template
 }
 
-func NewShellWriter() (*Writer, error) {
-	t, err := template.New("shell").Funcs(customFuncs()).Parse(tmpl)
+func NewShellWriter() (*ShellWriter, error) {
+	t, err := template.New("shell").Funcs(customFuncs()).Parse(shellTmpl)
 	if err != nil {
 		return nil, err
 	}
-	return &Writer{
+	return &ShellWriter{
 		t: *t,
 	}, nil
 }
@@ -67,7 +67,7 @@ func customFuncs() template.FuncMap {
 	return f
 }
 
-func (w *Writer) WriteDomainReport(out io.Writer, domainReport report.DomainReport) error {
+func (w *ShellWriter) WriteDomainReport(out io.Writer, domainReport report.DomainReport) error {
 	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	data := domainReport
 	err := w.t.Execute(tw, data)
@@ -82,7 +82,7 @@ func (w *Writer) WriteDomainReport(out io.Writer, domainReport report.DomainRepo
 }
 
 // TODO refactor this function to use the same template as WriteDomainReport
-func (w *Writer) WriteDomainDescriptionReport(stdout io.Writer, description report.DomainDescriptionReport) error {
+func (w *ShellWriter) WriteDomainDescriptionReport(stdout io.Writer, description report.DomainDescriptionReport) error {
 	tw := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
 	data := description
 	err := w.t.Execute(tw, data)

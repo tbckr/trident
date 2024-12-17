@@ -1,5 +1,11 @@
 package report
 
+import "context"
+
+type DomainDescriber interface {
+	DescribeDomain(ctx context.Context, domain string) (DomainDescriptionReport, error)
+}
+
 type DomainDescriptionReport struct {
 	ApexDomain DomainReport
 	HostDomain DomainReport
