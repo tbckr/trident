@@ -1,0 +1,34 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_size = 4
+indent_style = space
+insert_final_newline = false
+max_line_length = 120
+tab_width = 4
+
+[*.proto]
+indent_size = 2
+tab_width = 2
+
+[{*.bash,*.sh,*.zsh,.bash_aliases}]
+indent_size = 2
+tab_width = 2
+
+[{*.go,*.go2}]
+indent_style = tab
+
+[{*.har,*.jsb2,*.jsb3,*.json,*.jsonc,*.postman_collection,*.postman_collection.json,*.postman_environment,*.postman_environment.json,.babelrc,.eslintrc,.stylelintrc,.ws-context,jest.config}]
+indent_size = 2
+
+[{*.hcl,*.nomad}]
+indent_size = 2
+
+[{*.pb,*.textproto,*.txtpb}]
+indent_size = 2
+tab_width = 2
+
+[{*.yml,.api-linter.yaml,.mdl_config.yaml,.pre-commit-config.yaml,pubspec.lock,user-data}]
+indent_size = 2
