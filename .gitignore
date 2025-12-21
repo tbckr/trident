@@ -345,3 +345,8 @@ secring.*
 ### Custom
 .ai/
 .idea/
+
+# Trident build artifacts
+dist/
+coverage.out
+coverage.html

@@ -1,0 +1,68 @@
+version: 2
+
+linters-settings:
+  govet:
+    enable-all: true
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 2
+    min-occurrences: 3
+  misspell:
+    locale: US
+  lll:
+    line-length: 140
+  goimports:
+    local-prefixes: github.com/tbckr/trident
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+  funlen:
+    lines: 100
+    statements: 50
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+
+linters:
+  enable:
+    - bodyclose
+    - dupl
+    - errcheck
+    - errorlint
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - goimports
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - nolintlint
+    - staticcheck
+    - stylecheck
+    - unconvert
+    - unparam
+    - unused
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - gocyclo
+        - dupl
+
+run:
+  timeout: 5m
+  tests: true
