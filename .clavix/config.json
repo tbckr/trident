@@ -2,10 +2,8 @@
   "version": "5.8.2",
   "integrations": [
     "agents-md",
-    "gemini",
     "cline",
-    "windsurf",
-    "copilot-instructions"
+    "windsurf"
   ],
   "templates": {
     "prdQuestions": "default",
