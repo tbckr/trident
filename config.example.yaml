@@ -1,0 +1,40 @@
+# Trident Configuration Example
+# Default location: ~/.config/trident/config.yaml
+
+# Proxy configuration
+# Supports HTTP, HTTPS, and SOCKS5
+# For SOCKS5, DNS resolution is performed remotely through the proxy.
+# Example: socks5://127.0.0.1:9050 (Tor)
+proxy: ""
+
+# Custom User-Agent string
+# If empty, Trident uses a rotating list of modern browser User-Agents.
+user_agent: ""
+
+# Permissible Actions Protocol (PAP) limit
+# Enforce a safety limit for all commands.
+# Commands exceeding this level will fail to execute.
+#
+# Levels:
+#   white - Unrestricted (default)
+#   green - Active interaction allowed (e.g., DNS queries)
+#   amber - Passive queries via 3rd party APIs only (e.g., crt.sh, ASN lookup)
+#   red   - Offline/Local analysis only
+#
+# Note: Defanging is automatically enabled for 'amber' and 'red' levels.
+pap_limit: white
+
+# Concurrency control
+# Number of concurrent workers for bulk processing (stdin).
+concurrency: 10
+
+# Output Defanging
+# Explicitly enable or disable indicator defanging (e.g., example[.]com).
+# Overwrites automatic PAP-based defanging if set to true.
+# defang: false
+
+# FUTURE: API Keys for Phase 3 services
+# api_keys:
+#   shodan: "YOUR_KEY_HERE"
+#   censys: "YOUR_KEY_HERE"
+#   virustotal: "YOUR_KEY_HERE"

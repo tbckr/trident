@@ -1,0 +1,21 @@
+- in github actions use go version from module definition
+- problem beim release: goreleaser läuft nur, wenn ich einen tag setze. der soll aber semver sein und den möchte ich nicht manuell erschließen
+- license ist gpl3 und nicht mit
+- config file soll auch im lokalen verzeichnis liegen können und vor der globalen config geladen werden
+- no contributing file
+- cli soll durch str-c abgebrochen werden können
+- du verwendest nicht konsequent DI an allen stellen. du verwendest beispielsweise os.UserHomeDir. das erschwert die tests
+- verwende os.UserConfigDir. achte darauf, dass der ordner für die anwendung auch da sein muss
+- in den integration tests baust du dir das cobra command zusammen. das finde ich nicht gut. da kann mal schnell ein neues command vergessen werden. verbessere das
+- die config sollte im root command über persistent pre run gelesen werden. aktuell zieht sonst nicht das --config flag
+- alle subcommands prüfen nicht das pap level!!!
+- alle subcommands nutzen nicht die output formatters!!!
+- du nutzt den rate limiter gar nicht!!!
+- outputs sollen durch ein globales flag gesetzt werden können!
+- füge ein flag hinzu, um duplikate herauszufiltern
+- die validierung der inputs ziehst du nicht konsequent durch!!!
+- die commands, bei denen http endpoints genutzt werden, wieder holen sich sehr stark. das ist nicht DRY. das muss refactored werden!
+- wir sollten immer eine default config annehmen
+- beim defanging möchte ich für domains und ips nur die letzte ip defangen
+- der rate limiter sollte pro domain bzw. ziel rate limiten! aktuell würde er über alle dienste rate limiten
+- tests müssen vollständig lokal laufen können. das gilt insbesondere für die integration tests. dns und asn müssen dann wahrscheinlich gemocked werden.

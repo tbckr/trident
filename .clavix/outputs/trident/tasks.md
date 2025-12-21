@@ -24,7 +24,7 @@
 
 ## Phase 1: Project Foundation
 
-- [ ] **Initialize Go Module and Project Structure** (ref: PRD §4.1)
+- [x] **Initialize Go Module and Project Structure** (ref: PRD §4.1)
   Task ID: phase-1-foundation-01
   > **Implementation**: Create module structure at project root.
   > **Details**:
@@ -52,7 +52,7 @@
   > - Create .gitignore for Go projects
   > - Ensure cmd/trident/main.go uses the run() pattern from AGENTS.md
 
-- [ ] **Implement main.go with run() Pattern** (ref: PRD §4.4, AGENTS.md)
+- [x] **Implement main.go with run() Pattern** (ref: PRD §4.4, AGENTS.md)
   Task ID: phase-1-foundation-02
   > **Implementation**: Create `cmd/trident/main.go`
   > **Details**:
@@ -71,7 +71,7 @@
   > - Inside run(): Handle signal.NotifyContext for graceful shutdown
   > - No global variables permitted
 
-- [ ] **Create Root Command Constructor** (ref: PRD §4.2, AGENTS.md)
+- [x] **Create Root Command Constructor** (ref: PRD §4.2, AGENTS.md)
   Task ID: phase-1-foundation-03
   > **Implementation**: Create `internal/cmd/root.go`
   > **Details**:
@@ -92,7 +92,7 @@
   > - PersistentPreRunE: Check --verbose flag and call levelVar.Set(slog.LevelDebug)
   > - In run(), bind: rootCmd.SetArgs(), SetIn(), SetOut(), SetErr() before ExecuteContext(ctx)
 
-- [ ] **Implement Configuration Management** (ref: PRD §4.1, §7.3)
+- [x] **Implement Configuration Management** (ref: PRD §4.1, §7.3)
   Task ID: phase-1-foundation-04
   > **Implementation**: Create `internal/config/config.go`
   > **Details**:
@@ -120,7 +120,7 @@
 
 ## Phase 2: Core Infrastructure
 
-- [ ] **Implement HTTP Client Wrapper with Interface** (ref: PRD §4.4)
+- [x] **Implement HTTP Client Wrapper with Interface** (ref: PRD §4.4)
   Task ID: phase-2-infrastructure-01
   > **Implementation**: Create `internal/http/client.go`
   > **Details**:
@@ -140,7 +140,7 @@
   > - Support context cancellation
   > - Interface enables mocking with httpmock in tests
 
-- [ ] **Implement Token Bucket Rate Limiter** (ref: PRD §6.2)
+- [x] **Implement Token Bucket Rate Limiter** (ref: PRD §6.2)
   Task ID: phase-2-infrastructure-02
   > **Implementation**: Create `internal/ratelimit/limiter.go`
   > **Details**:
@@ -155,7 +155,7 @@
   > - Handle HTTP 429 with exponential backoff
   > - Method: `Wait(ctx context.Context) error`
 
-- [ ] **Implement Worker Pool for Concurrency Control** (ref: PRD §6.1)
+- [x] **Implement Worker Pool for Concurrency Control** (ref: PRD §6.1)
   Task ID: phase-2-infrastructure-03
   > **Implementation**: Create `internal/worker/pool.go`
   > **Details**:
@@ -167,7 +167,7 @@
   > - Graceful shutdown on context cancellation
   > - Error aggregation from workers
 
-- [ ] **Implement Input Handler (Stdin + Args)** (ref: PRD §4.3)
+- [x] **Implement Input Handler (Stdin + Args)** (ref: PRD §4.3)
   Task ID: phase-2-infrastructure-04
   > **Implementation**: Create `internal/input/reader.go`
   > **Details**:
@@ -184,7 +184,7 @@
 
 ## Phase 3: Output System
 
-- [ ] **Implement Output Formatters** (ref: PRD §6.4)
+- [x] **Implement Output Formatters** (ref: PRD §6.4)
   Task ID: phase-3-output-01
   > **Implementation**: Create `internal/output/formatter.go`
   > **Details**:
@@ -202,7 +202,7 @@
   > - All formatters must support defanging when enabled
   > - Sanitize ANSI escape sequences to prevent terminal injection
 
-- [ ] **Implement Defanging Logic** (ref: PRD §8.5)
+- [x] **Implement Defanging Logic** (ref: PRD §8.5)
   Task ID: phase-3-output-02
   > **Implementation**: Create `internal/opsec/defang/defang.go`
   > **Details**:
@@ -222,7 +222,7 @@
 
 ## Phase 4: OpSec & Security
 
-- [ ] **Implement PAP Level System** (ref: PRD §8.4)
+- [x] **Implement PAP Level System** (ref: PRD §8.4)
   Task ID: phase-4-opsec-01
   > **Implementation**: Create `internal/opsec/pap/pap.go`
   > **Details**:
@@ -241,7 +241,7 @@
   > - Each service must declare its PAP level
   > - Display PAP level in CLI help and execution logs
 
-- [ ] **Implement User-Agent Rotation** (ref: PRD §8.2)
+- [x] **Implement User-Agent Rotation** (ref: PRD §8.2)
   Task ID: phase-4-opsec-02
   > **Implementation**: Create `internal/opsec/useragent/useragent.go`
   > **Details**:
@@ -254,7 +254,7 @@
   > - Allow override via --user-agent flag
   > - Rotate randomly on each request or session
 
-- [ ] **Implement Proxy Support with DNS Leak Prevention** (ref: PRD §8.1)
+- [x] **Implement Proxy Support with DNS Leak Prevention** (ref: PRD §8.1)
   Task ID: phase-4-opsec-03
   > **Implementation**: Modify `internal/http/client.go`
   > **Details**:
@@ -265,7 +265,7 @@
   > - Log proxy usage at debug level
   > - Ensure all HTTP/HTTPS traffic routes through proxy
 
-- [ ] **Implement Input Validation & Sanitization** (ref: PRD §7.1)
+- [x] **Implement Input Validation & Sanitization** (ref: PRD §7.1)
   Task ID: phase-4-opsec-04
   > **Implementation**: Create `internal/validation/validator.go`
   > **Details**:
@@ -283,7 +283,7 @@
 
 ## Phase 5: Service Implementation (DNS)
 
-- [ ] **Implement DNS Service** (ref: PRD §5.1.1)
+- [x] **Implement DNS Service** (ref: PRD §5.1.1)
   Task ID: phase-5-dns-01
   > **Implementation**: Create `internal/services/dns/dns.go`
   > **Details**:
@@ -296,7 +296,7 @@
   > - Handle timeouts via context
   > - Validate input is domain or IP
 
-- [ ] **Create DNS Command** (ref: PRD §5.1.1)
+- [x] **Create DNS Command** (ref: PRD §5.1.1)
   Task ID: phase-5-dns-02
   > **Implementation**: Create `internal/cmd/dns.go`
   > **Details**:
@@ -308,7 +308,7 @@
   > - Output formatters: table (default), json, plain
   > - Example: `cat domains.txt | trident dns --output json`
 
-- [ ] **Write Tests for DNS Service** (ref: PRD §4.4)
+- [x] **Write Tests for DNS Service** (ref: PRD §4.4)
   Task ID: phase-5-dns-03
   > **Implementation**: Create `internal/services/dns/dns_test.go`
   > **Details**:
@@ -328,7 +328,7 @@
 
 ## Phase 6: Service Implementation (ASN)
 
-- [ ] **Implement ASN Service** (ref: PRD §5.1.2)
+- [x] **Implement ASN Service** (ref: PRD §5.1.2)
   Task ID: phase-6-asn-01
   > **Implementation**: Create `internal/services/asn/asn.go`
   > **Details**:
@@ -342,7 +342,7 @@
   > - Do NOT use os/exec to call dig
   > - Use net.Resolver.LookupTXT()
 
-- [ ] **Create ASN Command**
+- [x] **Create ASN Command**
   Task ID: phase-6-asn-02
   > **Implementation**: Create `internal/cmd/asn.go`
   > **Details**:
@@ -354,7 +354,7 @@
   > - Apply rate limiting for Team Cymru
   > - Output formatters: table, json, plain
 
-- [ ] **Write Tests for ASN Service**
+- [x] **Write Tests for ASN Service**
   Task ID: phase-6-asn-03
   > **Implementation**: Create `internal/services/asn/asn_test.go`
   > **Details**:
@@ -369,9 +369,9 @@
 
 ## Phase 7: Service Implementation (Crt.sh)
 
-- [ ] **Implement Crt.sh Service** (ref: PRD §5.1.3)
+- [x] **Implement Crt.sh Service** (ref: PRD §5.1.3)
   Task ID: phase-7-crtsh-01
-  > **Implementation**: Create `internal/services/crtsh/crtsh.go`
+  > **Implementation**: Create `internal/services/crtsh/crtsh.go`.
   > **Details**:
   > - PAP Level: AMBER
   > - Endpoint: `https://crt.sh/?q=%.{domain}&output=json`
@@ -382,9 +382,9 @@
   > - Apply rate limiting with jitter
   > - Handle HTTP errors gracefully
 
-- [ ] **Create Crt.sh Command**
+- [x] **Create Crt.sh Command**
   Task ID: phase-7-crtsh-02
-  > **Implementation**: Create `internal/cmd/crtsh.go`
+  > **Implementation**: Create `internal/cmd/crtsh.go`.
   > **Details**:
   > - Constructor pattern
   > - Use: `trident crtsh [domain]`
@@ -393,9 +393,9 @@
   > - Respect --pap-limit (AMBER)
   > - Output formatters: table, json, plain
 
-- [ ] **Write Tests for Crt.sh Service**
+- [x] **Write Tests for Crt.sh Service**
   Task ID: phase-7-crtsh-03
-  > **Implementation**: Create `internal/services/crtsh/crtsh_test.go`
+  > **Implementation**: Create `internal/services/crtsh/crtsh_test.go`.
   > **Details**:
   > - Black-box testing (crtsh_test package)
   > - Use httpmock to mock HTTP responses
@@ -408,7 +408,7 @@
 
 ## Phase 8: Service Implementation (ThreatMiner)
 
-- [ ] **Implement ThreatMiner Service** (ref: PRD §5.1.4)
+- [x] **Implement ThreatMiner Service** (ref: PRD §5.1.4)
   Task ID: phase-8-threatminer-01
   > **Implementation**: Create `internal/services/threatminer/threatminer.go`
   > **Details**:
@@ -423,7 +423,7 @@
   > - Parse JSON for: Passive DNS, Malware hashes, WHOIS
   > - No external SDK
 
-- [ ] **Create ThreatMiner Command**
+- [x] **Create ThreatMiner Command**
   Task ID: phase-8-threatminer-02
   > **Implementation**: Create `internal/cmd/threatminer.go`
   > **Details**:
@@ -434,7 +434,7 @@
   > - Respect --pap-limit (AMBER)
   > - Output formatters: table, json, plain
 
-- [ ] **Write Tests for ThreatMiner Service**
+- [x] **Write Tests for ThreatMiner Service**
   Task ID: phase-8-threatminer-03
   > **Implementation**: Create `internal/services/threatminer/threatminer_test.go`
   > **Details**:
@@ -448,7 +448,7 @@
 
 ## Phase 9: Service Implementation (PGP)
 
-- [ ] **Implement PGP Key Search Service** (ref: PRD §5.1.5)
+- [x] **Implement PGP Key Search Service** (ref: PRD §5.1.5)
   Task ID: phase-9-pgp-01
   > **Implementation**: Create `internal/services/pgp/pgp.go`
   > **Details**:
@@ -461,7 +461,7 @@
   > - Support both email and name search
   > - Prioritize HKPS (HTTPS) over HKP (HTTP)
 
-- [ ] **Create PGP Command**
+- [x] **Create PGP Command**
   Task ID: phase-9-pgp-02
   > **Implementation**: Create `internal/cmd/pgp.go`
   > **Details**:
@@ -471,7 +471,7 @@
   > - Respect --pap-limit (AMBER)
   > - Output formatters: table, json, plain
 
-- [ ] **Write Tests for PGP Service**
+- [x] **Write Tests for PGP Service**
   Task ID: phase-9-pgp-03
   > **Implementation**: Create `internal/services/pgp/pgp_test.go`
   > **Details**:
@@ -485,7 +485,7 @@
 
 ## Phase 10: CI/CD & Tooling
 
-- [ ] **Configure golangci-lint** (ref: PRD §4.5)
+- [x] **Configure golangci-lint** (ref: PRD §4.5)
   Task ID: phase-10-cicd-01
   > **Implementation**: Create `.golangci.yml`
   > **Details**:
@@ -495,7 +495,7 @@
   > - Set timeout: 5m
   > - Configure per-directory exclusions if needed
 
-- [ ] **Setup GitHub Actions CI Pipeline** (ref: PRD §4.5)
+- [x] **Setup GitHub Actions CI Pipeline** (ref: PRD §4.5)
   Task ID: phase-10-cicd-02
   > **Implementation**: Create `.github/workflows/ci.yml`
   > **Details**:
@@ -509,7 +509,7 @@
   > - Fail if coverage < 80%
   > - Cache Go modules for speed
 
-- [ ] **Configure GoReleaser** (ref: PRD §4.5)
+- [x] **Configure GoReleaser** (ref: PRD §4.5)
   Task ID: phase-10-cicd-03
   > **Implementation**: Create `.goreleaser.yml`
   > **Details**:
@@ -523,7 +523,7 @@
   > - Upload to GitHub Releases
   > - Create archives (tar.gz, zip)
 
-- [ ] **Setup Renovate for Dependency Updates** (ref: PRD §4.5)
+- [x] **Setup Renovate for Dependency Updates** (ref: PRD §4.5)
   Task ID: phase-10-cicd-04
   > **Implementation**: Create `renovate.json`
   > **Details**:
@@ -533,7 +533,7 @@
   > - Group Go module updates
   > - Create PRs for major updates
 
-- [ ] **Create Release Workflow** (ref: PRD §4.5)
+- [x] **Create Release Workflow** (ref: PRD §4.5)
   Task ID: phase-10-cicd-05
   > **Implementation**: Create `.github/workflows/release.yml`
   > **Details**:
@@ -548,7 +548,7 @@
 
 ## Phase 11: Documentation & Polish
 
-- [ ] **Write README.md**
+- [x] **Write README.md**
   Task ID: phase-11-docs-01
   > **Implementation**: Create `README.md`
   > **Details**:
@@ -562,7 +562,7 @@
   > - Configuration file format
   > - Contributing guidelines
 
-- [ ] **Create Example Configuration File**
+- [x] **Create Example Configuration File**
   Task ID: phase-11-docs-02
   > **Implementation**: Create `config.example.yaml`
   > **Details**:
@@ -572,7 +572,7 @@
   > - Show PAP limit examples
   > - Note: API keys section for Phase 3
 
-- [ ] **Add CLI Help Documentation**
+- [x] **Add CLI Help Documentation**
   Task ID: phase-11-docs-03
   > **Implementation**: Enhance cobra command descriptions
   > **Details**:
@@ -581,7 +581,7 @@
   > - Flag descriptions with defaults
   > - Show PAP level for each command in help
 
-- [ ] **Implement Self-Cleanup Command** (ref: PRD §8.6)
+- [x] **Implement Self-Cleanup Command** (ref: PRD §8.6)
   Task ID: phase-11-docs-04
   > **Implementation**: Create `internal/cmd/burn.go`
   > **Details**:
@@ -599,7 +599,7 @@
 
 ## Phase 12: Integration Testing
 
-- [ ] **Create Integration Test Suite**
+- [x] **Create Integration Test Suite**
   Task ID: phase-12-integration-01
   > **Implementation**: Create `test/integration/`
   > **Details**:
@@ -611,7 +611,7 @@
   > - Test concurrency with worker pool
   > - Use recorded fixtures (no real API calls)
 
-- [ ] **Performance Benchmarking**
+- [x] **Performance Benchmarking**
   Task ID: phase-12-integration-02
   > **Implementation**: Create benchmark tests
   > **Details**:
@@ -621,7 +621,7 @@
   > - Use Go's testing.B framework
   > - Document baseline performance
 
-- [ ] **Security Testing**
+- [x] **Security Testing**
   Task ID: phase-12-integration-03
   > **Implementation**: Run security audit
   > **Details**:
