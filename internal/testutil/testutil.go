@@ -1,3 +1,4 @@
+// Package testutil provides shared test helpers for service unit tests.
 package testutil
 
 import (
@@ -21,6 +22,7 @@ type MockResolver struct {
 
 var _ services.DNSResolverInterface = (*MockResolver)(nil)
 
+// LookupIPAddr implements DNSResolverInterface.
 func (m *MockResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
 	if m.LookupIPAddrFn != nil {
 		return m.LookupIPAddrFn(ctx, host)
@@ -28,6 +30,7 @@ func (m *MockResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPA
 	return nil, nil
 }
 
+// LookupMX implements DNSResolverInterface.
 func (m *MockResolver) LookupMX(ctx context.Context, name string) ([]*net.MX, error) {
 	if m.LookupMXFn != nil {
 		return m.LookupMXFn(ctx, name)
@@ -35,6 +38,7 @@ func (m *MockResolver) LookupMX(ctx context.Context, name string) ([]*net.MX, er
 	return nil, nil
 }
 
+// LookupNS implements DNSResolverInterface.
 func (m *MockResolver) LookupNS(ctx context.Context, name string) ([]*net.NS, error) {
 	if m.LookupNSFn != nil {
 		return m.LookupNSFn(ctx, name)
@@ -42,6 +46,7 @@ func (m *MockResolver) LookupNS(ctx context.Context, name string) ([]*net.NS, er
 	return nil, nil
 }
 
+// LookupTXT implements DNSResolverInterface.
 func (m *MockResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
 	if m.LookupTXTFn != nil {
 		return m.LookupTXTFn(ctx, name)
@@ -49,6 +54,7 @@ func (m *MockResolver) LookupTXT(ctx context.Context, name string) ([]string, er
 	return nil, nil
 }
 
+// LookupAddr implements DNSResolverInterface.
 func (m *MockResolver) LookupAddr(ctx context.Context, addr string) ([]string, error) {
 	if m.LookupAddrFn != nil {
 		return m.LookupAddrFn(ctx, addr)

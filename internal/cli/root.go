@@ -1,3 +1,4 @@
+// Package cli provides the Cobra command tree and output wiring for trident.
 package cli
 
 import (
@@ -75,4 +76,3 @@ func writeResult(stdout io.Writer, format output.Format, result any) error {
 	}
 	return nil
 }
-

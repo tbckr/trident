@@ -1,6 +1,6 @@
 module github.com/tbckr/trident
 
-go 1.25.5
+go 1.26.0
 
 require (
 	github.com/imroc/req/v3 v3.57.0

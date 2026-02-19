@@ -1,3 +1,4 @@
+// Package dns implements DNS lookups using the Go standard library resolver.
 package dns
 
 import (
@@ -69,9 +70,10 @@ func (r *Result) WriteText(w io.Writer) error {
 	}
 	table := tablewriter.NewWriter(w)
 	table.Header([]string{"Type", "Value"})
-	table.Bulk(rows)
-	table.Render()
-	return nil
+	if err := table.Bulk(rows); err != nil {
+		return err
+	}
+	return table.Render()
 }
 
 // Run executes DNS lookups for the given domain or IP address.

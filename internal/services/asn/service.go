@@ -1,3 +1,4 @@
+// Package asn implements ASN lookups via the Team Cymru DNS service.
 package asn
 
 import (
@@ -63,9 +64,10 @@ func (r *Result) WriteText(w io.Writer) error {
 	}
 	table := tablewriter.NewWriter(w)
 	table.Header([]string{"Field", "Value"})
-	table.Bulk(rows)
-	table.Render()
-	return nil
+	if err := table.Bulk(rows); err != nil {
+		return err
+	}
+	return table.Render()
 }
 
 // Run performs an ASN lookup for the given IP address or ASN string.

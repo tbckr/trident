@@ -1,3 +1,4 @@
+// Package output provides formatters for rendering service results as text tables or JSON.
 package output
 
 import (
@@ -9,6 +10,7 @@ import (
 // Format is the output format requested by the user.
 type Format string
 
+// Output format constants supported by the --output flag.
 const (
 	FormatText Format = "text"
 	FormatJSON Format = "json"

@@ -1,3 +1,4 @@
+// Package crtsh queries the crt.sh certificate transparency log for subdomain enumeration.
 package crtsh
 
 import (
@@ -60,9 +61,10 @@ func (r *Result) WriteText(w io.Writer) error {
 	}
 	table := tablewriter.NewWriter(w)
 	table.Header([]string{"Subdomain"})
-	table.Bulk(rows)
-	table.Render()
-	return nil
+	if err := table.Bulk(rows); err != nil {
+		return err
+	}
+	return table.Render()
 }
 
 // Run queries crt.sh for subdomains of the given domain.

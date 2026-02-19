@@ -3,22 +3,26 @@ version: "2"
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
     - misspell
     - nolintlint
     - revive
     - gosec
     - bodyclose
 
-linters-settings:
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+formatters-settings:
   goimports:
     local-prefixes: github.com/tbckr/trident
+
+linters-settings:
   revive:
     rules:
       - name: exported
@@ -36,3 +40,6 @@ issues:
       linters:
         - gosec
         - errcheck
+    - linters:
+        - gosec
+      text: "G304" # file inclusion via variable — acceptable in config loading
