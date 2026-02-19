@@ -96,6 +96,9 @@ func (s *Service) Run(ctx context.Context, domain string) (any, error) {
 				if sub == "" {
 					continue
 				}
+				if !s.isValidSubdomain(sub, domain) {
+					continue
+				}
 				if _, ok := seen[sub]; !ok {
 					seen[sub] = struct{}{}
 					result.Subdomains = append(result.Subdomains, sub)
@@ -105,4 +108,24 @@ func (s *Service) Run(ctx context.Context, domain string) (any, error) {
 	}
 	sort.Strings(result.Subdomains)
 	return result, nil
+}
+
+func (s *Service) isValidSubdomain(sub, domain string) bool {
+	if strings.HasPrefix(sub, "*") {
+		s.logger.Debug("crt.sh: skipping wildcard", "sub", sub, "domain", domain)
+		return false
+	}
+	if sub == domain {
+		s.logger.Debug("crt.sh: skipping root domain", "sub", sub, "domain", domain)
+		return false
+	}
+	if !strings.HasSuffix(sub, "."+domain) {
+		s.logger.Debug("crt.sh: skipping foreign domain", "sub", sub, "domain", domain)
+		return false
+	}
+	if !validate.IsDomain(sub) {
+		s.logger.Debug("crt.sh: skipping invalid format", "sub", sub, "domain", domain)
+		return false
+	}
+	return true
 }

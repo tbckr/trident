@@ -73,6 +73,10 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **crtsh URL:** Use `"%%.%s"` (double `%%`) in the constant so `fmt.Sprintf` emits a literal `%.` before the domain. `"%.%s"` silently causes an arg-count mismatch.
 
+**crtsh subdomain filter (`isValidSubdomain`):** Check wildcards first (`strings.HasPrefix(sub, "*")`), then root-domain equality, then suffix, then `validate.IsDomain`. Wildcard check must precede suffix — `*.example.com` passes `strings.HasSuffix(sub, ".example.com")` and won't be caught otherwise.
+
+**crtsh test fixture:** `testdata/crtsh_response.json` contains `example.com` (root domain) as a deliberate filtered-case entry — assert `NotContains(t, result.Subdomains, "example.com")`, never `Contains`.
+
 **`DNSResolverInterface`** — only DNS/ASN use an interface (for `*net.Resolver` mocking). Defined in `internal/services/interfaces.go`.
 
 **`run` function pattern:** `main()` delegates to `run()` which accepts all dependencies and returns an error — enables testability.

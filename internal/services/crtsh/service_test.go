@@ -43,7 +43,7 @@ func TestRun_ValidDomain(t *testing.T) {
 	require.True(t, ok)
 
 	assert.Equal(t, "example.com", result.Input)
-	assert.Contains(t, result.Subdomains, "example.com")
+	assert.NotContains(t, result.Subdomains, "example.com")
 	assert.Contains(t, result.Subdomains, "www.example.com")
 	// Deduplication: www.example.com appears twice in fixture but once in result
 	count := 0
@@ -130,6 +130,33 @@ func TestRun_ContextCanceled(t *testing.T) {
 	result, ok := raw.(*crtsh.Result)
 	require.True(t, ok, "expected *crtsh.Result")
 	assert.Equal(t, "example.com", result.Input)
+}
+
+func TestRun_FilteredEntries(t *testing.T) {
+	body := `[
+      {"common_name":"*.example.com","name_value":"*.example.com"},
+      {"common_name":"sni.cloudflaressl.com","name_value":"sni.cloudflaressl.com"},
+      {"common_name":"example.com","name_value":"example.com"},
+      {"common_name":"api.example.com","name_value":"api.example.com\nexample.com\n*.example.com"}
+    ]`
+
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet,
+		"https://crt.sh/?q=%.example.com&output=json",
+		httpmock.NewStringResponder(http.StatusOK, body),
+	)
+
+	svc := crtsh.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*crtsh.Result)
+	require.True(t, ok, "expected *crtsh.Result")
+
+	assert.Equal(t, []string{"api.example.com"}, result.Subdomains)
+	assert.NotContains(t, result.Subdomains, "*.example.com")
+	assert.NotContains(t, result.Subdomains, "sni.cloudflaressl.com")
+	assert.NotContains(t, result.Subdomains, "example.com")
 }
 
 func TestResult_WriteText(t *testing.T) {
