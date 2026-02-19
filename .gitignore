@@ -345,4 +345,4 @@ secring.*
 ### Custom
 .ai/
 .idea/
-.claude/
+.claude/plans/
