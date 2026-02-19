@@ -44,6 +44,7 @@ internal/
   config/           # Viper config loading (~/.config/trident/config.yaml)
   services/         # One package per service (dns/, asn/, crtsh/)
   output/           # Text (tablewriter) and JSON formatters
+  validate/         # Shared input validators — IsDomain() and future helpers
 ```
 
 ### Core Patterns
@@ -67,6 +68,10 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 **`DNSResolverInterface`** — only DNS/ASN use an interface (for `*net.Resolver` mocking). Defined in `internal/services/interfaces.go`.
 
 **`run` function pattern:** `main()` delegates to `run()` which accepts all dependencies and returns an error — enables testability.
+
+**`services.ErrInvalidInput`** — unified validation sentinel in `internal/services/service.go`. New services must use this (not define their own `ErrInvalidInput`). Wrap with context: `fmt.Errorf("%w: must be …: %q", services.ErrInvalidInput, input)`.
+
+**Type assertions in tests** — always use two-value form: `result, ok := raw.(*T); require.True(t, ok, "expected *T")`. Bare `raw.(*T)` panics on failure.
 
 **Service interface** — every service implements:
 ```go
