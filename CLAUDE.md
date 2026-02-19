@@ -58,6 +58,8 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **tablewriter v1.1.3 API:** `table.Header([]string{...})` + `table.Bulk([][]string{...})` + `table.Render()`. Old `SetHeader`/`Append([]string)` don't exist — use `Bulk` for multi-row, `Append(any)` for single row.
 
+**tablewriter error returns:** Both `table.Bulk(rows)` and `table.Render()` return `error` — always propagate them; `errcheck` will fail the lint if ignored.
+
 **`internal/testutil`** — `MockResolver` (implements `DNSResolverInterface` with optional `*Fn` fields) + `NopLogger()`. Import in `_test` files for DNS/ASN service tests.
 
 **crtsh URL:** Use `"%%.%s"` (double `%%`) in the constant so `fmt.Sprintf` emits a literal `%.` before the domain. `"%.%s"` silently causes an arg-count mismatch.
@@ -106,6 +108,9 @@ type Service interface {
 - **Tables:** `olekukonko/tablewriter`
 - **Tests:** `stretchr/testify` + `jarcoal/httpmock`
 - **Lint:** `golangci-lint` v2 (strict — CI fails on any lint error). Config requires `version: "2"` at top; formatters (`gofmt`, `goimports`) go in `formatters:` section, not `linters:`. GitHub Action: `golangci/golangci-lint-action@v8` with `version: latest` (pinning a specific version risks Go version mismatch with `go.mod`).
+- **golangci-lint v2 linter list:** `gosimple` is merged into `staticcheck` — do not list it separately. `gofmt`/`goimports` settings go under `formatters-settings:`, not `linters-settings:`.
+- **gosec suppressions:** `gosec.excludes` under `linters-settings` is unreliable; prefer `issues.exclude-rules` with `text: "G304"` or an inline `//nolint:gosec // reason` comment.
+- **revive `package-comments`:** Every package must have a `// Package foo ...` comment in at least one file (primary file or `doc.go`). New packages without this will fail lint.
 
 ## Key Constraints
 
