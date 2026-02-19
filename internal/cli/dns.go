@@ -15,6 +15,7 @@ func newDNSCmd(stdout, stderr io.Writer, configFile *string, verbose *bool, outp
 		Short: "Perform DNS lookups for a domain or reverse lookup for an IP",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// cfg is unused in Phase 1; proxy and rate-limiting config will be consumed in Phase 2.
 			_, logger, format, err := buildDeps(stderr, configFile, verbose, outputFmt)
 			if err != nil {
 				return err

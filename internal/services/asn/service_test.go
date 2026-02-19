@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/services/asn"
 	"github.com/tbckr/trident/internal/testutil"
 )
@@ -76,7 +77,8 @@ func TestRun_ASN_LowercaseInput(t *testing.T) {
 	svc := asn.NewService(resolver, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "as15169")
 	require.NoError(t, err)
-	result := raw.(*asn.Result)
+	result, ok := raw.(*asn.Result)
+	require.True(t, ok, "expected *asn.Result")
 	assert.Equal(t, "AS15169", result.ASN)
 }
 
@@ -85,7 +87,7 @@ func TestRun_InvalidInput(t *testing.T) {
 	for _, bad := range []string{"", "notanip", "AS", "AS_BAD", "example.com"} {
 		_, err := svc.Run(context.Background(), bad)
 		require.Error(t, err, "input %q should be invalid", bad)
-		assert.ErrorIs(t, err, asn.ErrInvalidInput)
+		assert.ErrorIs(t, err, services.ErrInvalidInput)
 	}
 }
 
@@ -99,7 +101,8 @@ func TestRun_LookupFailure(t *testing.T) {
 	svc := asn.NewService(resolver, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "8.8.8.8")
 	require.NoError(t, err)
-	result := raw.(*asn.Result)
+	result, ok := raw.(*asn.Result)
+	require.True(t, ok, "expected *asn.Result")
 	assert.Equal(t, "8.8.8.8", result.Input)
 	assert.Empty(t, result.ASN)
 }
@@ -117,7 +120,8 @@ func TestRun_ANSISanitization(t *testing.T) {
 	svc := asn.NewService(resolver, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "AS15169")
 	require.NoError(t, err)
-	result := raw.(*asn.Result)
+	result, ok := raw.(*asn.Result)
+	require.True(t, ok, "expected *asn.Result")
 	assert.Equal(t, "GOOGLE, US", result.Description)
 }
 

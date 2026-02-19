@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -15,13 +14,9 @@ import (
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/tbckr/trident/internal/output"
+	"github.com/tbckr/trident/internal/services"
+	"github.com/tbckr/trident/internal/validate"
 )
-
-// domainRegexp validates RFC-compliant hostnames.
-var domainRegexp = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`)
-
-// ErrInvalidInput is returned when the domain input fails validation.
-var ErrInvalidInput = errors.New("invalid input: must be a valid domain name")
 
 // crtshBaseURL is the crt.sh API endpoint base for certificate transparency log searches.
 // The query uses the `%.domain` wildcard form to find all subdomains.
@@ -70,8 +65,8 @@ func (r *Result) WriteText(w io.Writer) error {
 // Run queries crt.sh for subdomains of the given domain.
 func (s *Service) Run(ctx context.Context, domain string) (any, error) {
 	domain = output.StripANSI(domain)
-	if !domainRegexp.MatchString(domain) {
-		return nil, fmt.Errorf("%w: %q", ErrInvalidInput, domain)
+	if !validate.IsDomain(domain) {
+		return nil, fmt.Errorf("%w: must be a valid domain name: %q", services.ErrInvalidInput, domain)
 	}
 
 	result := &Result{Input: domain}

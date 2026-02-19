@@ -85,5 +85,7 @@ func ensureConfigFile(path string) error {
 		}
 		return fmt.Errorf("creating config file: %w", err)
 	}
+	// Nothing is written; the file is a zero-byte placeholder whose presence
+	// confirms the path is initialised with the correct permissions (0600).
 	return f.Close()
 }

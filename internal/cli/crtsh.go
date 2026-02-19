@@ -15,6 +15,7 @@ func newCrtshCmd(stdout, stderr io.Writer, configFile *string, verbose *bool, ou
 		Short: "Search crt.sh certificate transparency logs for subdomains",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// cfg is unused in Phase 1; proxy and rate-limiting config will be consumed in Phase 2.
 			_, logger, format, err := buildDeps(stderr, configFile, verbose, outputFmt)
 			if err != nil {
 				return err

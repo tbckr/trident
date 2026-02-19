@@ -30,9 +30,6 @@ linters-settings:
       - name: error-return
       - name: error-strings
       - name: increment-decrement
-  gosec:
-    excludes:
-      - G304 # file inclusion via variable — acceptable in config loading
 
 issues:
   exclude-rules:

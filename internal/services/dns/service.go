@@ -3,24 +3,17 @@ package dns
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
-	"regexp"
 
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/services"
+	"github.com/tbckr/trident/internal/validate"
 )
-
-// domainRegexp validates RFC-compliant hostnames.
-var domainRegexp = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`)
-
-// ErrInvalidInput is returned when the input is neither a valid domain nor an IP address.
-var ErrInvalidInput = errors.New("invalid input: must be a valid domain name or IP address")
 
 // Service performs DNS lookups using the injected resolver.
 type Service struct {
@@ -86,8 +79,8 @@ func (s *Service) Run(ctx context.Context, input string) (any, error) {
 	if ip := net.ParseIP(input); ip != nil {
 		return s.runReverse(ctx, result, ip.String())
 	}
-	if !domainRegexp.MatchString(input) {
-		return nil, fmt.Errorf("%w: %q", ErrInvalidInput, input)
+	if !validate.IsDomain(input) {
+		return nil, fmt.Errorf("%w: must be a valid domain name or IP address: %q", services.ErrInvalidInput, input)
 	}
 	return s.runForward(ctx, result, input)
 }

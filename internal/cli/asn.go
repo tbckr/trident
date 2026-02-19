@@ -15,6 +15,7 @@ func newASNCmd(stdout, stderr io.Writer, configFile *string, verbose *bool, outp
 		Short: "Look up ASN information for an IP address or ASN (e.g. AS15169)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// cfg is unused in Phase 1; proxy and rate-limiting config will be consumed in Phase 2.
 			_, logger, format, err := buildDeps(stderr, configFile, verbose, outputFmt)
 			if err != nil {
 				return err

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/services/crtsh"
 	"github.com/tbckr/trident/internal/testutil"
 )
@@ -61,7 +62,7 @@ func TestRun_InvalidInput(t *testing.T) {
 	for _, bad := range []string{"", "not_a_domain", "has space.com", "$(injection)"} {
 		_, err := svc.Run(context.Background(), bad)
 		require.Error(t, err, "input %q should be invalid", bad)
-		assert.ErrorIs(t, err, crtsh.ErrInvalidInput)
+		assert.ErrorIs(t, err, services.ErrInvalidInput)
 	}
 }
 
@@ -75,7 +76,8 @@ func TestRun_HTTPFailure(t *testing.T) {
 	svc := crtsh.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
-	result := raw.(*crtsh.Result)
+	result, ok := raw.(*crtsh.Result)
+	require.True(t, ok, "expected *crtsh.Result")
 	assert.Nil(t, result.Subdomains)
 }
 
@@ -89,7 +91,8 @@ func TestRun_EmptyResponse(t *testing.T) {
 	svc := crtsh.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
-	result := raw.(*crtsh.Result)
+	result, ok := raw.(*crtsh.Result)
+	require.True(t, ok, "expected *crtsh.Result")
 	assert.Nil(t, result.Subdomains)
 }
 
@@ -104,7 +107,8 @@ func TestRun_ANSISanitization(t *testing.T) {
 	svc := crtsh.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
-	result := raw.(*crtsh.Result)
+	result, ok := raw.(*crtsh.Result)
+	require.True(t, ok, "expected *crtsh.Result")
 	for _, sub := range result.Subdomains {
 		assert.NotContains(t, sub, "\x1b")
 	}
@@ -123,7 +127,8 @@ func TestRun_ContextCanceled(t *testing.T) {
 	svc := crtsh.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(ctx, "example.com")
 	require.NoError(t, err)
-	result := raw.(*crtsh.Result)
+	result, ok := raw.(*crtsh.Result)
+	require.True(t, ok, "expected *crtsh.Result")
 	assert.Equal(t, "example.com", result.Input)
 }
 

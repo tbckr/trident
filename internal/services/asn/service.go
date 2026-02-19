@@ -3,7 +3,6 @@ package asn
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -15,9 +14,6 @@ import (
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/services"
 )
-
-// ErrInvalidInput is returned when the input is neither a valid IP nor an ASN.
-var ErrInvalidInput = errors.New("invalid input: must be an IP address or ASN (e.g. AS15169)")
 
 // cymruIPv4Template is the Team Cymru DNS suffix for IPv4 → ASN lookups.
 const cymruIPv4Template = "%s.origin.asn.cymru.com"
@@ -83,16 +79,16 @@ func (s *Service) Run(ctx context.Context, input string) (any, error) {
 	if strings.HasPrefix(upper, "AS") {
 		num := upper[2:]
 		if num == "" {
-			return nil, fmt.Errorf("%w: %q", ErrInvalidInput, input)
+			return nil, fmt.Errorf("%w: must be an IP address or ASN (e.g. AS15169): %q", services.ErrInvalidInput, input)
 		}
 		for _, c := range num {
 			if c < '0' || c > '9' {
-				return nil, fmt.Errorf("%w: %q", ErrInvalidInput, input)
+				return nil, fmt.Errorf("%w: must be an IP address or ASN (e.g. AS15169): %q", services.ErrInvalidInput, input)
 			}
 		}
 		return s.lookupByASN(ctx, result, upper)
 	}
-	return nil, fmt.Errorf("%w: %q", ErrInvalidInput, input)
+	return nil, fmt.Errorf("%w: must be an IP address or ASN (e.g. AS15169): %q", services.ErrInvalidInput, input)
 }
 
 // lookupByIP resolves ASN info for the given IP using Team Cymru's DNS service.
@@ -193,11 +189,15 @@ func reverseIP(ip string) (string, bool, error) {
 	if v4 := parsed.To4(); v4 != nil {
 		return fmt.Sprintf("%d.%d.%d.%d", v4[3], v4[2], v4[1], v4[0]), false, nil
 	}
-	// IPv6: expand to full hex, reverse nibbles
+	// IPv6: expand to full hex, build nibbles in big-endian order then reverse in place.
+	// This avoids the O(n²) allocations of the prepend pattern.
 	v6 := parsed.To16()
-	var nibbles []string
+	nibbles := make([]string, 0, 32)
 	for _, b := range v6 {
-		nibbles = append([]string{fmt.Sprintf("%x", b&0xf), fmt.Sprintf("%x", b>>4)}, nibbles...)
+		nibbles = append(nibbles, fmt.Sprintf("%x", b>>4), fmt.Sprintf("%x", b&0xf))
+	}
+	for i, j := 0, len(nibbles)-1; i < j; i, j = i+1, j-1 {
+		nibbles[i], nibbles[j] = nibbles[j], nibbles[i]
 	}
 	return strings.Join(nibbles, "."), true, nil
 }
