@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). It is currently **greenfield** — the PRD is in `docs/PRD.md` but no source code exists yet. The MVP (Phase 1) delivers three keyless reconnaissance services: DNS, ASN, and crt.sh.
+**Trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Phase 1 MVP is implemented — three keyless OSINT services: DNS, ASN, and crt.sh. The PRD is in `docs/PRD.md`.
 
 ## Module
 `github.com/tbckr/trident`
@@ -35,7 +35,7 @@ go run ./cmd/trident/main.go crtsh example.com
 
 ## Architecture
 
-### Directory Structure (to implement)
+### Directory Structure
 
 ```
 cmd/trident/        # main.go — delegates immediately to run()
@@ -56,6 +56,12 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`*req.Client` is a hard dependency** — not abstracted behind an interface. Mock HTTP in tests via `httpmock.ActivateNonDefault(client.GetClient())`.
 
+**tablewriter v1.1.3 API:** `table.Header([]string{...})` + `table.Bulk([][]string{...})` + `table.Render()`. Old `SetHeader`/`Append([]string)` don't exist — use `Bulk` for multi-row, `Append(any)` for single row.
+
+**`internal/testutil`** — `MockResolver` (implements `DNSResolverInterface` with optional `*Fn` fields) + `NopLogger()`. Import in `_test` files for DNS/ASN service tests.
+
+**crtsh URL:** Use `"%%.%s"` (double `%%`) in the constant so `fmt.Sprintf` emits a literal `%.` before the domain. `"%.%s"` silently causes an arg-count mismatch.
+
 **`DNSResolverInterface`** — only DNS/ASN use an interface (for `*net.Resolver` mocking). Defined in `internal/services/interfaces.go`.
 
 **`run` function pattern:** `main()` delegates to `run()` which accepts all dependencies and returns an error — enables testability.
@@ -73,7 +79,7 @@ type Service interface {
 | Command | Implementation | PAP |
 |---------|---------------|-----|
 | `dns` | Go `net` package — A, AAAA, MX, NS, TXT records | GREEN |
-| `asn` | Team Cymru DNS TXT records via `net.Resolver` (format: `<reversed-ip>.origin.asn.cymru.com`) — no `os/exec` | AMBER |
+| `asn` | Team Cymru DNS: IPv4 → `<reversed>.origin.asn.cymru.com`; IPv6 → 32-nibble reversal + `.origin6.asn.cymru.com`; ASN → `AS<n>.asn.cymru.com` | AMBER |
 | `crtsh` | HTTP GET `https://crt.sh/?q=%.<domain>&output=json` via `imroc/req` | AMBER |
 
 ### Configuration
@@ -107,7 +113,7 @@ type Service interface {
 - **No `os/exec`** for DNS — use `net.Resolver` directly
 - **Enforced HTTPS only** — no `InsecureSkipVerify`
 - **Output sanitization** — strip ANSI escape sequences from external data before printing
-- **80% minimum test coverage** — integration tests use recorded HTTP fixtures
+- **80% minimum test coverage** — enforced on `./internal/services/...` only (CLI/cmd packages intentionally have 0%). CI uses `go test ./internal/services/... -coverprofile=svc_coverage.out`.
 - **Cross-platform** — must compile on Linux, macOS, Windows; use `filepath.Join`
 
 ## Phase Roadmap
