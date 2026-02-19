@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Phase 1 MVP is implemented — three keyless OSINT services: DNS, ASN, and crt.sh. The PRD is in `docs/PRD.md`.
 
+## Tools
+
+**Library documentation:** Always use the context7 MCP (`mcp__plugin_context7-plugin_context7__resolve-library-id` + `mcp__plugin_context7-plugin_context7__query-docs`) to look up library docs. Never guess API shapes — fetch authoritative documentation first.
+
 ## Module
 `github.com/tbckr/trident`
 
