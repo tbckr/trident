@@ -12,31 +12,29 @@ linters:
     - revive
     - gosec
     - bodyclose
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: var-naming
+        - name: error-return
+        - name: error-strings
+        - name: increment-decrement
+  exclusions:
+    rules:
+      - path: "_test\\.go"
+        linters:
+          - gosec
+          - errcheck
+      - linters:
+          - gosec
+        text: "G304" # file inclusion via variable — acceptable in config loading
 
 formatters:
   enable:
     - gofmt
     - goimports
-
-formatters-settings:
-  goimports:
-    local-prefixes: github.com/tbckr/trident
-
-linters-settings:
-  revive:
-    rules:
-      - name: exported
-      - name: var-naming
-      - name: error-return
-      - name: error-strings
-      - name: increment-decrement
-
-issues:
-  exclude-rules:
-    - path: "_test\\.go"
-      linters:
-        - gosec
-        - errcheck
-    - linters:
-        - gosec
-      text: "G304" # file inclusion via variable — acceptable in config loading
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/tbckr/trident
