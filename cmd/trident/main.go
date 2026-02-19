@@ -2,6 +2,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/tbckr/trident/internal/cli"
@@ -9,6 +10,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }

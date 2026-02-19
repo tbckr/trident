@@ -28,6 +28,11 @@ func newCrtshCmd(stdout, stderr io.Writer, configFile *string, verbose *bool, ou
 			if err != nil {
 				return err
 			}
+			crtshResult, ok := result.(*crtshsvc.Result)
+			if ok && crtshResult.IsEmpty() {
+				logger.Info("no subdomains found", "input", args[0])
+				return nil
+			}
 			return writeResult(stdout, format, result)
 		},
 	}

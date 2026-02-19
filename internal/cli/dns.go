@@ -28,6 +28,11 @@ func newDNSCmd(stdout, stderr io.Writer, configFile *string, verbose *bool, outp
 			if err != nil {
 				return err
 			}
+			dnsResult, ok := result.(*dnssvc.Result)
+			if ok && dnsResult.IsEmpty() {
+				logger.Info("no DNS records found", "input", args[0])
+				return nil
+			}
 			return writeResult(stdout, format, result)
 		},
 	}

@@ -85,6 +85,17 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **Type assertions in tests** — always use two-value form: `result, ok := raw.(*T); require.True(t, ok, "expected *T")`. Bare `raw.(*T)` panics on failure.
 
+**`Result.IsEmpty() bool`** — every `Result` type must implement this method. Returns true when the struct holds no data. Used by CLI commands to skip table rendering and log at INFO level instead.
+
+**CLI empty-result pattern** — after `svc.Run()` succeeds, each CLI command checks `IsEmpty()` and returns early without calling `writeResult()`:
+```go
+if ok && someResult.IsEmpty() {
+    logger.Info("no … found", "input", args[0])
+    return nil
+}
+```
+`logger` comes from `buildDeps`; exit code is 0 (zero results is valid, not an error).
+
 **Service interface** — every service implements:
 ```go
 type Service interface {
@@ -132,6 +143,7 @@ type Service interface {
 ## Key Constraints
 
 - **No external I/O in tests** — all DNS and HTTP must be mocked; no real network calls. DNS: `mockResolver` struct; HTTP: `httpmock.ActivateNonDefault(client.GetClient())`.
+- **No ad-hoc CLI runs for verification** — `go run ./cmd/trident/main.go <service> ...` may hit live endpoints; use `go build ./...` + `go test ./...` to verify changes instead.
 - **No `os/exec`** for DNS — use `net.Resolver` directly
 - **Enforced HTTPS only** — no `InsecureSkipVerify`
 - **Output sanitization** — strip ANSI escape sequences from external data before printing

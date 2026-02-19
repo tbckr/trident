@@ -105,6 +105,7 @@ func TestRun_LookupFailure(t *testing.T) {
 	require.True(t, ok, "expected *asn.Result")
 	assert.Equal(t, "8.8.8.8", result.Input)
 	assert.Empty(t, result.ASN)
+	assert.True(t, result.IsEmpty())
 }
 
 func TestRun_ANSISanitization(t *testing.T) {
@@ -150,6 +151,11 @@ func TestRun_IPv6(t *testing.T) {
 
 	assert.Equal(t, "AS15169", result.ASN)
 	assert.Equal(t, "2001:4860::/32", result.Prefix)
+}
+
+func TestResult_IsEmpty(t *testing.T) {
+	assert.True(t, (&asn.Result{}).IsEmpty())
+	assert.False(t, (&asn.Result{ASN: "AS15169"}).IsEmpty())
 }
 
 func TestResult_WriteText(t *testing.T) {

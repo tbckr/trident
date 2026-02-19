@@ -47,6 +47,12 @@ type Result struct {
 	Description string `json:"description,omitempty"`
 }
 
+// IsEmpty reports whether the result contains no ASN data.
+func (r *Result) IsEmpty() bool {
+	return r.ASN == "" && r.Prefix == "" && r.Country == "" &&
+		r.Registry == "" && r.Description == ""
+}
+
 // WriteText renders the result as an ASCII table.
 func (r *Result) WriteText(w io.Writer) error {
 	rows := [][]string{

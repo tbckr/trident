@@ -47,6 +47,11 @@ type Result struct {
 	Subdomains []string `json:"subdomains,omitempty"`
 }
 
+// IsEmpty reports whether no subdomains were found.
+func (r *Result) IsEmpty() bool {
+	return len(r.Subdomains) == 0
+}
+
 // WriteText renders the result as an ASCII table.
 func (r *Result) WriteText(w io.Writer) error {
 	var rows [][]string
@@ -80,12 +85,10 @@ func (s *Service) Run(ctx context.Context, domain string) (any, error) {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return result, nil
 		}
-		s.logger.Debug("crt.sh request failed", "domain", domain, "error", err)
-		return result, nil
+		return nil, fmt.Errorf("%w: crt.sh request error for %q: %w", services.ErrRequestFailed, domain, err)
 	}
 	if !resp.IsSuccessState() {
-		s.logger.Debug("crt.sh non-success response", "domain", domain, "status", resp.StatusCode)
-		return result, nil
+		return nil, fmt.Errorf("%w: crt.sh returned HTTP %d for %q", services.ErrRequestFailed, resp.StatusCode, domain)
 	}
 
 	seen := make(map[string]struct{})

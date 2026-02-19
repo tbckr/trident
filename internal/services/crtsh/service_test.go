@@ -3,6 +3,7 @@ package crtsh_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"testing"
@@ -75,10 +76,51 @@ func TestRun_HTTPFailure(t *testing.T) {
 
 	svc := crtsh.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
-	require.NoError(t, err)
-	result, ok := raw.(*crtsh.Result)
-	require.True(t, ok, "expected *crtsh.Result")
-	assert.Nil(t, result.Subdomains)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, services.ErrRequestFailed)
+	assert.Contains(t, err.Error(), "500")
+	assert.Nil(t, raw)
+}
+
+func TestRun_HTTPNonSuccessStatusCodes(t *testing.T) {
+	codes := []int{
+		http.StatusBadRequest,
+		http.StatusForbidden,
+		http.StatusTooManyRequests,
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable,
+	}
+	for _, code := range codes {
+		t.Run(http.StatusText(code), func(t *testing.T) {
+			client := newTestClient(t)
+			httpmock.RegisterResponder(http.MethodGet,
+				"https://crt.sh/?q=%.example.com&output=json",
+				httpmock.NewStringResponder(code, ""),
+			)
+
+			svc := crtsh.NewService(client, testutil.NopLogger())
+			raw, err := svc.Run(context.Background(), "example.com")
+			require.Error(t, err)
+			assert.ErrorIs(t, err, services.ErrRequestFailed)
+			assert.Contains(t, err.Error(), fmt.Sprintf("%d", code))
+			assert.Nil(t, raw)
+		})
+	}
+}
+
+func TestRun_NetworkError(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet,
+		"https://crt.sh/?q=%.example.com&output=json",
+		httpmock.NewErrorResponder(fmt.Errorf("connection refused")),
+	)
+
+	svc := crtsh.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, services.ErrRequestFailed)
+	assert.Nil(t, raw)
 }
 
 func TestRun_EmptyResponse(t *testing.T) {
@@ -101,7 +143,7 @@ func TestRun_ANSISanitization(t *testing.T) {
 	httpmock.RegisterResponder(http.MethodGet,
 		"https://crt.sh/?q=%.example.com&output=json",
 		httpmock.NewStringResponder(http.StatusOK,
-			`[{"common_name":"\x1b[31mmalicious\x1b[0m","name_value":"clean.example.com"}]`),
+			`[{"common_name":"\u001b[31mmalicious\u001b[0m","name_value":"clean.example.com"}]`),
 	)
 
 	svc := crtsh.NewService(client, testutil.NopLogger())
@@ -157,6 +199,11 @@ func TestRun_FilteredEntries(t *testing.T) {
 	assert.NotContains(t, result.Subdomains, "*.example.com")
 	assert.NotContains(t, result.Subdomains, "sni.cloudflaressl.com")
 	assert.NotContains(t, result.Subdomains, "example.com")
+}
+
+func TestResult_IsEmpty(t *testing.T) {
+	assert.True(t, (&crtsh.Result{}).IsEmpty())
+	assert.False(t, (&crtsh.Result{Subdomains: []string{"www.example.com"}}).IsEmpty())
 }
 
 func TestResult_WriteText(t *testing.T) {

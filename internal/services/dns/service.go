@@ -38,6 +38,13 @@ type Result struct {
 	PTR   []string `json:"ptr,omitempty"`
 }
 
+// IsEmpty reports whether the result contains no DNS records.
+func (r *Result) IsEmpty() bool {
+	return len(r.A) == 0 && len(r.AAAA) == 0 &&
+		len(r.MX) == 0 && len(r.NS) == 0 &&
+		len(r.TXT) == 0 && len(r.PTR) == 0
+}
+
 // WriteText renders the result as an ASCII table.
 func (r *Result) WriteText(w io.Writer) error {
 	var rows [][]string

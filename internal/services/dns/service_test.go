@@ -95,6 +95,7 @@ func TestRun_ContextDone(t *testing.T) {
 	result, ok := raw.(*dns.Result)
 	require.True(t, ok, "expected *dns.Result")
 	assert.Nil(t, result.A)
+	assert.True(t, result.IsEmpty())
 }
 
 func TestRun_PartialFailure(t *testing.T) {
@@ -140,6 +141,11 @@ func TestRun_ANSISanitization(t *testing.T) {
 	result, ok := raw.(*dns.Result)
 	require.True(t, ok, "expected *dns.Result")
 	assert.Equal(t, []string{"malicious"}, result.TXT)
+}
+
+func TestResult_IsEmpty(t *testing.T) {
+	assert.True(t, (&dns.Result{}).IsEmpty())
+	assert.False(t, (&dns.Result{A: []string{"1.2.3.4"}}).IsEmpty())
 }
 
 func TestResult_WriteText(t *testing.T) {

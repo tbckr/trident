@@ -28,6 +28,11 @@ func newASNCmd(stdout, stderr io.Writer, configFile *string, verbose *bool, outp
 			if err != nil {
 				return err
 			}
+			asnResult, ok := result.(*asnsvc.Result)
+			if ok && asnResult.IsEmpty() {
+				logger.Info("no ASN data found", "input", args[0])
+				return nil
+			}
 			return writeResult(stdout, format, result)
 		},
 	}
