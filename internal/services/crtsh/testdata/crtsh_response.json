@@ -1,0 +1,35 @@
+[
+  {
+    "issuer_ca_id": 183267,
+    "issuer_name": "C=US, O=DigiCert Inc, CN=DigiCert TLS RSA SHA256 2020 CA1",
+    "common_name": "example.com",
+    "name_value": "example.com",
+    "id": 10000001,
+    "entry_timestamp": "2024-01-15T10:00:00.000Z",
+    "not_before": "2024-01-15T00:00:00.000Z",
+    "not_after": "2025-02-15T23:59:59.000Z",
+    "serial_number": "0123456789abcdef"
+  },
+  {
+    "issuer_ca_id": 183267,
+    "issuer_name": "C=US, O=DigiCert Inc, CN=DigiCert TLS RSA SHA256 2020 CA1",
+    "common_name": "www.example.com",
+    "name_value": "www.example.com",
+    "id": 10000002,
+    "entry_timestamp": "2024-01-15T10:00:00.000Z",
+    "not_before": "2024-01-15T00:00:00.000Z",
+    "not_after": "2025-02-15T23:59:59.000Z",
+    "serial_number": "fedcba9876543210"
+  },
+  {
+    "issuer_ca_id": 183267,
+    "issuer_name": "C=US, O=DigiCert Inc, CN=DigiCert TLS RSA SHA256 2020 CA1",
+    "common_name": "www.example.com",
+    "name_value": "www.example.com",
+    "id": 10000003,
+    "entry_timestamp": "2023-01-15T10:00:00.000Z",
+    "not_before": "2023-01-15T00:00:00.000Z",
+    "not_after": "2024-02-15T23:59:59.000Z",
+    "serial_number": "aabbccdd11223344"
+  }
+]

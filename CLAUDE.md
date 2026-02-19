@@ -6,6 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). It is currently **greenfield** — the PRD is in `docs/PRD.md` but no source code exists yet. The MVP (Phase 1) delivers three keyless reconnaissance services: DNS, ASN, and crt.sh.
 
+## Module
+`github.com/tbckr/trident`
+
 ## Commands
 
 Once the Go module is initialized, these commands apply:
@@ -47,17 +50,15 @@ internal/
 
 **Dependency Injection:** Constructor injection everywhere. No global state or singletons.
 ```go
-func NewCrtshService(client HttpClientInterface, logger *slog.Logger) *CrtshService
+func NewDNSService(resolver DNSResolverInterface, logger *slog.Logger) *DNSService
+func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 ```
+
+**`*req.Client` is a hard dependency** — not abstracted behind an interface. Mock HTTP in tests via `httpmock.ActivateNonDefault(client.GetClient())`.
+
+**`DNSResolverInterface`** — only DNS/ASN use an interface (for `*net.Resolver` mocking). Defined in `internal/services/interfaces.go`.
 
 **`run` function pattern:** `main()` delegates to `run()` which accepts all dependencies and returns an error — enables testability.
-
-**Interfaces for all external interactions:**
-```go
-type HttpClientInterface interface { ... }
-type DNSResolverInterface interface { ... }
-```
-These interfaces are in `internal/services/` and mocked in tests via `jarcoal/httpmock` (HTTP) and custom resolver mocks (DNS).
 
 **Service interface** — every service implements:
 ```go
@@ -98,10 +99,11 @@ type Service interface {
 - **Logging:** `log/slog` (stdlib only — no zap/logrus)
 - **Tables:** `olekukonko/tablewriter`
 - **Tests:** `stretchr/testify` + `jarcoal/httpmock`
-- **Lint:** `golangci-lint` (strict — CI fails on any lint error)
+- **Lint:** `golangci-lint` v2 (strict — CI fails on any lint error). Config requires `version: "2"` at top; formatters (`gofmt`, `goimports`) go in `formatters:` section, not `linters:`. GitHub Action: `golangci/golangci-lint-action@v8` with `version: v2.1`.
 
 ## Key Constraints
 
+- **No external I/O in tests** — all DNS and HTTP must be mocked; no real network calls. DNS: `mockResolver` struct; HTTP: `httpmock.ActivateNonDefault(client.GetClient())`.
 - **No `os/exec`** for DNS — use `net.Resolver` directly
 - **Enforced HTTPS only** — no `InsecureSkipVerify`
 - **Output sanitization** — strip ANSI escape sequences from external data before printing

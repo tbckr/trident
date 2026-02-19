@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./... -coverprofile=coverage.out -covermode=atomic
+
+      - name: Check coverage (services)
+        run: |
+          go test ./internal/services/... -coverprofile=svc_coverage.out -covermode=atomic
+          total=$(go tool cover -func=svc_coverage.out | grep ^total | awk '{print $3}' | tr -d '%')
+          echo "Service coverage: ${total}%"
+          awk "BEGIN { if ($total+0 < 80) { print \"Service coverage \" $total \"% is below 80% threshold\"; exit 1 } }" <<< "$total"
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1
