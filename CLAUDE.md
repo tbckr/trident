@@ -105,7 +105,7 @@ type Service interface {
 - **Logging:** `log/slog` (stdlib only — no zap/logrus)
 - **Tables:** `olekukonko/tablewriter`
 - **Tests:** `stretchr/testify` + `jarcoal/httpmock`
-- **Lint:** `golangci-lint` v2 (strict — CI fails on any lint error). Config requires `version: "2"` at top; formatters (`gofmt`, `goimports`) go in `formatters:` section, not `linters:`. GitHub Action: `golangci/golangci-lint-action@v8` with `version: v2.1`.
+- **Lint:** `golangci-lint` v2 (strict — CI fails on any lint error). Config requires `version: "2"` at top; formatters (`gofmt`, `goimports`) go in `formatters:` section, not `linters:`. GitHub Action: `golangci/golangci-lint-action@v8` with `version: latest` (pinning a specific version risks Go version mismatch with `go.mod`).
 
 ## Key Constraints
 
