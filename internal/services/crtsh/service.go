@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/imroc/req/v3"
-	"github.com/olekukonko/tablewriter"
 
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/services"
@@ -54,7 +53,7 @@ func (r *Result) WriteText(w io.Writer) error {
 	for _, sub := range r.Subdomains {
 		rows = append(rows, []string{sub})
 	}
-	table := tablewriter.NewWriter(w)
+	table := output.NewWrappingTable(w, 30, 6)
 	table.Header([]string{"Subdomain"})
 	if err := table.Bulk(rows); err != nil {
 		return err

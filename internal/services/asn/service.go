@@ -9,8 +9,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
-
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/services"
 )
@@ -58,7 +56,7 @@ func (r *Result) WriteText(w io.Writer) error {
 		{"Registry", r.Registry},
 		{"Description", r.Description},
 	}
-	table := tablewriter.NewWriter(w)
+	table := output.NewWrappingTable(w, 20, 20)
 	table.Header([]string{"Field", "Value"})
 	if err := table.Bulk(rows); err != nil {
 		return err

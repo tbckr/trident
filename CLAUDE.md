@@ -61,6 +61,10 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **tablewriter error returns:** Both `table.Bulk(rows)` and `table.Render()` return `error` — always propagate them; `errcheck` will fail the lint if ignored.
 
+**`output.NewWrappingTable`** — shared factory in `internal/output/terminal.go`; always use this in service `WriteText` methods instead of calling `tablewriter.NewTable` directly. Overhead values: 20 for 2-column tables (Type/Field + Value), 6 for 1-column tables.
+
+**gosec G115 (`uintptr→int`)** — `term.GetSize(int(f.Fd()))` always triggers G115. Suppress with `//nolint:gosec // uintptr→int is safe for file descriptors; they fit in int on all supported platforms`.
+
 **`internal/testutil`** — `MockResolver` (implements `DNSResolverInterface` with optional `*Fn` fields) + `NopLogger()`. Import in `_test` files for DNS/ASN service tests.
 
 **crtsh URL:** Use `"%%.%s"` (double `%%`) in the constant so `fmt.Sprintf` emits a literal `%.` before the domain. `"%.%s"` silently causes an arg-count mismatch.

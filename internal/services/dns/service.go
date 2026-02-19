@@ -8,8 +8,6 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/olekukonko/tablewriter"
-
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/validate"
@@ -61,7 +59,7 @@ func (r *Result) WriteText(w io.Writer) error {
 	for _, v := range r.PTR {
 		rows = append(rows, []string{"PTR", v})
 	}
-	table := tablewriter.NewWriter(w)
+	table := output.NewWrappingTable(w, 20, 20)
 	table.Header([]string{"Type", "Value"})
 	if err := table.Bulk(rows); err != nil {
 		return err
