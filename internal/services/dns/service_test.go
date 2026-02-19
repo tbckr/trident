@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -151,6 +152,7 @@ func TestResult_IsEmpty(t *testing.T) {
 func TestResult_WriteText(t *testing.T) {
 	result := &dns.Result{
 		Input: "example.com",
+		NS:    []string{"ns1.example.com."},
 		A:     []string{"1.2.3.4"},
 		MX:    []string{"mail.example.com."},
 		TXT:   []string{"v=spf1 -all"},
@@ -162,4 +164,25 @@ func TestResult_WriteText(t *testing.T) {
 	out := buf.String()
 	assert.Contains(t, out, "1.2.3.4")
 	assert.Contains(t, out, "mail.example.com.")
+
+	// Assert canonical ordering: NS before A before MX
+	nsIdx := strings.Index(out, "ns1.example.com.")
+	aIdx := strings.Index(out, "1.2.3.4")
+	mxIdx := strings.Index(out, "mail.example.com.")
+	assert.Less(t, nsIdx, aIdx, "NS records should appear before A records")
+	assert.Less(t, aIdx, mxIdx, "A records should appear before MX records")
+}
+
+func TestResult_WriteText_PTR(t *testing.T) {
+	result := &dns.Result{
+		Input: "8.8.8.8",
+		PTR:   []string{"dns.google."},
+	}
+
+	var buf bytes.Buffer
+	err := result.WriteText(&buf)
+	require.NoError(t, err)
+	out := buf.String()
+	assert.Contains(t, out, "PTR")
+	assert.Contains(t, out, "dns.google.")
 }

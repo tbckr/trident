@@ -65,7 +65,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **tablewriter error returns:** Both `table.Bulk(rows)` and `table.Render()` return `error` — always propagate them; `errcheck` will fail the lint if ignored.
 
-**`output.NewWrappingTable`** — shared factory in `internal/output/terminal.go`; always use this in service `WriteText` methods instead of calling `tablewriter.NewTable` directly. Overhead values: 20 for 2-column tables (Type/Field + Value), 6 for 1-column tables.
+**`output.NewWrappingTable`** — shared factory in `internal/output/terminal.go`; use for plain (ungrouped) tables. **`output.NewGroupedWrappingTable`** — use when rows are grouped by a type column (e.g. DNS): merges repeated first-column cells (`MergeHierarchical`) and draws separator lines between groups (`BetweenRows: tw.On`); requires `"github.com/olekukonko/tablewriter/renderer"` imported in `terminal.go`. Overhead values: 20 for 2-column tables, 6 for 1-column tables.
 
 **gosec G115 (`uintptr→int`)** — `term.GetSize(int(f.Fd()))` always triggers G115. Suppress with `//nolint:gosec // uintptr→int is safe for file descriptors; they fit in int on all supported platforms`.
 
@@ -108,7 +108,7 @@ type Service interface {
 
 | Command | Implementation | PAP |
 |---------|---------------|-----|
-| `dns` | Go `net` package — A, AAAA, MX, NS, TXT records | GREEN |
+| `dns` | Go `net` package — A, AAAA, MX, NS, TXT records; canonical `WriteText` order: NS → A → AAAA → MX → TXT → PTR | GREEN |
 | `asn` | Team Cymru DNS: IPv4 → `<reversed>.origin.asn.cymru.com`; IPv6 → 32-nibble reversal + `.origin6.asn.cymru.com`; ASN → `AS<n>.asn.cymru.com` | AMBER |
 | `crtsh` | HTTP GET `https://crt.sh/?q=%.<domain>&output=json` via `imroc/req` | AMBER |
 

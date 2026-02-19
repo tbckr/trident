@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
 	"github.com/olekukonko/tablewriter/tw"
 	"golang.org/x/term"
 )
@@ -20,6 +21,27 @@ func TerminalWidth(w io.Writer) int {
 		}
 	}
 	return defaultTermWidth
+}
+
+// NewGroupedWrappingTable returns a tablewriter that groups rows by the first
+// column (merged cells), draws separator lines between groups, and auto-wraps
+// content to fit the terminal. Use this for services that output typed records
+// (e.g. DNS). minWidth and overhead behave the same as in NewWrappingTable.
+func NewGroupedWrappingTable(w io.Writer, minWidth, overhead int) *tablewriter.Table {
+	maxColWidth := max(minWidth, TerminalWidth(w)-overhead)
+	return tablewriter.NewTable(w,
+		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
+			Settings: tw.Settings{
+				Separators: tw.Separators{BetweenRows: tw.On},
+			},
+		})),
+		tablewriter.WithConfig(tablewriter.Config{
+			Row: tw.CellConfig{
+				Formatting:   tw.CellFormatting{MergeMode: tw.MergeHierarchical, AutoWrap: tw.WrapNormal},
+				ColMaxWidths: tw.CellWidth{Global: maxColWidth},
+			},
+		}),
+	)
 }
 
 // NewWrappingTable returns a tablewriter that auto-wraps cell content to fit

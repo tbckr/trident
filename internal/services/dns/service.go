@@ -45,9 +45,12 @@ func (r *Result) IsEmpty() bool {
 		len(r.TXT) == 0 && len(r.PTR) == 0
 }
 
-// WriteText renders the result as an ASCII table.
+// WriteText renders the result as an ASCII table, sorted and grouped by record type.
 func (r *Result) WriteText(w io.Writer) error {
 	var rows [][]string
+	for _, v := range r.NS {
+		rows = append(rows, []string{"NS", v})
+	}
 	for _, v := range r.A {
 		rows = append(rows, []string{"A", v})
 	}
@@ -57,16 +60,13 @@ func (r *Result) WriteText(w io.Writer) error {
 	for _, v := range r.MX {
 		rows = append(rows, []string{"MX", v})
 	}
-	for _, v := range r.NS {
-		rows = append(rows, []string{"NS", v})
-	}
 	for _, v := range r.TXT {
 		rows = append(rows, []string{"TXT", v})
 	}
 	for _, v := range r.PTR {
 		rows = append(rows, []string{"PTR", v})
 	}
-	table := output.NewWrappingTable(w, 20, 20)
+	table := output.NewGroupedWrappingTable(w, 20, 20)
 	table.Header([]string{"Type", "Value"})
 	if err := table.Bulk(rows); err != nil {
 		return err
