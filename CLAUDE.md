@@ -237,6 +237,3 @@ type Service interface {
 The full PRD is in `docs/PRD.md`. Phases deferred from MVP:
 - **Phase 2:** ✅ Complete — stdin/bulk input, concurrency, proxy, PAP system, defanging, ThreatMiner, PGP; shell completions, command grouping, rich help text, version command (ldflags vars prepped for GoReleaser)
 - **Phase 3:** GoReleaser, SBOM (CycloneDX), Cosign signing, rate limiting with jitter, `burn` command
-- **Phase 4:** cache, quad9, tor, robtex, umbrella services
-- **Phase 5:** 40+ API-key services (Shodan, VirusTotal, Censys, etc.)
-- **Phase 6+:** TLS fingerprint evasion, honeypot detection, encrypted workspace
