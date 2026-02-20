@@ -174,3 +174,28 @@ func TestResult_WriteText(t *testing.T) {
 	assert.Contains(t, out, "AS15169")
 	assert.Contains(t, out, "GOOGLE, US")
 }
+
+func TestResult_WritePlain(t *testing.T) {
+	result := &asn.Result{
+		Input:       "8.8.8.8",
+		ASN:         "AS15169",
+		Prefix:      "8.8.8.0/24",
+		Country:     "US",
+		Registry:    "arin",
+		Description: "GOOGLE, US",
+	}
+	var buf bytes.Buffer
+	err := result.WritePlain(&buf)
+	require.NoError(t, err)
+	out := buf.String()
+	assert.Contains(t, out, "AS15169")
+	assert.Contains(t, out, "8.8.8.0/24")
+	assert.Contains(t, out, "US")
+	assert.Contains(t, out, "arin")
+	assert.Contains(t, out, "GOOGLE, US")
+}
+
+func TestService_PAP(t *testing.T) {
+	svc := asn.NewService(&testutil.MockResolver{}, testutil.NopLogger())
+	assert.Equal(t, "amber", svc.PAP().String())
+}

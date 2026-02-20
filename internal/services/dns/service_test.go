@@ -186,3 +186,39 @@ func TestResult_WriteText_PTR(t *testing.T) {
 	assert.Contains(t, out, "PTR")
 	assert.Contains(t, out, "dns.google.")
 }
+
+func TestResult_WritePlain(t *testing.T) {
+	result := &dns.Result{
+		Input: "example.com",
+		NS:    []string{"ns1.example.com."},
+		A:     []string{"1.2.3.4"},
+		AAAA:  []string{"::1"},
+		MX:    []string{"mail.example.com."},
+		TXT:   []string{"v=spf1 -all"},
+		PTR:   []string{"host.example.com."},
+	}
+
+	var buf bytes.Buffer
+	err := result.WritePlain(&buf)
+	require.NoError(t, err)
+	out := buf.String()
+
+	assert.Contains(t, out, "NS ns1.example.com.")
+	assert.Contains(t, out, "A 1.2.3.4")
+	assert.Contains(t, out, "AAAA ::1")
+	assert.Contains(t, out, "MX mail.example.com.")
+	assert.Contains(t, out, "TXT v=spf1 -all")
+	assert.Contains(t, out, "PTR host.example.com.")
+
+	// Canonical order: NS before A before AAAA before MX before TXT before PTR
+	nsIdx := strings.Index(out, "NS ")
+	aIdx := strings.Index(out, "A ")
+	mxIdx := strings.Index(out, "MX ")
+	assert.Less(t, nsIdx, aIdx)
+	assert.Less(t, aIdx, mxIdx)
+}
+
+func TestService_PAP(t *testing.T) {
+	svc := dns.NewService(&testutil.MockResolver{}, testutil.NopLogger())
+	assert.Equal(t, "green", svc.PAP().String())
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/imroc/req/v3"
@@ -217,4 +218,22 @@ func TestResult_WriteText(t *testing.T) {
 	out := buf.String()
 	assert.Contains(t, out, "example.com")
 	assert.Contains(t, out, "www.example.com")
+}
+
+func TestResult_WritePlain(t *testing.T) {
+	result := &crtsh.Result{
+		Input:      "example.com",
+		Subdomains: []string{"api.example.com", "www.example.com"},
+	}
+	var buf bytes.Buffer
+	err := result.WritePlain(&buf)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	assert.Equal(t, []string{"api.example.com", "www.example.com"}, lines)
+}
+
+func TestService_PAP(t *testing.T) {
+	client := req.NewClient()
+	svc := crtsh.NewService(client, testutil.NopLogger())
+	assert.Equal(t, "amber", svc.PAP().String())
 }

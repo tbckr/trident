@@ -9,6 +9,7 @@ import (
 	"net"
 
 	"github.com/tbckr/trident/internal/output"
+	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/validate"
 )
@@ -27,6 +28,9 @@ func NewService(resolver services.DNSResolverInterface, logger *slog.Logger) *Se
 // Name returns the service identifier.
 func (s *Service) Name() string { return "dns" }
 
+// PAP returns the PAP activity level for the DNS service (passive lookup).
+func (s *Service) PAP() pap.Level { return pap.GREEN }
+
 // Result holds the DNS lookup results for a single domain or IP input.
 type Result struct {
 	Input string   `json:"input"`
@@ -43,6 +47,42 @@ func (r *Result) IsEmpty() bool {
 	return len(r.A) == 0 && len(r.AAAA) == 0 &&
 		len(r.MX) == 0 && len(r.NS) == 0 &&
 		len(r.TXT) == 0 && len(r.PTR) == 0
+}
+
+// WritePlain renders the result as plain text with one record per line.
+// Each line has the format: "TYPE value" (e.g. "NS ns1.example.com").
+func (r *Result) WritePlain(w io.Writer) error {
+	for _, v := range r.NS {
+		if _, err := fmt.Fprintf(w, "NS %s\n", v); err != nil {
+			return err
+		}
+	}
+	for _, v := range r.A {
+		if _, err := fmt.Fprintf(w, "A %s\n", v); err != nil {
+			return err
+		}
+	}
+	for _, v := range r.AAAA {
+		if _, err := fmt.Fprintf(w, "AAAA %s\n", v); err != nil {
+			return err
+		}
+	}
+	for _, v := range r.MX {
+		if _, err := fmt.Fprintf(w, "MX %s\n", v); err != nil {
+			return err
+		}
+	}
+	for _, v := range r.TXT {
+		if _, err := fmt.Fprintf(w, "TXT %s\n", v); err != nil {
+			return err
+		}
+	}
+	for _, v := range r.PTR {
+		if _, err := fmt.Fprintf(w, "PTR %s\n", v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // WriteText renders the result as an ASCII table, sorted and grouped by record type.

@@ -1,0 +1,7 @@
+{
+  "status_code": "200",
+  "status_message": "Results found.",
+  "results": [
+    {"ip": "8.8.8.8", "first_seen": "2020-01-01 00:00:00", "last_seen": "2024-01-01 00:00:00", "domain": "dns.google"}
+  ]
+}

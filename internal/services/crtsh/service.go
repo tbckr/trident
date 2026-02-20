@@ -13,6 +13,7 @@ import (
 	"github.com/imroc/req/v3"
 
 	"github.com/tbckr/trident/internal/output"
+	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/validate"
 )
@@ -41,6 +42,9 @@ func NewService(client *req.Client, logger *slog.Logger) *Service {
 // Name returns the service identifier.
 func (s *Service) Name() string { return "crtsh" }
 
+// PAP returns the PAP activity level for the crt.sh service (external API query).
+func (s *Service) PAP() pap.Level { return pap.AMBER }
+
 // Result holds the unique subdomains found in the crt.sh certificate log.
 type Result struct {
 	Input      string   `json:"input"`
@@ -50,6 +54,16 @@ type Result struct {
 // IsEmpty reports whether no subdomains were found.
 func (r *Result) IsEmpty() bool {
 	return len(r.Subdomains) == 0
+}
+
+// WritePlain renders the result as plain text with one subdomain per line.
+func (r *Result) WritePlain(w io.Writer) error {
+	for _, sub := range r.Subdomains {
+		if _, err := fmt.Fprintln(w, sub); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // WriteText renders the result as an ASCII table.
@@ -88,7 +102,11 @@ func (s *Service) Run(ctx context.Context, domain string) (any, error) {
 		return nil, fmt.Errorf("%w: crt.sh request error for %q: %w", services.ErrRequestFailed, domain, err)
 	}
 	if !resp.IsSuccessState() {
-		return nil, fmt.Errorf("%w: crt.sh returned HTTP %d for %q", services.ErrRequestFailed, resp.StatusCode, domain)
+		body := resp.String()
+		if len(body) > 200 {
+			body = body[:200] + "..."
+		}
+		return nil, fmt.Errorf("%w: crt.sh returned HTTP %d for %q: %q", services.ErrRequestFailed, resp.StatusCode, domain, body)
 	}
 
 	seen := make(map[string]struct{})

@@ -1,0 +1,8 @@
+{
+  "status_code": "200",
+  "status_message": "Results found.",
+  "results": [
+    {"ip": "93.184.216.34", "first_seen": "2021-01-01 00:00:00", "last_seen": "2024-01-01 00:00:00", "domain": "example.com"},
+    {"ip": "93.184.216.35", "first_seen": "2022-01-01 00:00:00", "last_seen": "2023-01-01 00:00:00", "domain": "example.com"}
+  ]
+}

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/tbckr/trident/internal/output"
+	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
 )
 
@@ -37,6 +38,9 @@ func NewService(resolver services.DNSResolverInterface, logger *slog.Logger) *Se
 // Name returns the service identifier.
 func (s *Service) Name() string { return "asn" }
 
+// PAP returns the PAP activity level for the ASN service (semi-active DNS query to external).
+func (s *Service) PAP() pap.Level { return pap.AMBER }
+
 // Result holds the ASN lookup result for a single IP or ASN input.
 type Result struct {
 	Input       string `json:"input"`
@@ -51,6 +55,14 @@ type Result struct {
 func (r *Result) IsEmpty() bool {
 	return r.ASN == "" && r.Prefix == "" && r.Country == "" &&
 		r.Registry == "" && r.Description == ""
+}
+
+// WritePlain renders the result as a single pipe-delimited line.
+// Format: "ASN / Prefix / Country / Registry / Description"
+func (r *Result) WritePlain(w io.Writer) error {
+	_, err := fmt.Fprintf(w, "%s / %s / %s / %s / %s\n",
+		r.ASN, r.Prefix, r.Country, r.Registry, r.Description)
+	return err
 }
 
 // WriteText renders the result as an ASCII table.

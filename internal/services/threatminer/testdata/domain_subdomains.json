@@ -1,0 +1,9 @@
+{
+  "status_code": "200",
+  "status_message": "Results found.",
+  "results": [
+    "www.example.com",
+    "mail.example.com",
+    "api.example.com"
+  ]
+}

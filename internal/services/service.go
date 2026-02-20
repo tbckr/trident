@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"errors"
+
+	"github.com/tbckr/trident/internal/pap"
 )
 
 // ErrInvalidInput is returned by any service when the provided input fails validation.
@@ -16,8 +18,12 @@ var ErrInvalidInput = errors.New("invalid input")
 // across all services.
 var ErrRequestFailed = errors.New("request failed")
 
+// ErrPAPBlocked is returned when a service's PAP level exceeds the user-defined limit.
+var ErrPAPBlocked = errors.New("PAP limit exceeded")
+
 // Service is the contract every Trident service must implement.
 type Service interface {
 	Name() string
+	PAP() pap.Level
 	Run(ctx context.Context, input string) (any, error)
 }

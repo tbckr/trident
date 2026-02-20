@@ -8,36 +8,36 @@ import (
 	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
-	crtshsvc "github.com/tbckr/trident/internal/services/crtsh"
+	pgpsvc "github.com/tbckr/trident/internal/services/pgp"
 	"github.com/tbckr/trident/internal/worker"
 )
 
-func newCrtshCmd(d *deps) *cobra.Command {
+func newPGPCmd(d *deps) *cobra.Command {
 	return &cobra.Command{
-		Use:     "crtsh [domain...]",
-		Short:   "Search crt.sh certificate transparency logs for subdomains",
+		Use:     "pgp [query...]",
+		Short:   "Search keys.openpgp.org for PGP keys by email or name",
 		GroupID: "osint",
-		Long: `Search crt.sh certificate transparency logs for subdomains of a domain.
+		Long: `Search keys.openpgp.org for PGP public keys by email address or name.
 
-Queries the crt.sh API for all TLS certificates that contain the target domain
-as a subject or SAN. Wildcard entries and the root domain itself are filtered
-from the results; only valid subdomains are returned.
+Queries the HKP (HTTP Keyserver Protocol) machine-readable index at
+keys.openpgp.org. Returns key fingerprints, UIDs (email addresses / names),
+and key flags (e.g. encryption, signing). A 404 response means no keys found.
 
-PAP level: AMBER (queries the crt.sh third-party API).
+PAP level: AMBER (queries the keys.openpgp.org third-party service).
 
 Multiple inputs can be supplied as arguments or piped via stdin (one per line).
 Bulk stdin input is processed concurrently (see --concurrency).`,
-		Example: `  # Find subdomains for a domain
-  trident crtsh example.com
+		Example: `  # Search by email address
+  trident pgp user@example.com
+
+  # Search by name
+  trident pgp "Alice Smith"
 
   # Bulk input from stdin
-  echo -e "example.com\nexample.org" | trident crtsh
-
-  # Plain text output (one subdomain per line)
-  trident crtsh --output plain example.com
+  echo -e "alice@example.com\nbob@example.com" | trident pgp
 
   # JSON output
-  trident crtsh --output json example.com`,
+  trident pgp --output json user@example.com`,
 		Args: cobra.ArbitraryArgs,
 		ValidArgsFunction: func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -47,7 +47,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			if err != nil {
 				return fmt.Errorf("creating HTTP client: %w", err)
 			}
-			svc := crtshsvc.NewService(client, d.logger)
+			svc := pgpsvc.NewService(client, d.logger)
 
 			if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.PAP()) {
 				return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
@@ -59,7 +59,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 				return err
 			}
 			if len(inputs) == 0 {
-				return fmt.Errorf("no input: supply a domain as argument or pipe via stdin")
+				return fmt.Errorf("no input: supply an email or name as argument or pipe via stdin")
 			}
 
 			if len(inputs) == 1 {
@@ -67,8 +67,8 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 				if err != nil {
 					return err
 				}
-				if r, ok := result.(*crtshsvc.Result); ok && r.IsEmpty() {
-					d.logger.Info("no subdomains found", "input", inputs[0])
+				if r, ok := result.(*pgpsvc.Result); ok && r.IsEmpty() {
+					d.logger.Info("no PGP keys found", "input", inputs[0])
 					return nil
 				}
 				return writeResult(cmd.OutOrStdout(), d, result)
@@ -76,18 +76,18 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 
 			// Bulk mode
 			results := worker.Run(cmd.Context(), svc, inputs, d.cfg.Concurrency)
-			var valid []*crtshsvc.Result
+			var valid []*pgpsvc.Result
 			for _, r := range results {
 				if r.Err != nil {
-					d.logger.Error("crtsh lookup failed", "input", r.Input, "error", r.Err)
+					d.logger.Error("PGP lookup failed", "input", r.Input, "error", r.Err)
 					continue
 				}
-				if cr, ok := r.Output.(*crtshsvc.Result); ok && cr.IsEmpty() {
-					d.logger.Info("no subdomains found", "input", r.Input)
+				if pr, ok := r.Output.(*pgpsvc.Result); ok && pr.IsEmpty() {
+					d.logger.Info("no PGP keys found", "input", r.Input)
 					continue
 				}
-				if cr, ok := r.Output.(*crtshsvc.Result); ok {
-					valid = append(valid, cr)
+				if pr, ok := r.Output.(*pgpsvc.Result); ok {
+					valid = append(valid, pr)
 				}
 			}
 			switch len(valid) {
@@ -96,7 +96,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			case 1:
 				return writeResult(cmd.OutOrStdout(), d, valid[0])
 			default:
-				return writeResult(cmd.OutOrStdout(), d, &crtshsvc.MultiResult{Results: valid})
+				return writeResult(cmd.OutOrStdout(), d, &pgpsvc.MultiResult{Results: valid})
 			}
 		},
 	}

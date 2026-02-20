@@ -20,6 +20,11 @@ func (f *fakeResult) WriteText(w io.Writer) error {
 	return err
 }
 
+func (f *fakeResult) WritePlain(w io.Writer) error {
+	_, err := w.Write([]byte("plain:" + f.Name))
+	return err
+}
+
 func TestWrite_JSON(t *testing.T) {
 	var buf bytes.Buffer
 	err := output.Write(&buf, output.FormatJSON, &fakeResult{Name: "test"})
@@ -40,6 +45,20 @@ func TestWrite_Text_NotFormattable(t *testing.T) {
 	err := output.Write(&buf, output.FormatText, struct{ X int }{X: 1})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not support text output")
+}
+
+func TestWrite_Plain(t *testing.T) {
+	var buf bytes.Buffer
+	err := output.Write(&buf, output.FormatPlain, &fakeResult{Name: "hello"})
+	require.NoError(t, err)
+	assert.Equal(t, "plain:hello", buf.String())
+}
+
+func TestWrite_Plain_NotFormattable(t *testing.T) {
+	var buf bytes.Buffer
+	err := output.Write(&buf, output.FormatPlain, struct{ X int }{X: 1})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not support plain output")
 }
 
 func TestWrite_UnknownFormat(t *testing.T) {

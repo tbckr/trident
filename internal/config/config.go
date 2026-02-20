@@ -7,58 +7,107 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 // Config holds the runtime settings resolved from flags, env vars, and config file.
 type Config struct {
-	ConfigFile string
-	Verbose    bool
-	Output     string
+	ConfigFile  string // set after Unmarshal — no mapstructure tag
+	Verbose     bool   `mapstructure:"verbose"`
+	Output      string `mapstructure:"output"`      // text | json | plain
+	Proxy       string `mapstructure:"proxy"`       // http://, https://, socks5://
+	UserAgent   string `mapstructure:"user_agent"`  // override or empty (→ rotation)
+	PAPLimit    string `mapstructure:"pap_limit"`   // "white" (default)
+	Defang      bool   `mapstructure:"defang"`      // force defang
+	NoDefang    bool   `mapstructure:"no_defang"`   // suppress defang
+	Concurrency int    `mapstructure:"concurrency"` // default 10
 }
 
-// Load initializes Viper with TRIDENT_* env var overrides and an XDG-compliant config
-// file path. Creates the config file with 0600 permissions if it does not exist.
-// A missing config file is not an error.
-func Load(configFile string, verbose bool, output string) (*Config, error) {
-	cfg := &Config{
-		Verbose: verbose,
-		Output:  output,
-	}
+// RegisterFlags defines all persistent CLI flags on the given FlagSet.
+// Call this on the root command's PersistentFlags().
+func RegisterFlags(flags *pflag.FlagSet) {
+	flags.String("config", "", "config file (default: $XDG_CONFIG_HOME/trident/config.yaml)")
+	flags.BoolP("verbose", "v", false, "enable verbose (debug) logging")
+	flags.StringP("output", "o", "text", "output format: text, json, or plain")
+	flags.String("proxy", "", "proxy URL (http://, https://, or socks5://)")
+	flags.String("user-agent", "", "HTTP User-Agent (empty = random rotation)")
+	flags.String("pap", "white", "PAP limit: white, green, amber, or red")
+	flags.Bool("defang", false, "defang text/plain output (dots → [.], http → hxxp)")
+	flags.Bool("no-defang", false, "disable defanging even if enabled in config")
+	flags.IntP("concurrency", "c", 10, "parallel workers for bulk stdin input")
+}
 
+// RegisterFlagCompletions registers tab-completion functions for global flags on cmd.
+func RegisterFlagCompletions(cmd *cobra.Command) {
+	_ = cmd.RegisterFlagCompletionFunc("output", CompleteOutputFormat)
+	_ = cmd.RegisterFlagCompletionFunc("pap", CompletePAPLevel)
+}
+
+// Load initializes Viper with the full precedence chain:
+//
+//	CLI flag (changed) > TRIDENT_* env var > config.yaml > viper SetDefault
+//
+// Creates the config file with 0600 permissions if it does not exist.
+// A missing config file is not an error.
+func Load(flags *pflag.FlagSet) (*Config, error) {
 	v := viper.New()
+
+	// Defaults — only used when nothing else provides the value.
+	v.SetDefault("output", "text")
+	v.SetDefault("pap_limit", "white")
+	v.SetDefault("concurrency", 10)
+
+	// Env vars: TRIDENT_VERBOSE, TRIDENT_OUTPUT, TRIDENT_USER_AGENT, etc.
 	v.SetEnvPrefix("TRIDENT")
 	v.AutomaticEnv()
 
+	// Bind cobra flags → viper keys (flag name ≠ viper key for 3 flags).
+	_ = v.BindPFlag("verbose", flags.Lookup("verbose"))
+	_ = v.BindPFlag("output", flags.Lookup("output"))
+	_ = v.BindPFlag("proxy", flags.Lookup("proxy"))
+	_ = v.BindPFlag("user_agent", flags.Lookup("user-agent"))
+	_ = v.BindPFlag("pap_limit", flags.Lookup("pap"))
+	_ = v.BindPFlag("defang", flags.Lookup("defang"))
+	_ = v.BindPFlag("no_defang", flags.Lookup("no-defang"))
+	_ = v.BindPFlag("concurrency", flags.Lookup("concurrency"))
+
+	// Config file resolution.
+	var resolvedPath string
+	configFile, _ := flags.GetString("config")
 	if configFile != "" {
-		cfg.ConfigFile = configFile
+		resolvedPath = configFile
 		v.SetConfigFile(configFile)
 	} else {
 		dir, err := configDir()
 		if err != nil {
 			return nil, fmt.Errorf("resolving config dir: %w", err)
 		}
-		cfg.ConfigFile = filepath.Join(dir, "config.yaml")
+		resolvedPath = filepath.Join(dir, "config.yaml")
 		v.SetConfigName("config")
 		v.SetConfigType("yaml")
 		v.AddConfigPath(dir)
 	}
 
-	if err := ensureConfigFile(cfg.ConfigFile); err != nil {
+	if err := ensureConfigFile(resolvedPath); err != nil {
 		return nil, fmt.Errorf("ensuring config file: %w", err)
 	}
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
-		if !errors.As(err, &notFound) {
-			// Tolerate "not found" by path when using SetConfigFile
-			if !os.IsNotExist(err) {
-				return nil, fmt.Errorf("reading config: %w", err)
-			}
+		if !errors.As(err, &notFound) && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("reading config: %w", err)
 		}
 	}
 
-	return cfg, nil
+	// Unmarshal → Config (mapstructure tags drive field assignment).
+	var cfg Config
+	if err := v.Unmarshal(&cfg); err != nil {
+		return nil, fmt.Errorf("unmarshaling config: %w", err)
+	}
+	cfg.ConfigFile = resolvedPath
+	return &cfg, nil
 }
 
 // configDir returns the OS-appropriate config directory for trident.
