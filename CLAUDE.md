@@ -54,6 +54,22 @@ internal/
   validate/         # Shared input validators — IsDomain() and future helpers
 ```
 
+**Per-service file layout** — every service package must follow this 4-file structure:
+```
+internal/services/<name>/
+├── doc.go           # // Package <name> ... comment only
+├── service.go       # Service struct, constructor, Name, PAP, Run, helpers
+├── result.go        # Result struct + IsEmpty, WritePlain, WriteText methods
+└── multi_result.go  # MultiResult struct + WriteText (embeds MultiResultBase)
+```
+
+**Per-service test file layout** — 3 test files mirror the 4 source files:
+```
+├── service_test.go      # TestRun_*, TestService_*, shared helpers (newTestClient, fixtures)
+├── result_test.go       # TestResult_* only
+└── multi_result_test.go # TestMultiResult_* only
+```
+
 ### Core Patterns
 
 **Dependency Injection:** Constructor injection everywhere. No global state or singletons.
@@ -209,6 +225,7 @@ type Service interface {
 - **No external I/O in tests** — all DNS and HTTP must be mocked; no real network calls. DNS: `mockResolver` struct; HTTP: `httpmock.ActivateNonDefault(client.GetClient())`.
 - **No ad-hoc CLI runs for verification** — `go run ./cmd/trident/main.go <service> ...` may hit live endpoints; use `go build ./...` + `go test ./...` to verify changes instead.
 - **Shell stderr noise** — every `go` command emits `alias: --: Nicht gefunden.` from shell init; this is harmless. Judge build/test success by explicit echo (`&& echo "BUILD OK"`), not absence of stderr.
+- **Diagnostic lag after edits** — IDE diagnostics (DuplicateDecl, UndeclaredName) may show stale errors for several seconds after an Edit tool call. Always confirm actual state with `go build ./...` rather than re-editing based on stale diagnostics.
 - **No `os/exec`** for DNS — use `net.Resolver` directly
 - **Enforced HTTPS only** — no `InsecureSkipVerify`
 - **Output sanitization** — strip ANSI escape sequences from external data before printing

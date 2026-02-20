@@ -1,12 +1,10 @@
 package crtsh_test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/imroc/req/v3"
@@ -200,36 +198,6 @@ func TestRun_FilteredEntries(t *testing.T) {
 	assert.NotContains(t, result.Subdomains, "*.example.com")
 	assert.NotContains(t, result.Subdomains, "sni.cloudflaressl.com")
 	assert.NotContains(t, result.Subdomains, "example.com")
-}
-
-func TestResult_IsEmpty(t *testing.T) {
-	assert.True(t, (&crtsh.Result{}).IsEmpty())
-	assert.False(t, (&crtsh.Result{Subdomains: []string{"www.example.com"}}).IsEmpty())
-}
-
-func TestResult_WriteText(t *testing.T) {
-	result := &crtsh.Result{
-		Input:      "example.com",
-		Subdomains: []string{"example.com", "www.example.com"},
-	}
-	var buf bytes.Buffer
-	err := result.WriteText(&buf)
-	require.NoError(t, err)
-	out := buf.String()
-	assert.Contains(t, out, "example.com")
-	assert.Contains(t, out, "www.example.com")
-}
-
-func TestResult_WritePlain(t *testing.T) {
-	result := &crtsh.Result{
-		Input:      "example.com",
-		Subdomains: []string{"api.example.com", "www.example.com"},
-	}
-	var buf bytes.Buffer
-	err := result.WritePlain(&buf)
-	require.NoError(t, err)
-	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-	assert.Equal(t, []string{"api.example.com", "www.example.com"}, lines)
 }
 
 func TestService_PAP(t *testing.T) {
