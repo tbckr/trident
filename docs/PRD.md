@@ -213,7 +213,6 @@ Production-grade release pipeline with supply chain security, rate limiting, and
 | **Rate Limiting** | Token Bucket algorithm (`golang.org/x/time/rate`) per service. Respect `X-RateLimit-*` headers and HTTP 429. |
 | **Request Jitter** | ±20% random variation on request intervals. |
 | **DNS Leak Prevention** | Remote DNS resolution when using SOCKS5 proxy. |
-| **gosec** | SAST scanning in CI. Use in conjunction with golangci-lint. |
 | **govulncheck** | SCA scanning in CI. |
 ---
 
