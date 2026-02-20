@@ -213,66 +213,11 @@ Production-grade release pipeline with supply chain security, rate limiting, and
 | **Rate Limiting** | Token Bucket algorithm (`golang.org/x/time/rate`) per service. Respect `X-RateLimit-*` headers and HTTP 429. |
 | **Request Jitter** | ±20% random variation on request intervals. |
 | **DNS Leak Prevention** | Remote DNS resolution when using SOCKS5 proxy. |
-| **gosec** | SAST scanning in CI. |
+| **gosec** | SAST scanning in CI. Use in conjunction with golangci-lint. |
 | **govulncheck** | SCA scanning in CI. |
-| **Renovate** | Automated dependency update PRs. |
-| **`burn` Command** | Secure deletion of all artifacts (config, logs, cache) + binary self-deletion (Linux/macOS only; warning on Windows). |
-
 ---
 
-## 7. Phase 4 — Passive Expansion
-
-### 7.1 Goal
-
-Broaden passive reconnaissance capabilities with additional keyless services.
-
-### 7.2 New Services
-
-| Service | Description | API Key? | PAP |
-|---------|-------------|----------|-----|
-| `cache` | Webpage cache (Archive.org etc.) | No (mostly) | AMBER |
-| `quad9` | Check if blocked by Quad9 | No (DNS) | AMBER |
-| `tor` | Check Tor exit node list | No | AMBER |
-| `robtex` | Search Robtex | No (limited/scrape) | AMBER |
-| `umbrella` | Umbrella Top 1M check | No (CSV list) | RED (local) |
-
----
-
-## 8. Phase 5 — API-Key Services
-
-### 8.1 Goal
-
-Integrate services requiring API key authentication.
-
-### 8.2 Services
-
-Full list of planned API-key services (prioritized by analyst utility):
-
-**Tier 1 (High Priority):**
-Shodan, VirusTotal, Censys, GreyNoise, SecurityTrails, HIBP
-
-**Tier 2 (Medium Priority):**
-OTX, IPInfo, Hunter, URLScan, GitHub, PulseDive, Passive Total
-
-**Tier 3 (Lower Priority):**
-BinaryEdge, CIRCL, FullContact, Hybrid Analysis, Koodous, MalShare, MISP, NumVerify, OpenCage, Perma.cc, SafeBrowsing, SpyOnWeb, Telegram, ThreatCrowd, ThreatGrid, TotalHash, Twitter, URLHaus, X-Force, Zetalytics, IP2Location.io, CertSpotter
-
----
-
-## 9. Phase 6+ — Advanced OpSec & Research
-
-### 9.1 Capabilities (Exploration)
-
-* **TLS Fingerprinting Evasion (JA3/JA4):** Mimic genuine browser handshakes via `utls`.
-* **Honeypot Detection:** Passive canary checks before active scans.
-* **Core Dump Prevention:** Cross-platform prevention of sensitive memory being written to disk.
-* **Encrypted Workspace:** Session passphrase → all logs/cache/output encrypted at rest (AES-GCM or ChaCha20-Poly1305). For remote/headless investigations.
-* **Behavioral Mimicry:** Time-of-day constraints, human-like connection pooling / Keep-Alive management.
-* **VEX Integration:** Reduce false positives in vulnerability scanners by flagging unaffected dependencies (builds on SBOM from Phase 3).
-
----
-
-## 10. Appendix: Complete Service Matrix
+## 7. Appendix: Complete Service Matrix
 
 | Service | API Key? | PAP Level | Phase |
 |---------|----------|-----------|-------|
