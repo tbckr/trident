@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -73,11 +74,11 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 }
 
 // Execute builds the root command and runs it with os.Args.
-func Execute(stdout, stderr io.Writer) error {
+func Execute(ctx context.Context, stdout, stderr io.Writer) error {
 	cmd := newRootCmd()
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
-	return cmd.Execute()
+	return cmd.ExecuteContext(ctx)
 }
 
 // deps holds fully-resolved runtime dependencies for a subcommand.

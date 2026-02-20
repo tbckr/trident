@@ -88,7 +88,9 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`DNSResolverInterface`** — only DNS/ASN use an interface (for `*net.Resolver` mocking). Defined in `internal/services/interfaces.go`.
 
-**`run` function pattern:** `main()` delegates to `run()` which accepts all dependencies and returns an error — enables testability.
+**`run` function pattern:** `main()` delegates to `run(ctx context.Context)` which accepts all dependencies and returns an error — enables testability.
+
+**Signal handling & graceful cancellation** — `main()` creates `signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)` and passes the context to `cli.Execute(ctx, ...)`. After `run()` returns, `errors.Is(err, context.Canceled)` → silent `os.Exit(0)` (user cancellation is intentional, not an error). `Execute` signature: `Execute(ctx context.Context, stdout, stderr io.Writer) error`; uses `cmd.ExecuteContext(ctx)` so all subcommands receive context via `cmd.Context()`.
 
 **`buildDeps` signature:** `buildDeps(cmd *cobra.Command, stderr io.Writer) (*deps, error)` — pass `cmd` so `config.Load` gets inherited persistent flags. Called once from root's `PersistentPreRunE`, not from individual subcommand `RunE` functions.
 
