@@ -206,7 +206,7 @@ Production-grade release pipeline with supply chain security, rate limiting, and
 
 | Capability | Details |
 |------------|---------|
-| **GoReleaser** | Build, package, publish releases to GitHub. Cross-platform binaries. |
+| **GoReleaser** | Build, package, publish releases to GitHub. Cross-platform binaries. Use version 2.x. |
 | **SBOM** | CycloneDX generation per release artifact (via GoReleaser). |
 | **Cosign Signing** | Signed binaries and checksums for integrity/authenticity. |
 | **Reproducible Builds** | `-trimpath` flags, deterministic build config. |
