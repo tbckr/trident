@@ -1,15 +1,11 @@
 package cli
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/spf13/cobra"
 
-	"github.com/tbckr/trident/internal/pap"
-	"github.com/tbckr/trident/internal/services"
 	asnsvc "github.com/tbckr/trident/internal/services/asn"
-	"github.com/tbckr/trident/internal/worker"
 )
 
 func newASNCmd(d *deps) *cobra.Command {
@@ -46,58 +42,8 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolver := &net.Resolver{}
-			svc := asnsvc.NewService(resolver, d.logger)
-
-			if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.PAP()) {
-				return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
-					services.ErrPAPBlocked, svc.Name(), svc.PAP(), pap.MustParse(d.cfg.PAPLimit))
-			}
-
-			inputs, err := resolveInputs(cmd, args)
-			if err != nil {
-				return err
-			}
-			if len(inputs) == 0 {
-				return fmt.Errorf("no input: supply an IP or ASN as argument or pipe via stdin")
-			}
-
-			if len(inputs) == 1 {
-				result, err := svc.Run(cmd.Context(), inputs[0])
-				if err != nil {
-					return err
-				}
-				if r, ok := result.(*asnsvc.Result); ok && r.IsEmpty() {
-					d.logger.Info("no ASN data found", "input", inputs[0])
-					return nil
-				}
-				return writeResult(cmd.OutOrStdout(), d, result)
-			}
-
-			// Bulk mode
-			results := worker.Run(cmd.Context(), svc, inputs, d.cfg.Concurrency)
-			var valid []*asnsvc.Result
-			for _, r := range results {
-				if r.Err != nil {
-					d.logger.Error("ASN lookup failed", "input", r.Input, "error", r.Err)
-					continue
-				}
-				if ar, ok := r.Output.(*asnsvc.Result); ok && ar.IsEmpty() {
-					d.logger.Info("no ASN data found", "input", r.Input)
-					continue
-				}
-				if ar, ok := r.Output.(*asnsvc.Result); ok {
-					valid = append(valid, ar)
-				}
-			}
-			switch len(valid) {
-			case 0:
-				return nil
-			case 1:
-				return writeResult(cmd.OutOrStdout(), d, valid[0])
-			default:
-				return writeResult(cmd.OutOrStdout(), d, &asnsvc.MultiResult{Results: valid})
-			}
+			svc := asnsvc.NewService(&net.Resolver{}, d.logger)
+			return runServiceCmd(cmd, d, svc, args)
 		},
 	}
 }

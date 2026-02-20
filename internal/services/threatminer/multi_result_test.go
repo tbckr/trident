@@ -19,26 +19,29 @@ func TestMultiResult_IsEmpty(t *testing.T) {
 	})
 
 	t.Run("empty when all results empty", func(t *testing.T) {
-		m := &threatminer.MultiResult{Results: []*threatminer.Result{
+		m := &threatminer.MultiResult{}
+		m.Results = []*threatminer.Result{
 			{Input: "example.com", InputType: "domain"},
 			{Input: "1.2.3.4", InputType: "ip"},
-		}}
+		}
 		assert.True(t, m.IsEmpty())
 	})
 
 	t.Run("not empty when one result has passive DNS", func(t *testing.T) {
-		m := &threatminer.MultiResult{Results: []*threatminer.Result{
+		m := &threatminer.MultiResult{}
+		m.Results = []*threatminer.Result{
 			{Input: "example.com", InputType: "domain"},
 			{Input: "1.2.3.4", InputType: "ip", PassiveDNS: []threatminer.PDNSEntry{
 				{IP: "1.2.3.4", Domain: "example.com"},
 			}},
-		}}
+		}
 		assert.False(t, m.IsEmpty())
 	})
 }
 
 func TestMultiResult_WriteText_PassiveDNS(t *testing.T) {
-	m := &threatminer.MultiResult{Results: []*threatminer.Result{
+	m := &threatminer.MultiResult{}
+	m.Results = []*threatminer.Result{
 		{
 			Input:     "example.com",
 			InputType: "domain",
@@ -53,7 +56,7 @@ func TestMultiResult_WriteText_PassiveDNS(t *testing.T) {
 				{IP: "5.6.7.8", Domain: "example.org", FirstSeen: "2021-06-01", LastSeen: "2022-06-01"},
 			},
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WriteText(&buf)
@@ -77,7 +80,8 @@ func TestMultiResult_WriteText_PassiveDNS(t *testing.T) {
 }
 
 func TestMultiResult_WriteText_Subdomains(t *testing.T) {
-	m := &threatminer.MultiResult{Results: []*threatminer.Result{
+	m := &threatminer.MultiResult{}
+	m.Results = []*threatminer.Result{
 		{
 			Input:      "example.com",
 			InputType:  "domain",
@@ -88,7 +92,7 @@ func TestMultiResult_WriteText_Subdomains(t *testing.T) {
 			InputType:  "domain",
 			Subdomains: []string{"api.example.org"},
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WriteText(&buf)
@@ -101,7 +105,8 @@ func TestMultiResult_WriteText_Subdomains(t *testing.T) {
 }
 
 func TestMultiResult_WriteText_HashInfo(t *testing.T) {
-	m := &threatminer.MultiResult{Results: []*threatminer.Result{
+	m := &threatminer.MultiResult{}
+	m.Results = []*threatminer.Result{
 		{
 			Input:     "aabbcc",
 			InputType: "hash",
@@ -120,7 +125,7 @@ func TestMultiResult_WriteText_HashInfo(t *testing.T) {
 				FileName: "document.pdf",
 			},
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WriteText(&buf)
@@ -139,7 +144,8 @@ func TestMultiResult_WriteText_HashInfo(t *testing.T) {
 
 func TestMultiResult_WriteText_SkipsEmptySubtables(t *testing.T) {
 	// Only PassiveDNS — Subdomains and HashInfo tables should not appear
-	m := &threatminer.MultiResult{Results: []*threatminer.Result{
+	m := &threatminer.MultiResult{}
+	m.Results = []*threatminer.Result{
 		{
 			Input:     "1.2.3.4",
 			InputType: "ip",
@@ -147,7 +153,7 @@ func TestMultiResult_WriteText_SkipsEmptySubtables(t *testing.T) {
 				{IP: "1.2.3.4", Domain: "example.com"},
 			},
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WriteText(&buf)
@@ -160,7 +166,8 @@ func TestMultiResult_WriteText_SkipsEmptySubtables(t *testing.T) {
 }
 
 func TestMultiResult_WritePlain(t *testing.T) {
-	m := &threatminer.MultiResult{Results: []*threatminer.Result{
+	m := &threatminer.MultiResult{}
+	m.Results = []*threatminer.Result{
 		{
 			Input:     "example.com",
 			InputType: "domain",
@@ -177,7 +184,7 @@ func TestMultiResult_WritePlain(t *testing.T) {
 				FileType: "PE32",
 			},
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WritePlain(&buf)
@@ -191,10 +198,11 @@ func TestMultiResult_WritePlain(t *testing.T) {
 }
 
 func TestMultiResult_MarshalJSON(t *testing.T) {
-	m := &threatminer.MultiResult{Results: []*threatminer.Result{
+	m := &threatminer.MultiResult{}
+	m.Results = []*threatminer.Result{
 		{Input: "example.com", InputType: "domain"},
 		{Input: "1.2.3.4", InputType: "ip"},
-	}}
+	}
 
 	data, err := json.Marshal(m)
 	require.NoError(t, err)

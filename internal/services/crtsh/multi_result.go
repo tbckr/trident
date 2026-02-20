@@ -1,40 +1,15 @@
 package crtsh
 
 import (
-	"encoding/json"
 	"io"
 
 	"github.com/tbckr/trident/internal/output"
+	"github.com/tbckr/trident/internal/services"
 )
 
 // MultiResult holds crt.sh subdomain results for multiple inputs.
 type MultiResult struct {
-	Results []*Result
-}
-
-// IsEmpty reports whether all contained results are empty.
-func (m *MultiResult) IsEmpty() bool {
-	for _, r := range m.Results {
-		if !r.IsEmpty() {
-			return false
-		}
-	}
-	return true
-}
-
-// MarshalJSON serializes the multi-result as a JSON array of individual results.
-func (m *MultiResult) MarshalJSON() ([]byte, error) {
-	return json.Marshal(m.Results)
-}
-
-// WritePlain writes all results as plain text (one subdomain per line).
-func (m *MultiResult) WritePlain(w io.Writer) error {
-	for _, r := range m.Results {
-		if err := r.WritePlain(w); err != nil {
-			return err
-		}
-	}
-	return nil
+	services.MultiResultBase[Result, *Result]
 }
 
 // WriteText renders all results in a single combined table grouped by domain.

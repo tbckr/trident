@@ -114,11 +114,20 @@ func (r *Result) WriteText(w io.Writer) error {
 	return table.Render()
 }
 
+// AggregateResults combines multiple DNS results into a MultiResult.
+func (s *Service) AggregateResults(results []services.Result) services.Result {
+	mr := &MultiResult{}
+	for _, r := range results {
+		mr.Results = append(mr.Results, r.(*Result))
+	}
+	return mr
+}
+
 // Run executes DNS lookups for the given domain or IP address.
 // For domain input: resolves A, AAAA, MX, NS, TXT records.
 // For IP input: performs a reverse lookup (PTR records).
 // Partial results are returned when individual record type lookups fail.
-func (s *Service) Run(ctx context.Context, input string) (any, error) {
+func (s *Service) Run(ctx context.Context, input string) (services.Result, error) {
 	result := &Result{Input: output.StripANSI(input)}
 
 	if ip := net.ParseIP(input); ip != nil {

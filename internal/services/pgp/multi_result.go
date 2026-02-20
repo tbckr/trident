@@ -1,42 +1,17 @@
 package pgp
 
 import (
-	"encoding/json"
 	"io"
 	"strconv"
 	"strings"
 
 	"github.com/tbckr/trident/internal/output"
+	"github.com/tbckr/trident/internal/services"
 )
 
 // MultiResult holds PGP key search results for multiple inputs.
 type MultiResult struct {
-	Results []*Result
-}
-
-// IsEmpty reports whether all contained results have no keys.
-func (m *MultiResult) IsEmpty() bool {
-	for _, r := range m.Results {
-		if !r.IsEmpty() {
-			return false
-		}
-	}
-	return true
-}
-
-// MarshalJSON serializes the multi-result as a JSON array of individual results.
-func (m *MultiResult) MarshalJSON() ([]byte, error) {
-	return json.Marshal(m.Results)
-}
-
-// WritePlain writes all results as plain text.
-func (m *MultiResult) WritePlain(w io.Writer) error {
-	for _, r := range m.Results {
-		if err := r.WritePlain(w); err != nil {
-			return err
-		}
-	}
-	return nil
+	services.MultiResultBase[Result, *Result]
 }
 
 // WriteText renders all keys from all results in a single combined table.

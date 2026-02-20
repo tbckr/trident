@@ -80,8 +80,17 @@ func (r *Result) WriteText(w io.Writer) error {
 	return table.Render()
 }
 
+// AggregateResults combines multiple crt.sh results into a MultiResult.
+func (s *Service) AggregateResults(results []services.Result) services.Result {
+	mr := &MultiResult{}
+	for _, r := range results {
+		mr.Results = append(mr.Results, r.(*Result))
+	}
+	return mr
+}
+
 // Run queries crt.sh for subdomains of the given domain.
-func (s *Service) Run(ctx context.Context, domain string) (any, error) {
+func (s *Service) Run(ctx context.Context, domain string) (services.Result, error) {
 	domain = output.StripANSI(domain)
 	if !validate.IsDomain(domain) {
 		return nil, fmt.Errorf("%w: must be a valid domain name: %q", services.ErrInvalidInput, domain)

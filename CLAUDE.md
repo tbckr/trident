@@ -116,9 +116,13 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **Type assertions in tests** — always use two-value form: `result, ok := raw.(*T); require.True(t, ok, "expected *T")`. Bare `raw.(*T)` panics on failure.
 
-**`Result.IsEmpty() bool`** — every `Result` type must implement this method. Returns true when the struct holds no data. Used by CLI commands to skip table rendering and log at INFO level instead.
+**`services.Result` interface** — defined in `internal/services/service.go`; requires `IsEmpty() bool`. Every service's `*Result` and `*MultiResult` satisfy it. Used by `runServiceCmd` to skip table rendering and log at INFO level.
 
-**`MultiResult` pattern** — each service has `internal/services/<svc>/multi_result.go` with `MultiResult{Results []*Result}` implementing `WriteText`, `WritePlain`, `IsEmpty`, `MarshalJSON`. CLI bulk mode (2+ inputs) collects valid `[]*svc.Result` then dispatches to `MultiResult`; single valid result uses the plain `Result` path.
+**`MultiResult` pattern** — each service's `multi_result.go` embeds `services.MultiResultBase[Result, *Result]` (provides `IsEmpty`, `MarshalJSON`, `WritePlain`) and adds only `WriteText`. ThreatMiner overrides `WritePlain` (prefixes each record with `r.Input`). After embedding, init via assignment: `m := &dns.MultiResult{}; m.Results = [...]` — composite literal with promoted fields is a compile error.
+
+**`services.MultiResultBase[T, PT]`** — generic base in `internal/services/multi.go`; `PT multiItem[T]` constrains the element type (`*T` + `IsEmpty() bool` + `WritePlain(io.Writer) error`). Provides `IsEmpty`, `MarshalJSON`, `WritePlain`; embed it and add `WriteText` to complete a service's `MultiResult`.
+
+**`runServiceCmd`** — shared `RunE` body in `internal/cli/root.go`; handles PAP check, input resolution, single-result and bulk paths (calls `svc.AggregateResults(valid)` for 2+ valid results). Each subcommand's `RunE` just instantiates the service and calls `runServiceCmd(cmd, d, svc, args)`.
 
 **CLI empty-result pattern** — after `svc.Run()` succeeds, each CLI command checks `IsEmpty()` and returns early without calling `writeResult()`:
 ```go
@@ -145,8 +149,9 @@ if ok && someResult.IsEmpty() {
 ```go
 type Service interface {
     Name() string
-    PAP()  pap.Level
-    Run(ctx context.Context, input string) (any, error)
+    PAP() pap.Level
+    Run(ctx context.Context, input string) (Result, error)
+    AggregateResults(results []Result) Result
 }
 ```
 

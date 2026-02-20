@@ -6,10 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tbckr/trident/internal/httpclient"
-	"github.com/tbckr/trident/internal/pap"
-	"github.com/tbckr/trident/internal/services"
 	tmsvc "github.com/tbckr/trident/internal/services/threatminer"
-	"github.com/tbckr/trident/internal/worker"
 )
 
 func newThreatMinerCmd(d *deps) *cobra.Command {
@@ -55,56 +52,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 				return fmt.Errorf("creating HTTP client: %w", err)
 			}
 			svc := tmsvc.NewService(client, d.logger)
-
-			if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.PAP()) {
-				return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
-					services.ErrPAPBlocked, svc.Name(), svc.PAP(), pap.MustParse(d.cfg.PAPLimit))
-			}
-
-			inputs, err := resolveInputs(cmd, args)
-			if err != nil {
-				return err
-			}
-			if len(inputs) == 0 {
-				return fmt.Errorf("no input: supply a domain, IP, or hash as argument or pipe via stdin")
-			}
-
-			if len(inputs) == 1 {
-				result, err := svc.Run(cmd.Context(), inputs[0])
-				if err != nil {
-					return err
-				}
-				if r, ok := result.(*tmsvc.Result); ok && r.IsEmpty() {
-					d.logger.Info("no ThreatMiner data found", "input", inputs[0])
-					return nil
-				}
-				return writeResult(cmd.OutOrStdout(), d, result)
-			}
-
-			// Bulk mode
-			results := worker.Run(cmd.Context(), svc, inputs, d.cfg.Concurrency)
-			var valid []*tmsvc.Result
-			for _, r := range results {
-				if r.Err != nil {
-					d.logger.Error("threatminer lookup failed", "input", r.Input, "error", r.Err)
-					continue
-				}
-				if tr, ok := r.Output.(*tmsvc.Result); ok && tr.IsEmpty() {
-					d.logger.Info("no ThreatMiner data found", "input", r.Input)
-					continue
-				}
-				if tr, ok := r.Output.(*tmsvc.Result); ok {
-					valid = append(valid, tr)
-				}
-			}
-			switch len(valid) {
-			case 0:
-				return nil
-			case 1:
-				return writeResult(cmd.OutOrStdout(), d, valid[0])
-			default:
-				return writeResult(cmd.OutOrStdout(), d, &tmsvc.MultiResult{Results: valid})
-			}
+			return runServiceCmd(cmd, d, svc, args)
 		},
 	}
 }

@@ -19,24 +19,27 @@ func TestMultiResult_IsEmpty(t *testing.T) {
 	})
 
 	t.Run("empty when all results empty", func(t *testing.T) {
-		m := &asn.MultiResult{Results: []*asn.Result{
+		m := &asn.MultiResult{}
+		m.Results = []*asn.Result{
 			{Input: "8.8.8.8"},
 			{Input: "1.1.1.1"},
-		}}
+		}
 		assert.True(t, m.IsEmpty())
 	})
 
 	t.Run("not empty when one result has data", func(t *testing.T) {
-		m := &asn.MultiResult{Results: []*asn.Result{
+		m := &asn.MultiResult{}
+		m.Results = []*asn.Result{
 			{Input: "8.8.8.8"},
 			{Input: "1.1.1.1", ASN: "AS15169", Description: "GOOGLE, US"},
-		}}
+		}
 		assert.False(t, m.IsEmpty())
 	})
 }
 
 func TestMultiResult_WriteText(t *testing.T) {
-	m := &asn.MultiResult{Results: []*asn.Result{
+	m := &asn.MultiResult{}
+	m.Results = []*asn.Result{
 		{
 			Input:       "8.8.8.8",
 			ASN:         "AS15169",
@@ -53,7 +56,7 @@ func TestMultiResult_WriteText(t *testing.T) {
 			Registry:    "apnic",
 			Description: "CLOUDFLARENET",
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WriteText(&buf)
@@ -77,7 +80,8 @@ func TestMultiResult_WriteText(t *testing.T) {
 }
 
 func TestMultiResult_WritePlain(t *testing.T) {
-	m := &asn.MultiResult{Results: []*asn.Result{
+	m := &asn.MultiResult{}
+	m.Results = []*asn.Result{
 		{
 			Input:       "8.8.8.8",
 			ASN:         "AS15169",
@@ -94,7 +98,7 @@ func TestMultiResult_WritePlain(t *testing.T) {
 			Registry:    "apnic",
 			Description: "CLOUDFLARENET",
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WritePlain(&buf)
@@ -108,10 +112,11 @@ func TestMultiResult_WritePlain(t *testing.T) {
 }
 
 func TestMultiResult_MarshalJSON(t *testing.T) {
-	m := &asn.MultiResult{Results: []*asn.Result{
+	m := &asn.MultiResult{}
+	m.Results = []*asn.Result{
 		{Input: "8.8.8.8", ASN: "AS15169"},
 		{Input: "1.1.1.1", ASN: "AS13335"},
-	}}
+	}
 
 	data, err := json.Marshal(m)
 	require.NoError(t, err)

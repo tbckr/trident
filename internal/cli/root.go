@@ -13,6 +13,7 @@ import (
 	"github.com/tbckr/trident/internal/config"
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
+	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/worker"
 )
 
@@ -136,6 +137,55 @@ func resolveInputs(cmd *cobra.Command, args []string) ([]string, error) {
 		return nil, fmt.Errorf("no input: pass an argument or pipe stdin")
 	}
 	return worker.ReadInputs(r)
+}
+
+// runServiceCmd is the shared RunE body for all OSINT subcommands.
+// It handles PAP enforcement, input resolution, single-result and bulk paths.
+func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []string) error {
+	if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.PAP()) {
+		return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
+			services.ErrPAPBlocked, svc.Name(), svc.PAP(), pap.MustParse(d.cfg.PAPLimit))
+	}
+
+	inputs, err := resolveInputs(cmd, args)
+	if err != nil {
+		return err
+	}
+
+	if len(inputs) == 1 {
+		result, err := svc.Run(cmd.Context(), inputs[0])
+		if err != nil {
+			return err
+		}
+		if result.IsEmpty() {
+			d.logger.Info("no results found", "service", svc.Name(), "input", inputs[0])
+			return nil
+		}
+		return writeResult(cmd.OutOrStdout(), d, result)
+	}
+
+	// Bulk path
+	workerResults := worker.Run(cmd.Context(), svc, inputs, d.cfg.Concurrency)
+	var valid []services.Result
+	for _, r := range workerResults {
+		if r.Err != nil {
+			d.logger.Error("lookup failed", "service", svc.Name(), "input", r.Input, "error", r.Err)
+			continue
+		}
+		if r.Output.IsEmpty() {
+			d.logger.Info("no results found", "service", svc.Name(), "input", r.Input)
+			continue
+		}
+		valid = append(valid, r.Output)
+	}
+	switch len(valid) {
+	case 0:
+		return nil
+	case 1:
+		return writeResult(cmd.OutOrStdout(), d, valid[0])
+	default:
+		return writeResult(cmd.OutOrStdout(), d, svc.AggregateResults(valid))
+	}
 }
 
 // writeResult formats and writes a service result to stdout.

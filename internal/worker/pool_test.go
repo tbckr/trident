@@ -10,33 +10,48 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tbckr/trident/internal/pap"
+	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/worker"
 )
+
+// stringResult is a minimal services.Result implementation for use in tests.
+type stringResult string
+
+func (s stringResult) IsEmpty() bool { return s == "" }
 
 // echoService is a minimal services.Service that echoes the input as output.
 type echoService struct{}
 
-func (e *echoService) Name() string                                     { return "echo" }
-func (e *echoService) PAP() pap.Level                                   { return pap.GREEN }
-func (e *echoService) Run(_ context.Context, input string) (any, error) { return input, nil }
+func (e *echoService) Name() string   { return "echo" }
+func (e *echoService) PAP() pap.Level { return pap.GREEN }
+func (e *echoService) Run(_ context.Context, input string) (services.Result, error) {
+	return stringResult(input), nil
+}
+func (e *echoService) AggregateResults(results []services.Result) services.Result { return results[0] }
 
 // errorService returns an error for every Run call.
 type errorService struct{ err error }
 
-func (e *errorService) Name() string                                 { return "error" }
-func (e *errorService) PAP() pap.Level                               { return pap.GREEN }
-func (e *errorService) Run(_ context.Context, _ string) (any, error) { return nil, e.err }
+func (e *errorService) Name() string   { return "error" }
+func (e *errorService) PAP() pap.Level { return pap.GREEN }
+func (e *errorService) Run(_ context.Context, _ string) (services.Result, error) {
+	return nil, e.err
+}
+func (e *errorService) AggregateResults(_ []services.Result) services.Result { return nil }
 
 // perInputService succeeds for even-indexed inputs and errors for odd.
 type perInputService struct{}
 
 func (p *perInputService) Name() string   { return "per-input" }
 func (p *perInputService) PAP() pap.Level { return pap.GREEN }
-func (p *perInputService) Run(_ context.Context, input string) (any, error) {
+func (p *perInputService) Run(_ context.Context, input string) (services.Result, error) {
 	if input == "bad" {
 		return nil, errors.New("bad input")
 	}
-	return input, nil
+	return stringResult(input), nil
+}
+func (p *perInputService) AggregateResults(results []services.Result) services.Result {
+	return results[0]
 }
 
 func TestRun_OrderPreserved(t *testing.T) {
@@ -50,7 +65,7 @@ func TestRun_OrderPreserved(t *testing.T) {
 
 	for i, r := range results {
 		assert.Equal(t, inputs[i], r.Input)
-		assert.Equal(t, inputs[i], r.Output)
+		assert.Equal(t, stringResult(inputs[i]), r.Output)
 		assert.NoError(t, r.Err)
 	}
 }
@@ -78,7 +93,7 @@ func TestRun_AllErrors(t *testing.T) {
 func TestRun_SingleInput(t *testing.T) {
 	results := worker.Run(context.Background(), &echoService{}, []string{"only"}, 10)
 	require.Len(t, results, 1)
-	assert.Equal(t, "only", results[0].Output)
+	assert.Equal(t, stringResult("only"), results[0].Output)
 	assert.NoError(t, results[0].Err)
 }
 
@@ -102,6 +117,6 @@ func TestRun_ConcurrencyOne(t *testing.T) {
 	results := worker.Run(context.Background(), &echoService{}, inputs, 1)
 	require.Len(t, results, 3)
 	for i, r := range results {
-		assert.Equal(t, inputs[i], r.Output)
+		assert.Equal(t, stringResult(inputs[i]), r.Output)
 	}
 }

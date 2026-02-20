@@ -19,24 +19,27 @@ func TestMultiResult_IsEmpty(t *testing.T) {
 	})
 
 	t.Run("empty when all results empty", func(t *testing.T) {
-		m := &dns.MultiResult{Results: []*dns.Result{
+		m := &dns.MultiResult{}
+		m.Results = []*dns.Result{
 			{Input: "example.com"},
 			{Input: "example.org"},
-		}}
+		}
 		assert.True(t, m.IsEmpty())
 	})
 
 	t.Run("not empty when one result has data", func(t *testing.T) {
-		m := &dns.MultiResult{Results: []*dns.Result{
+		m := &dns.MultiResult{}
+		m.Results = []*dns.Result{
 			{Input: "example.com"},
 			{Input: "example.org", A: []string{"1.2.3.4"}},
-		}}
+		}
 		assert.False(t, m.IsEmpty())
 	})
 }
 
 func TestMultiResult_WriteText(t *testing.T) {
-	m := &dns.MultiResult{Results: []*dns.Result{
+	m := &dns.MultiResult{}
+	m.Results = []*dns.Result{
 		{
 			Input: "example.com",
 			NS:    []string{"ns1.example.com."},
@@ -47,7 +50,7 @@ func TestMultiResult_WriteText(t *testing.T) {
 			A:     []string{"5.6.7.8"},
 			TXT:   []string{"v=spf1 -all"},
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WriteText(&buf)
@@ -71,7 +74,8 @@ func TestMultiResult_WriteText(t *testing.T) {
 }
 
 func TestMultiResult_WritePlain(t *testing.T) {
-	m := &dns.MultiResult{Results: []*dns.Result{
+	m := &dns.MultiResult{}
+	m.Results = []*dns.Result{
 		{
 			Input: "example.com",
 			NS:    []string{"ns1.example.com."},
@@ -81,7 +85,7 @@ func TestMultiResult_WritePlain(t *testing.T) {
 			Input: "example.org",
 			A:     []string{"5.6.7.8"},
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WritePlain(&buf)
@@ -94,16 +98,17 @@ func TestMultiResult_WritePlain(t *testing.T) {
 }
 
 func TestMultiResult_MarshalJSON(t *testing.T) {
-	m := &dns.MultiResult{Results: []*dns.Result{
+	m := &dns.MultiResult{}
+	m.Results = []*dns.Result{
 		{Input: "example.com", A: []string{"1.2.3.4"}},
 		{Input: "example.org", A: []string{"5.6.7.8"}},
-	}}
+	}
 
 	data, err := json.Marshal(m)
 	require.NoError(t, err)
 
 	// Should be a JSON array
-	var arr []map[string]interface{}
+	var arr []map[string]any
 	require.NoError(t, json.Unmarshal(data, &arr))
 	assert.Len(t, arr, 2)
 	assert.Equal(t, "example.com", arr[0]["input"])

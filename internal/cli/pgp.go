@@ -6,10 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tbckr/trident/internal/httpclient"
-	"github.com/tbckr/trident/internal/pap"
-	"github.com/tbckr/trident/internal/services"
 	pgpsvc "github.com/tbckr/trident/internal/services/pgp"
-	"github.com/tbckr/trident/internal/worker"
 )
 
 func newPGPCmd(d *deps) *cobra.Command {
@@ -48,56 +45,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 				return fmt.Errorf("creating HTTP client: %w", err)
 			}
 			svc := pgpsvc.NewService(client, d.logger)
-
-			if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.PAP()) {
-				return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
-					services.ErrPAPBlocked, svc.Name(), svc.PAP(), pap.MustParse(d.cfg.PAPLimit))
-			}
-
-			inputs, err := resolveInputs(cmd, args)
-			if err != nil {
-				return err
-			}
-			if len(inputs) == 0 {
-				return fmt.Errorf("no input: supply an email or name as argument or pipe via stdin")
-			}
-
-			if len(inputs) == 1 {
-				result, err := svc.Run(cmd.Context(), inputs[0])
-				if err != nil {
-					return err
-				}
-				if r, ok := result.(*pgpsvc.Result); ok && r.IsEmpty() {
-					d.logger.Info("no PGP keys found", "input", inputs[0])
-					return nil
-				}
-				return writeResult(cmd.OutOrStdout(), d, result)
-			}
-
-			// Bulk mode
-			results := worker.Run(cmd.Context(), svc, inputs, d.cfg.Concurrency)
-			var valid []*pgpsvc.Result
-			for _, r := range results {
-				if r.Err != nil {
-					d.logger.Error("PGP lookup failed", "input", r.Input, "error", r.Err)
-					continue
-				}
-				if pr, ok := r.Output.(*pgpsvc.Result); ok && pr.IsEmpty() {
-					d.logger.Info("no PGP keys found", "input", r.Input)
-					continue
-				}
-				if pr, ok := r.Output.(*pgpsvc.Result); ok {
-					valid = append(valid, pr)
-				}
-			}
-			switch len(valid) {
-			case 0:
-				return nil
-			case 1:
-				return writeResult(cmd.OutOrStdout(), d, valid[0])
-			default:
-				return writeResult(cmd.OutOrStdout(), d, &pgpsvc.MultiResult{Results: valid})
-			}
+			return runServiceCmd(cmd, d, svc, args)
 		},
 	}
 }

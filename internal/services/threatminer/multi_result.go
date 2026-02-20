@@ -1,34 +1,19 @@
 package threatminer
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
 	"github.com/tbckr/trident/internal/output"
+	"github.com/tbckr/trident/internal/services"
 )
 
 // MultiResult holds ThreatMiner query results for multiple inputs.
 type MultiResult struct {
-	Results []*Result
+	services.MultiResultBase[Result, *Result]
 }
 
-// IsEmpty reports whether all contained results are empty.
-func (m *MultiResult) IsEmpty() bool {
-	for _, r := range m.Results {
-		if !r.IsEmpty() {
-			return false
-		}
-	}
-	return true
-}
-
-// MarshalJSON serializes the multi-result as a JSON array of individual results.
-func (m *MultiResult) MarshalJSON() ([]byte, error) {
-	return json.Marshal(m.Results)
-}
-
-// WritePlain writes all results as plain text with input prefix per record.
+// WritePlain overrides the base: prefixes each record with the originating input.
 func (m *MultiResult) WritePlain(w io.Writer) error {
 	for _, r := range m.Results {
 		if r.InputType == string(inputHash) && r.HashInfo != nil {

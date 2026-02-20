@@ -10,7 +10,7 @@ import (
 // Result holds the outcome of processing a single input via a Service.
 type Result struct {
 	Input  string
-	Output any
+	Output services.Result
 	Err    error
 }
 

@@ -82,10 +82,19 @@ func (r *Result) WriteText(w io.Writer) error {
 	return table.Render()
 }
 
+// AggregateResults combines multiple ASN results into a MultiResult.
+func (s *Service) AggregateResults(results []services.Result) services.Result {
+	mr := &MultiResult{}
+	for _, r := range results {
+		mr.Results = append(mr.Results, r.(*Result))
+	}
+	return mr
+}
+
 // Run performs an ASN lookup for the given IP address or ASN string.
 // IP input  → reverse-maps via Team Cymru to find the originating ASN.
 // ASN input → queries Team Cymru for the ASN's description.
-func (s *Service) Run(ctx context.Context, input string) (any, error) {
+func (s *Service) Run(ctx context.Context, input string) (services.Result, error) {
 	result := &Result{Input: output.StripANSI(input)}
 
 	if net.ParseIP(input) != nil {

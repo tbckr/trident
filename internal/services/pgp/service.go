@@ -89,8 +89,17 @@ func (s *Service) Name() string { return "pgp" }
 // PAP returns the PAP classification for this service.
 func (s *Service) PAP() pap.Level { return pap.AMBER }
 
+// AggregateResults combines multiple PGP results into a MultiResult.
+func (s *Service) AggregateResults(results []services.Result) services.Result {
+	mr := &MultiResult{}
+	for _, r := range results {
+		mr.Results = append(mr.Results, r.(*Result))
+	}
+	return mr
+}
+
 // Run searches for PGP keys matching the given query (email or name).
-func (s *Service) Run(ctx context.Context, input string) (any, error) {
+func (s *Service) Run(ctx context.Context, input string) (services.Result, error) {
 	if strings.TrimSpace(input) == "" {
 		return nil, fmt.Errorf("%w: query must not be empty", services.ErrInvalidInput)
 	}

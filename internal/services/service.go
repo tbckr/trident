@@ -21,9 +21,15 @@ var ErrRequestFailed = errors.New("request failed")
 // ErrPAPBlocked is returned when a service's PAP level exceeds the user-defined limit.
 var ErrPAPBlocked = errors.New("PAP limit exceeded")
 
+// Result is the common interface every service's Run output must satisfy.
+type Result interface {
+	IsEmpty() bool
+}
+
 // Service is the contract every Trident service must implement.
 type Service interface {
 	Name() string
 	PAP() pap.Level
-	Run(ctx context.Context, input string) (any, error)
+	Run(ctx context.Context, input string) (Result, error)
+	AggregateResults(results []Result) Result
 }

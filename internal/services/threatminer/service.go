@@ -182,8 +182,17 @@ func (s *Service) Name() string { return "threatminer" }
 // PAP returns the PAP classification for this service.
 func (s *Service) PAP() pap.Level { return pap.AMBER }
 
+// AggregateResults combines multiple ThreatMiner results into a MultiResult.
+func (s *Service) AggregateResults(results []services.Result) services.Result {
+	mr := &MultiResult{}
+	for _, r := range results {
+		mr.Results = append(mr.Results, r.(*Result))
+	}
+	return mr
+}
+
 // Run queries ThreatMiner for the given input (domain, IP, or hash).
-func (s *Service) Run(ctx context.Context, input string) (any, error) {
+func (s *Service) Run(ctx context.Context, input string) (services.Result, error) {
 	itype, err := classify(input)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", services.ErrInvalidInput, input)

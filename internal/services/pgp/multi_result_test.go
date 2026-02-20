@@ -18,26 +18,29 @@ func TestMultiResult_IsEmpty(t *testing.T) {
 	})
 
 	t.Run("empty when all results have no keys", func(t *testing.T) {
-		m := &pgp.MultiResult{Results: []*pgp.Result{
+		m := &pgp.MultiResult{}
+		m.Results = []*pgp.Result{
 			{Input: "alice@example.com"},
 			{Input: "bob@example.com"},
-		}}
+		}
 		assert.True(t, m.IsEmpty())
 	})
 
 	t.Run("not empty when one result has keys", func(t *testing.T) {
-		m := &pgp.MultiResult{Results: []*pgp.Result{
+		m := &pgp.MultiResult{}
+		m.Results = []*pgp.Result{
 			{Input: "alice@example.com"},
 			{Input: "bob@example.com", Keys: []pgp.Key{
 				{KeyID: "0x1234ABCD", Algorithm: "RSA", Bits: 4096},
 			}},
-		}}
+		}
 		assert.False(t, m.IsEmpty())
 	})
 }
 
 func TestMultiResult_WriteText(t *testing.T) {
-	m := &pgp.MultiResult{Results: []*pgp.Result{
+	m := &pgp.MultiResult{}
+	m.Results = []*pgp.Result{
 		{
 			Input: "alice@example.com",
 			Keys: []pgp.Key{
@@ -62,7 +65,7 @@ func TestMultiResult_WriteText(t *testing.T) {
 				},
 			},
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WriteText(&buf)
@@ -81,7 +84,8 @@ func TestMultiResult_WriteText(t *testing.T) {
 }
 
 func TestMultiResult_WritePlain(t *testing.T) {
-	m := &pgp.MultiResult{Results: []*pgp.Result{
+	m := &pgp.MultiResult{}
+	m.Results = []*pgp.Result{
 		{
 			Input: "alice@example.com",
 			Keys: []pgp.Key{
@@ -94,7 +98,7 @@ func TestMultiResult_WritePlain(t *testing.T) {
 				{KeyID: "0xDEADBEEF", UIDs: []string{"Bob <bob@example.com>"}},
 			},
 		},
-	}}
+	}
 
 	var buf bytes.Buffer
 	err := m.WritePlain(&buf)
@@ -108,10 +112,11 @@ func TestMultiResult_WritePlain(t *testing.T) {
 }
 
 func TestMultiResult_MarshalJSON(t *testing.T) {
-	m := &pgp.MultiResult{Results: []*pgp.Result{
+	m := &pgp.MultiResult{}
+	m.Results = []*pgp.Result{
 		{Input: "alice@example.com", Keys: []pgp.Key{{KeyID: "0x1234ABCD"}}},
 		{Input: "bob@example.com", Keys: []pgp.Key{{KeyID: "0xDEADBEEF"}}},
-	}}
+	}
 
 	data, err := json.Marshal(m)
 	require.NoError(t, err)
