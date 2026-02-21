@@ -31,6 +31,9 @@ go test ./internal/services/... -run TestCrtshService -v
 # Lint (strict)
 golangci-lint run
 
+# Sync go.mod/go.sum after adding/removing imports
+go mod tidy
+
 # Run the CLI
 go run ./cmd/trident/main.go dns example.com
 go run ./cmd/trident/main.go asn AS15169
