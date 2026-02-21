@@ -187,7 +187,7 @@ trident pgp "Alice Smith"
 | `--concurrency`, `-c` | `10` | Worker pool size for bulk input |
 | `--proxy` | — | Proxy URL (`http://`, `https://`, `socks5://`) |
 | `--user-agent` | rotating browser UAs | Override HTTP User-Agent |
-| `--pap` | `white` | PAP limit: `red`, `amber`, `green`, `white` |
+| `--pap-limit` | `white` | PAP limit: `red`, `amber`, `green`, `white` |
 | `--defang` | `false` | Force output defanging |
 | `--no-defang` | `false` | Disable output defanging |
 
@@ -207,10 +207,10 @@ Set a limit to block services above that level:
 
 ```bash
 # Only run services that use 3rd-party APIs (no direct target contact)
-trident --pap=amber crtsh example.com
+trident --pap-limit=amber crtsh example.com
 
 # Block all active interaction
-trident --pap=red asn 8.8.8.8  # error: service level AMBER exceeds limit RED
+trident --pap-limit=red asn 8.8.8.8  # error: service level AMBER exceeds limit RED
 ```
 
 Defanging is automatically applied at AMBER and below unless `--no-defang` is passed.
@@ -237,7 +237,7 @@ Environment variables override config file values using the `TRIDENT_` prefix:
 | Variable | Corresponding flag |
 |----------|--------------------|
 | `TRIDENT_OUTPUT` | `--output` |
-| `TRIDENT_PAP_LIMIT` | `--pap` |
+| `TRIDENT_PAP_LIMIT` | `--pap-limit` |
 | `TRIDENT_PROXY` | `--proxy` |
 | `TRIDENT_USER_AGENT` | `--user-agent` |
 | `TRIDENT_CONCURRENCY` | `--concurrency` |

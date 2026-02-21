@@ -72,7 +72,7 @@ func TestLoad_NewFields(t *testing.T) {
 	cfg, err := config.Load(newTestFlags(t, cfgFile,
 		"--proxy=http://proxy:8080",
 		"--user-agent=MyAgent/1.0",
-		"--pap=amber",
+		"--pap-limit=amber",
 		"--defang",
 		"--concurrency=5",
 	))

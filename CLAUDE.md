@@ -158,7 +158,7 @@ if ok && someResult.IsEmpty() {
 ```
 `logger` comes from `buildDeps`; exit code is 0 (zero results is valid, not an error).
 
-**PAP level ordering** — ascending activity: `RED(0) < AMBER(1) < GREEN(2) < WHITE(3)`. RED = non-detectable (offline/local); AMBER = 3rd-party APIs; GREEN = direct target interaction; WHITE = unrestricted. `Allows(limit, service Level) bool { return service <= limit }` — a service is blocked when its level exceeds the user's limit. Default `--pap=white` permits everything.
+**PAP level ordering** — ascending activity: `RED(0) < AMBER(1) < GREEN(2) < WHITE(3)`. RED = non-detectable (offline/local); AMBER = 3rd-party APIs; GREEN = direct target interaction; WHITE = unrestricted. `Allows(limit, service Level) bool { return service <= limit }` — a service is blocked when its level exceeds the user's limit. Default `--pap-limit=white` permits everything.
 
 **`pap.MustParse`** — like `Parse` but panics on invalid input; safe to call in subcommands after `buildDeps` has already validated `cfg.PAPLimit`. Subcommands use `pap.MustParse(d.cfg.PAPLimit)` wherever a `pap.Level` is needed at call time.
 
@@ -197,7 +197,7 @@ type Service interface {
 - Env vars take precedence; prefix: `TRIDENT_*`
 - Respect XDG on Linux, AppData on Windows
 - **Config API:** `config.RegisterFlags(cmd.PersistentFlags())` in root.go; `config.Load(cmd.Flags())` in `buildDeps`. Viper owns the full precedence chain — no scattered `if flag == "" {}` guards.
-- **Flag→viper key discrepancies** (hyphen→underscore, rename): `--user-agent`→`user_agent`, `--pap`→`pap_limit`, `--no-defang`→`no_defang`. These drive mapstructure tags and env vars (`TRIDENT_USER_AGENT`, `TRIDENT_PAP_LIMIT`, `TRIDENT_NO_DEFANG`).
+- **Flag→viper key discrepancies** (hyphen→underscore): `--user-agent`→`user_agent`, `--pap-limit`→`pap_limit`, `--no-defang`→`no_defang`. These drive mapstructure tags and env vars (`TRIDENT_USER_AGENT`, `TRIDENT_PAP_LIMIT`, `TRIDENT_NO_DEFANG`).
 - **`Config.ConfigFile`** has no mapstructure tag — set manually after `v.Unmarshal(&cfg)` (meta-field, not a viper key).
 
 ### Global Flags
@@ -210,7 +210,7 @@ type Service interface {
 | `--concurrency` / `-c` | `10` |
 | `--proxy` | — (supports `http://`, `https://`, `socks5://`) |
 | `--user-agent` | rotating browser UAs |
-| `--pap` | `white` |
+| `--pap-limit` | `white` |
 | `--defang` | `false` |
 | `--no-defang` | `false` |
 
