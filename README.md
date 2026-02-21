@@ -177,6 +177,80 @@ trident pgp alice@example.com
 trident pgp "Alice Smith"
 ```
 
+### `config` — Configuration Management
+
+Read and write config file values without opening the file by hand.
+
+| Subcommand | Description |
+|------------|-------------|
+| `config path` | Print the config file path |
+| `config show` | Display all effective config settings |
+| `config get <key>` | Print the effective value of a single key |
+| `config set <key> <value>` | Write a key–value pair to the config file |
+| `config edit` | Open the config file in `$EDITOR` |
+
+```bash
+# Print the path to the active config file
+trident config path
+
+# Show all effective settings (merged defaults + env vars + file)
+trident config show
+trident config show -o json
+
+# Read a single setting
+trident config get pap_limit
+
+# Persist a setting (hyphens and underscores both accepted)
+trident config set output json
+trident config set pap-limit amber
+
+# Open the config file in $EDITOR (falls back to vi)
+trident config edit
+```
+
+**Limitations:**
+- `config show` and `config get` report *effective* values — the result of merging built-in
+  defaults, `TRIDENT_*` environment variables, and the config file. They do not show what is
+  literally written in the file.
+- `config set` writes to the file but takes effect on the **next invocation**; the current
+  process already loaded config at startup.
+- The `aliases` section is not managed by `config set` — use the `alias` subcommand instead.
+- Only known configuration keys are accepted (`output`, `pap_limit`, `proxy`, `user_agent`,
+  `concurrency`, `verbose`, `defang`, `no_defang`).
+
+### `alias` — Command Aliases
+
+Define short names that expand to longer command strings. Aliases are stored in the config file
+and appear in `trident --help` under *Aliases:*.
+
+```bash
+# Create or update an alias
+trident alias set myctsh "crtsh --pap-limit=amber"
+
+# Use the alias — extra arguments are appended after the expansion
+trident myctsh example.com
+
+# List all aliases
+trident alias list
+trident alias list -o json
+
+# Delete an alias
+trident alias delete myctsh
+```
+
+**Limitations:**
+- Aliases are only expanded when they appear as the **first positional argument**. Running
+  `trident --verbose myalias` does **not** trigger expansion because `--verbose` precedes the
+  alias name.
+- Expansion splits the stored string on whitespace — argument values containing spaces cannot
+  be embedded in an alias expansion.
+- No shell features — environment variable substitution, pipes, globs, and quoting within
+  the expansion string are not interpreted.
+- Aliases do not expand recursively; an alias expansion cannot reference another alias.
+- Alias names cannot shadow built-in commands (`dns`, `asn`, `crtsh`, `threatminer`, `pgp`).
+- Alias names must not start with `-` or contain whitespace.
+- Changes take effect on the next invocation.
+
 ## Global Flags
 
 | Flag | Default | Description |
@@ -236,7 +310,8 @@ The config file is created automatically at first run. The default location is p
 - **macOS:** `~/Library/Application Support/trident/config.yaml`
 - **Windows:** `%AppData%\trident\config.yaml`
 
-File permissions are set to `0600`. All flags can be persisted in the config file:
+File permissions are set to `0600`. Use `trident config set` to modify individual values, or
+`trident config edit` to edit the file directly. All flags can be persisted in the config file:
 
 ```yaml
 output: json
