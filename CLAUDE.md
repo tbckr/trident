@@ -228,6 +228,7 @@ type Service interface {
 - **golangci-lint v2 config structure:** `linters-settings` → `linters.settings`; `formatters-settings` → `formatters.settings`; `issues.exclude-rules` → `linters.exclusions.rules`. `goimports.local-prefixes` is an array (not a string). `gosimple` is merged into `staticcheck` — do not list it separately.
 - **gosec suppressions:** `gosec.excludes` under `linters.settings` is unreliable; prefer `linters.exclusions.rules` with `text: "G304"` or an inline `//nolint:gosec // reason` comment. `nolintlint` will error if the directive is present but gosec doesn't fire on that line — remove unused nolint directives rather than suppressing them.
 - **revive `package-comments`:** Every package must have a `// Package foo ...` comment in `doc.go` (never inline in an implementation file). New packages without this will fail lint.
+- **cosign v3 signing** — `cosign-installer@v4.x` is required for cosign v3.x (`@v3.x` only installs v2). In GoReleaser `signs:`, use `signature: "${artifact}.sigstore.json"` + `--bundle=${signature}` (v3 replaced `--output-certificate`/`--output-signature` with a single bundle). Do not pin `cosign-release:` in the action — let the installer default handle the version.
 
 ## Key Constraints
 
