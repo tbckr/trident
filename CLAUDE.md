@@ -47,11 +47,12 @@ internal/
   cli/              # Cobra root command, global flags, output formatting
   config/           # Viper config loading (~/.config/trident/config.yaml)
   httpclient/       # req.Client factory with proxy + UA rotation
+  input/            # Line reader from io.Reader — Read() used by CLI stdin path
   pap/              # PAP level constants and Allows() enforcement
-  worker/           # Bounded goroutine pool (pool.go) + stdin reader (stdin.go)
-  services/         # One package per service (dns/, asn/, crtsh/, threatminer/, pgp/)
+  resolver/         # *net.Resolver factory with SOCKS5 DNS-leak prevention
+  worker/           # Bounded goroutine pool (pool.go only)
+  services/         # One package per service (dns/, asn/, crtsh/, threatminer/, pgp/); IsDomain() lives here
   output/           # Text (tablewriter), JSON, plain formatters + defang helpers
-  validate/         # Shared input validators — IsDomain() and future helpers
 ```
 
 **Per-service file layout** — every service package must follow this 4-file structure:
@@ -88,6 +89,8 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`golang.org/x/net/proxy` SOCKS5 dialer** — `proxy.SOCKS5("tcp", host, nil, proxy.Direct)` returns a value that satisfies `proxy.ContextDialer`; type-assert with `dialer.(proxy.ContextDialer)` to get `.DialContext` for use in `net.Resolver.Dial`.
 
+**`resolver.NewResolver` caller convention** — use `r` (not `resolver`) as the local variable name; naming it `resolver` shadows the package import and causes a compile error.
+
 **tablewriter v1.1.3 API:** `table.Header([]string{...})` + `table.Bulk([][]string{...})` + `table.Render()`. Old `SetHeader`/`Append([]string)` don't exist — use `Bulk` for multi-row, `Append(any)` for single row.
 
 **tablewriter header uppercasing:** `table.Header([]string{...})` renders all headers in ALL CAPS — test assertions must use uppercase strings: `"DOMAIN"` not `"Domain"`, `"FIRST SEEN"` not `"First Seen"`.
@@ -102,7 +105,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **crtsh URL:** Use `"%%.%s"` (double `%%`) in the constant so `fmt.Sprintf` emits a literal `%.` before the domain. `"%.%s"` silently causes an arg-count mismatch.
 
-**crtsh subdomain filter (`isValidSubdomain`):** Check wildcards first (`strings.HasPrefix(sub, "*")`), then root-domain equality, then suffix, then `validate.IsDomain`. Wildcard check must precede suffix — `*.example.com` passes `strings.HasSuffix(sub, ".example.com")` and won't be caught otherwise.
+**crtsh subdomain filter (`isValidSubdomain`):** Check wildcards first (`strings.HasPrefix(sub, "*")`), then root-domain equality, then suffix, then `services.IsDomain`. Wildcard check must precede suffix — `*.example.com` passes `strings.HasSuffix(sub, ".example.com")` and won't be caught otherwise.
 
 **crtsh test fixture:** `testdata/crtsh_response.json` contains `example.com` (root domain) as a deliberate filtered-case entry — assert `NotContains(t, result.Subdomains, "example.com")`, never `Contains`.
 
@@ -116,7 +119,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`deps` struct fields:** `cfg *config.Config`, `logger *slog.Logger`, `doDefang bool` — no derived type-casts. Only multi-input computed values (like `doDefang`) belong in `deps`; inline simple casts at usage (`output.Format(d.cfg.Output)`, `pap.MustParse(d.cfg.PAPLimit)`).
 
-**`resolveInputs` terminal guard** — when no args are given and stdin is an interactive terminal (`term.IsTerminal(int(f.Fd()))`), returns `fmt.Errorf("no input: pass an argument or pipe stdin")` immediately. Piped stdin still flows through `worker.ReadInputs`. `golang.org/x/term` is already in `go.mod`.
+**`resolveInputs` terminal guard** — when no args are given and stdin is an interactive terminal (`term.IsTerminal(int(f.Fd()))`), returns `fmt.Errorf("no input: pass an argument or pipe stdin")` immediately. Piped stdin still flows through `input.Read` (from `internal/input`). `golang.org/x/term` is already in `go.mod`.
 
 **CLI I/O wiring:** `Execute` calls `cmd.SetOut(stdout)` + `cmd.SetErr(stderr)` on root. Subcommand `RunE` uses `cmd.OutOrStdout()` / `cmd.ErrOrStderr()` — Cobra walks the parent chain. Subcommand constructors: `newXxxCmd(d *deps) *cobra.Command` — no `io.Writer` param.
 
@@ -132,7 +135,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **Version build variables** — `var version`, `commit`, `date` in `internal/cli/version.go`; injected at build time via `-X github.com/tbckr/trident/internal/cli.version=v1.0.0`. `cmd.Version = version` enables `trident --version`; `cmd.SetVersionTemplate("trident version {{.Version}}\n")` controls its format.
 
-**`config.RegisterFlagCompletions(cmd)`** — call after `config.RegisterFlags(cmd.PersistentFlags())` in `newRootCmd`. Completion functions in `internal/config/completion.go`; `RegisterFlagCompletionFunc` returns `error` — discard with `_ =`.
+**Flag completions** — registered inline in `newRootCmd` via two `cmd.RegisterFlagCompletionFunc` calls (for `"output"` and `"pap"`). `RegisterFlagCompletionFunc` returns `error` — discard with `_ =`.
 
 **`services.ErrInvalidInput`** — unified validation sentinel in `internal/services/service.go`. New services must use this (not define their own `ErrInvalidInput`). Wrap with context: `fmt.Errorf("%w: must be …: %q", services.ErrInvalidInput, input)`.
 

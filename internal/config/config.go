@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -36,12 +35,6 @@ func RegisterFlags(flags *pflag.FlagSet) {
 	flags.Bool("defang", false, "defang text/plain output (dots → [.], http → hxxp)")
 	flags.Bool("no-defang", false, "disable defanging even if enabled in config")
 	flags.IntP("concurrency", "c", 10, "parallel workers for bulk stdin input")
-}
-
-// RegisterFlagCompletions registers tab-completion functions for global flags on cmd.
-func RegisterFlagCompletions(cmd *cobra.Command) {
-	_ = cmd.RegisterFlagCompletionFunc("output", CompleteOutputFormat)
-	_ = cmd.RegisterFlagCompletionFunc("pap", CompletePAPLevel)
 }
 
 // Load initializes Viper with the full precedence chain:

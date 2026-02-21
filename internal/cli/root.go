@@ -11,6 +11,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/tbckr/trident/internal/config"
+	"github.com/tbckr/trident/internal/input"
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
@@ -47,7 +48,12 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 	}
 
 	config.RegisterFlags(cmd.PersistentFlags())
-	config.RegisterFlagCompletions(cmd)
+	_ = cmd.RegisterFlagCompletionFunc("output", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return []string{"text", "json", "plain"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	_ = cmd.RegisterFlagCompletionFunc("pap", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return []string{"red", "amber", "green", "white"}, cobra.ShellCompDirectiveNoFileComp
+	})
 
 	cmd.Version = version
 	cmd.SetVersionTemplate("trident version {{.Version}}\n")
@@ -143,7 +149,7 @@ func resolveInputs(cmd *cobra.Command, args []string) ([]string, error) {
 	if f, ok := r.(*os.File); ok && term.IsTerminal(int(f.Fd())) { //nolint:gosec // uintptr→int is safe for file descriptors; they fit in int on all supported platforms
 		return nil, fmt.Errorf("no input: pass an argument or pipe stdin")
 	}
-	return worker.ReadInputs(r)
+	return input.Read(r)
 }
 
 // runServiceCmd is the shared RunE body for all OSINT subcommands.
