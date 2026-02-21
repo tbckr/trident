@@ -186,3 +186,54 @@ func TestLoad_ConfigFileValues(t *testing.T) {
 	assert.Equal(t, "green", cfg.PAPLimit)
 	assert.Equal(t, 20, cfg.Concurrency)
 }
+
+func TestDefaultConfigPath(t *testing.T) {
+	path, err := config.DefaultConfigPath()
+	require.NoError(t, err)
+	assert.NotEmpty(t, path)
+	assert.True(t, filepath.IsAbs(path), "expected absolute path, got %q", path)
+	assert.Equal(t, "config.yaml", filepath.Base(path))
+	assert.Equal(t, "trident", filepath.Base(filepath.Dir(path)))
+}
+
+func TestLoadAliases_FileNotFound(t *testing.T) {
+	aliases, err := config.LoadAliases("/nonexistent/path/config.yaml")
+	require.NoError(t, err)
+	assert.NotNil(t, aliases)
+	assert.Empty(t, aliases)
+}
+
+func TestLoadAliases_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte{}, 0o600))
+
+	aliases, err := config.LoadAliases(cfgFile)
+	require.NoError(t, err)
+	assert.NotNil(t, aliases)
+	assert.Empty(t, aliases)
+}
+
+func TestLoadAliases_NoAliasesKey(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte("output: json\nverbose: true\n"), 0o600))
+
+	aliases, err := config.LoadAliases(cfgFile)
+	require.NoError(t, err)
+	assert.NotNil(t, aliases)
+	assert.Empty(t, aliases)
+}
+
+func TestLoadAliases_WithAliases(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte("aliases:\n  mydns: dns -o json\n  qs: crtsh\n"), 0o600))
+
+	aliases, err := config.LoadAliases(cfgFile)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{
+		"mydns": "dns -o json",
+		"qs":    "crtsh",
+	}, aliases)
+}

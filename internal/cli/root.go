@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -61,6 +62,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 
 	cmd.AddGroup(
 		&cobra.Group{ID: "osint", Title: "OSINT Services:"},
+		&cobra.Group{ID: "aliases", Title: "Aliases:"},
 		&cobra.Group{ID: "utility", Title: "Utility Commands:"},
 	)
 
@@ -73,6 +75,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 		newCompletionCmd(),
 		newVersionCmd(&d),
 		newConfigCmd(&d),
+		newAliasCmd(&d),
 	)
 
 	cmd.SetHelpCommandGroupID("utility")
@@ -93,7 +96,55 @@ func Execute(ctx context.Context, stdout, stderr io.Writer) error {
 	cmd := newRootCmd()
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
+
+	// Lightweight alias pre-expansion: load aliases before cobra parses args so
+	// that alias names are recognized as subcommands and shown in --help.
+	cfgPath, err := config.DefaultConfigPath()
+	if err == nil {
+		cfgPath = peekConfigFlag(os.Args[1:], cfgPath)
+		if aliases, aErr := config.LoadAliases(cfgPath); aErr == nil && len(aliases) > 0 {
+			// If the first positional arg is an alias, rewrite args for cobra.
+			args := os.Args[1:]
+			if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+				if expansion, ok := aliases[args[0]]; ok {
+					expanded := append(strings.Fields(expansion), args[1:]...)
+					cmd.SetArgs(expanded)
+				}
+			}
+			// Register alias stub commands so they appear in --help under "Aliases:".
+			for name, expansion := range aliases {
+				n, e := name, expansion // capture loop vars
+				cmd.AddCommand(&cobra.Command{
+					Use:     n,
+					Short:   fmt.Sprintf("Alias for %q", e),
+					GroupID: "aliases",
+					// RunE is a safety fallback; the pre-expansion above normally
+					// rewrites args so this branch is not reached in practice.
+					RunE: func(aliasCmd *cobra.Command, extraArgs []string) error {
+						parts := append(strings.Fields(e), extraArgs...)
+						aliasCmd.Root().SetArgs(parts)
+						return aliasCmd.Root().ExecuteContext(aliasCmd.Context())
+					},
+				})
+			}
+		}
+	}
+
 	return cmd.ExecuteContext(ctx)
+}
+
+// peekConfigFlag scans args for --config <path> or --config=<path> and returns
+// the explicit path when present, or defaultPath otherwise.
+func peekConfigFlag(args []string, defaultPath string) string {
+	for i, arg := range args {
+		if arg == "--config" && i+1 < len(args) {
+			return args[i+1]
+		}
+		if v, ok := strings.CutPrefix(arg, "--config="); ok {
+			return v
+		}
+	}
+	return defaultPath
 }
 
 // deps holds fully-resolved runtime dependencies for a subcommand.

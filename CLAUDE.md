@@ -122,6 +122,10 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`buildDeps` signature:** `buildDeps(cmd *cobra.Command, stderr io.Writer) (*deps, error)` — pass `cmd` so `config.Load` gets inherited persistent flags. Called once from root's `PersistentPreRunE`, not from individual subcommand `RunE` functions.
 
+**Alias pre-expansion in `Execute()`** — before `cmd.ExecuteContext(ctx)`, load aliases via `config.LoadAliases(peekConfigFlag(os.Args[1:], defaultPath))`. If `os.Args[1]` matches an alias name, call `cmd.SetArgs(expanded)` to rewrite args. Register stub `*cobra.Command` entries with `GroupID: "aliases"` so aliases appear in `--help`. `peekConfigFlag` scans for `--config <path>` / `--config=<path>` before Cobra parses; uses `strings.CutPrefix`.
+
+**YAML nested map type assertion** — `yaml.Unmarshal` into `map[string]any` produces `map[string]any` for nested maps (not `map[string]string`). Always type-assert inner maps as `map[string]any`: `aliasMap, _ := raw["aliases"].(map[string]any)`.
+
 **`deps` struct fields:** `cfg *config.Config`, `logger *slog.Logger`, `doDefang bool` — no derived type-casts. Only multi-input computed values (like `doDefang`) belong in `deps`; inline simple casts at usage (`output.Format(d.cfg.Output)`, `pap.MustParse(d.cfg.PAPLimit)`).
 
 **`resolveInputs` terminal guard** — when no args are given and stdin is an interactive terminal (`term.IsTerminal(int(f.Fd()))`), returns `fmt.Errorf("no input: pass an argument or pipe stdin")` immediately. Piped stdin still flows through `input.Read` (from `internal/input`). `golang.org/x/term` is already in `go.mod`.
@@ -132,7 +136,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`completion` subcommand exception** — the `completion` command overrides root's `PersistentPreRunE` with a no-op to prevent `buildDeps` side effects (config dir creation) during shell completion generation. This is the only permitted exception to the invariant.
 
-**Cobra command grouping** — `cmd.AddGroup(&cobra.Group{ID: "osint", Title: "OSINT Services:"})` then set `GroupID: "osint"` on each `*cobra.Command` struct. Currently: `"osint"` for OSINT services, `"utility"` for completion/version. Requires cobra v1.7+; project uses v1.10.2. `cmd.SetHelpCommandGroupID("utility")` — call after `AddCommand(...)` to assign Cobra's built-in `help` subcommand to a named group; without it, `help` appears under a separate "Additional Commands:" section.
+**Cobra command grouping** — `cmd.AddGroup(&cobra.Group{ID: "osint", Title: "OSINT Services:"})` then set `GroupID: "osint"` on each `*cobra.Command` struct. Currently: `"osint"` for OSINT services, `"aliases"` for user-defined aliases (dynamically registered in `Execute()`), `"utility"` for completion/version. Requires cobra v1.7+; project uses v1.10.2. `cmd.SetHelpCommandGroupID("utility")` — call after `AddCommand(...)` to assign Cobra's built-in `help` subcommand to a named group; without it, `help` appears under a separate "Additional Commands:" section.
 
 **`cmd.MarkFlagsMutuallyExclusive`** — works for persistent flags on root command (calls `mergePersistentFlags()` internally). Used for `"defang"` / `"no-defang"`; the `buildDeps` check remains as a defensive fallback.
 
@@ -206,6 +210,9 @@ type Service interface {
 - **Config API:** `config.RegisterFlags(cmd.PersistentFlags())` in root.go; `config.Load(cmd.Flags())` in `buildDeps`. Viper owns the full precedence chain — no scattered `if flag == "" {}` guards.
 - **Flag→viper key discrepancies** (hyphen→underscore): `--user-agent`→`user_agent`, `--pap-limit`→`pap_limit`, `--no-defang`→`no_defang`. These drive mapstructure tags and env vars (`TRIDENT_USER_AGENT`, `TRIDENT_PAP_LIMIT`, `TRIDENT_NO_DEFANG`).
 - **`Config.ConfigFile`** has no mapstructure tag — set manually after `v.Unmarshal(&cfg)` (meta-field, not a viper key).
+- **`Config.Aliases`** — `map[string]string` with `mapstructure:"aliases"`; file-only, no flag/env binding. Populated by Viper from the `aliases:` YAML key.
+- **`config.DefaultConfigPath()`** — returns the OS-appropriate default config path without creating the file (unlike `Load`). Use in `Execute()` for pre-parse alias loading.
+- **`config.LoadAliases(path)`** — reads only the `aliases:` section via a fresh Viper instance; returns empty non-nil map when file missing or key absent.
 
 ### Global Flags
 
@@ -242,6 +249,7 @@ type Service interface {
 - **golangci-lint v2 config structure:** `linters-settings` → `linters.settings`; `formatters-settings` → `formatters.settings`; `issues.exclude-rules` → `linters.exclusions.rules`. `goimports.local-prefixes` is an array (not a string). `gosimple` is merged into `staticcheck` — do not list it separately.
 - **gosec suppressions:** `gosec.excludes` under `linters.settings` is unreliable; prefer `linters.exclusions.rules` with `text: "G304"` or an inline `//nolint:gosec // reason` comment. `nolintlint` will error if the directive is present but gosec doesn't fire on that line — remove unused nolint directives rather than suppressing them.
 - **gosec G304 scope** — `os.ReadFile` with a variable path does **not** trigger G304; do not add a nolint directive there. G304 fires on `os.Open`, `os.OpenFile`, and similar — not `ReadFile`.
+- **`strings.CutPrefix`** — golangci-lint's `stringscutprefix` rule fires on `strings.HasPrefix(s, p)` + `strings.TrimPrefix(s, p)` combos; always use `if v, ok := strings.CutPrefix(s, p); ok { ... }` instead.
 - **revive `package-comments`:** Every package must have a `// Package foo ...` comment in `doc.go` (never inline in an implementation file). New packages without this will fail lint.
 - **cosign v3 signing** — `cosign-installer@v4.x` is required for cosign v3.x (`@v3.x` only installs v2). In GoReleaser `signs:`, use `signature: "${artifact}.sigstore.json"` + `--bundle=${signature}` (v3 replaced `--output-certificate`/`--output-signature` with a single bundle). Do not pin `cosign-release:` in the action — let the installer default handle the version.
 

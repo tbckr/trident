@@ -120,15 +120,16 @@ func normalizeKey(key string) string {
 
 // Config holds the runtime settings resolved from flags, env vars, and config file.
 type Config struct {
-	ConfigFile  string // set after Unmarshal — no mapstructure tag
-	Verbose     bool   `mapstructure:"verbose"`
-	Output      string `mapstructure:"output"`      // text | json | plain
-	Proxy       string `mapstructure:"proxy"`       // http://, https://, socks5://
-	UserAgent   string `mapstructure:"user_agent"`  // override or empty (→ rotation)
-	PAPLimit    string `mapstructure:"pap_limit"`   // "white" (default)
-	Defang      bool   `mapstructure:"defang"`      // force defang
-	NoDefang    bool   `mapstructure:"no_defang"`   // suppress defang
-	Concurrency int    `mapstructure:"concurrency"` // default 10
+	ConfigFile  string            // set after Unmarshal — no mapstructure tag
+	Verbose     bool              `mapstructure:"verbose"`
+	Output      string            `mapstructure:"output"`      // text | json | plain
+	Proxy       string            `mapstructure:"proxy"`       // http://, https://, socks5://
+	UserAgent   string            `mapstructure:"user_agent"`  // override or empty (→ rotation)
+	PAPLimit    string            `mapstructure:"pap_limit"`   // "white" (default)
+	Defang      bool              `mapstructure:"defang"`      // force defang
+	NoDefang    bool              `mapstructure:"no_defang"`   // suppress defang
+	Concurrency int               `mapstructure:"concurrency"` // default 10
+	Aliases     map[string]string `mapstructure:"aliases"`     // file-only; no flag/env binding
 }
 
 // RegisterFlags defines all persistent CLI flags on the given FlagSet.
@@ -219,6 +220,31 @@ func configDir() (string, error) {
 		return "", fmt.Errorf("getting user config dir: %w", err)
 	}
 	return filepath.Join(base, "trident"), nil
+}
+
+// DefaultConfigPath returns the default config file path for trident.
+// On Linux this is $XDG_CONFIG_HOME/trident/config.yaml.
+func DefaultConfigPath() (string, error) {
+	dir, err := configDir()
+	if err != nil {
+		return "", fmt.Errorf("resolving config dir: %w", err)
+	}
+	return filepath.Join(dir, "config.yaml"), nil
+}
+
+// LoadAliases reads only the aliases section from the config file at path.
+// Returns an empty (non-nil) map when the file is missing or has no aliases key.
+func LoadAliases(path string) (map[string]string, error) {
+	v := viper.New()
+	v.SetConfigFile(path)
+	if err := v.ReadInConfig(); err != nil {
+		var notFound viper.ConfigFileNotFoundError
+		if errors.As(err, &notFound) || os.IsNotExist(err) {
+			return map[string]string{}, nil
+		}
+		return nil, fmt.Errorf("reading config file: %w", err)
+	}
+	return v.GetStringMapString("aliases"), nil
 }
 
 // ensureConfigFile creates the config file (and its parent directory) if they do
