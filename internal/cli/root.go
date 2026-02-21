@@ -72,6 +72,13 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 	return cmd
 }
 
+// NewRootCmd returns the top-level Cobra command for doc generation.
+// Callers must not execute the returned command — use it only for
+// tree traversal (man pages, shell completions).
+func NewRootCmd() *cobra.Command {
+	return newRootCmd()
+}
+
 // Execute builds the root command and runs it with os.Args.
 func Execute(ctx context.Context, stdout, stderr io.Writer) error {
 	cmd := newRootCmd()
