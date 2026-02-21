@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tbckr/trident/internal/httpclient"
+	"github.com/tbckr/trident/internal/ratelimit"
 	crtshsvc "github.com/tbckr/trident/internal/services/crtsh"
 )
 
@@ -44,6 +45,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			if err != nil {
 				return fmt.Errorf("creating HTTP client: %w", err)
 			}
+			httpclient.AttachRateLimit(client, ratelimit.New(crtshsvc.DefaultRPS, crtshsvc.DefaultBurst))
 			svc := crtshsvc.NewService(client, d.logger)
 			return runServiceCmd(cmd, d, svc, args)
 		},

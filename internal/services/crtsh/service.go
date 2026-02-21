@@ -16,9 +16,16 @@ import (
 	"github.com/tbckr/trident/internal/validate"
 )
 
-// crtshBaseURL is the crt.sh API endpoint base for certificate transparency log searches.
-// The query uses the `%.domain` wildcard form to find all subdomains.
-const crtshBaseURL = "https://crt.sh/?q=%%.%s&output=json"
+const (
+	// crtshBaseURL is the crt.sh API endpoint base for certificate transparency log searches.
+	// The query uses the `%.domain` wildcard form to find all subdomains.
+	crtshBaseURL = "https://crt.sh/?q=%%.%s&output=json"
+
+	// DefaultRPS is the target request rate for the crt.sh service.
+	DefaultRPS float64 = 1.0
+	// DefaultBurst is the burst capacity above DefaultRPS.
+	DefaultBurst = 2
+)
 
 // crtshEntry represents a single record returned by the crt.sh JSON API.
 type crtshEntry struct {

@@ -22,6 +22,11 @@ const (
 	domainSubs   = baseURL + "/domain.php?q=%s&rt=5"
 	ipPDNS       = baseURL + "/host.php?q=%s&rt=2"
 	hashMetadata = baseURL + "/sample.php?q=%s&rt=1"
+
+	// DefaultRPS is the target request rate for the ThreatMiner service.
+	DefaultRPS float64 = 1.0
+	// DefaultBurst is the burst capacity above DefaultRPS.
+	DefaultBurst = 1
 )
 
 // inputType classifies the kind of input accepted by the service.

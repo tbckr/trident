@@ -84,6 +84,10 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`req.TraceInfo` fields** (context7 doesn't index this struct — fetch from `https://raw.githubusercontent.com/imroc/req/master/trace.go`): `DNSLookupTime`, `ConnectTime`, `TCPConnectTime`, `TLSHandshakeTime`, `TotalTime`. Access via `resp.TraceInfo()` in hook; request method/URL via `resp.Request.RawRequest.Method` / `.URL.String()`. `resp.String()` is safe in `OnAfterResponse` — req buffers the body; downstream readers are unaffected.
 
+**`req.Client` retry API** — client-level retry uses `SetCommonRetryCount(n)`, `AddCommonRetryCondition(func(*req.Response, error) bool)`, `SetCommonRetryInterval(func(*req.Response, attempt int) time.Duration)`. The bare `SetRetryCount`/`AddRetryCondition`/`SetRetryHook` are request-level only (`*req.Request`), not on `*req.Client`.
+
+**`golang.org/x/net/proxy` SOCKS5 dialer** — `proxy.SOCKS5("tcp", host, nil, proxy.Direct)` returns a value that satisfies `proxy.ContextDialer`; type-assert with `dialer.(proxy.ContextDialer)` to get `.DialContext` for use in `net.Resolver.Dial`.
+
 **tablewriter v1.1.3 API:** `table.Header([]string{...})` + `table.Bulk([][]string{...})` + `table.Render()`. Old `SetHeader`/`Append([]string)` don't exist — use `Bulk` for multi-row, `Append(any)` for single row.
 
 **tablewriter header uppercasing:** `table.Header([]string{...})` renders all headers in ALL CAPS — test assertions must use uppercase strings: `"DOMAIN"` not `"Domain"`, `"FIRST SEEN"` not `"First Seen"`.

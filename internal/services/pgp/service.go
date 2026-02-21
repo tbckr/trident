@@ -17,7 +17,14 @@ import (
 	"github.com/tbckr/trident/internal/services"
 )
 
-const hkpURL = "https://keys.openpgp.org/pks/lookup?op=index&search=%s&options=mr"
+const (
+	hkpURL = "https://keys.openpgp.org/pks/lookup?op=index&search=%s&options=mr"
+
+	// DefaultRPS is the target request rate for the PGP keyserver service.
+	DefaultRPS float64 = 2.0
+	// DefaultBurst is the burst capacity above DefaultRPS.
+	DefaultBurst = 3
+)
 
 // Service queries a HKP keyserver for PGP keys.
 type Service struct {

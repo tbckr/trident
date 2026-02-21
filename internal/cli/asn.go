@@ -1,10 +1,11 @@
 package cli
 
 import (
-	"net"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/tbckr/trident/internal/httpclient"
 	asnsvc "github.com/tbckr/trident/internal/services/asn"
 )
 
@@ -42,7 +43,11 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			svc := asnsvc.NewService(&net.Resolver{}, d.logger)
+			resolver, err := httpclient.NewResolver(d.cfg.Proxy)
+			if err != nil {
+				return fmt.Errorf("creating DNS resolver: %w", err)
+			}
+			svc := asnsvc.NewService(resolver, d.logger)
 			return runServiceCmd(cmd, d, svc, args)
 		},
 	}

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tbckr/trident/internal/httpclient"
+	"github.com/tbckr/trident/internal/ratelimit"
 	pgpsvc "github.com/tbckr/trident/internal/services/pgp"
 )
 
@@ -44,6 +45,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			if err != nil {
 				return fmt.Errorf("creating HTTP client: %w", err)
 			}
+			httpclient.AttachRateLimit(client, ratelimit.New(pgpsvc.DefaultRPS, pgpsvc.DefaultBurst))
 			svc := pgpsvc.NewService(client, d.logger)
 			return runServiceCmd(cmd, d, svc, args)
 		},

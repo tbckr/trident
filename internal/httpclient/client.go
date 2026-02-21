@@ -41,6 +41,9 @@ func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client,
 		if err := validateProxy(proxy); err != nil {
 			return nil, fmt.Errorf("invalid proxy URL %q: %w", proxy, err)
 		}
+		// SetProxyURL with a socks5:// URL forwards hostnames (not pre-resolved IPs)
+		// through the proxy via golang.org/x/net/proxy.SOCKS5, preventing DNS leaks
+		// for HTTP-based services. DNS-based services (dns, asn) use NewResolver instead.
 		client.SetProxyURL(proxy)
 	} else {
 		client.SetProxy(http.ProxyFromEnvironment)
