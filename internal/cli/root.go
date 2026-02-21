@@ -34,7 +34,7 @@ func newRootCmd() *cobra.Command {
 		Short: "Trident — keyless OSINT reconnaissance tool",
 		Long: `Trident is a fast OSINT CLI for DNS, ASN, certificate transparency, ThreatMiner, and PGP lookups.
 
-No API keys required for Phase 2 services (dns, asn, crtsh, threatminer, pgp).
+No API keys required for any service (dns, asn, crtsh, threatminer, pgp).
 PAP levels (least to most active intrusion): white < green < amber < red.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
