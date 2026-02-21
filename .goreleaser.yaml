@@ -1,0 +1,72 @@
+version: 2
+
+builds:
+  - id: trident
+    main: ./cmd/trident
+    binary: trident
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/tbckr/trident/internal/cli.version={{ .Version }}
+      - -X github.com/tbckr/trident/internal/cli.commit={{ .ShortCommit }}
+      - -X github.com/tbckr/trident/internal/cli.date={{ .CommitDate }}
+
+gomod:
+  proxy: true
+
+archives:
+  - id: default
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+    documents:
+      - "${artifact}.cdx.json"
+    cmd: syft
+    args:
+      - scan
+      - "${artifact}"
+      - "--output"
+      - "cyclonedx-json=${document}"
+
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.pem"
+    artifacts: checksum
+    args:
+      - sign-blob
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes"
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^chore", "^docs", "^test"]
+  groups:
+    - title: Features
+      regexp: "^feat"
+      order: 0
+    - title: Bug Fixes
+      regexp: "^fix"
+      order: 1
+    - title: Other
+      order: 999
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
