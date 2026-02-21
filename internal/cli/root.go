@@ -22,7 +22,8 @@ import (
 
 // newRootCmd builds the top-level Cobra command for trident.
 // Callers must set stdout/stderr via cmd.SetOut / cmd.SetErr before Execute.
-func newRootCmd() *cobra.Command {
+// aliases is the map loaded from config; pass nil when aliases are unavailable.
+func newRootCmd(aliases map[string]string) *cobra.Command {
 	// d is populated by PersistentPreRunE before any subcommand's RunE runs.
 	// INVARIANT: Cobra only executes the innermost PersistentPreRunE in the
 	// command chain. If a future subcommand defines its own PersistentPreRunE,
@@ -60,11 +61,26 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 	cmd.Version = version.Version
 	cmd.SetVersionTemplate("trident {{.Version}}\n")
 
-	cmd.AddGroup(
-		&cobra.Group{ID: "osint", Title: "OSINT Services:"},
-		&cobra.Group{ID: "aliases", Title: "Aliases:"},
-		&cobra.Group{ID: "utility", Title: "Utility Commands:"},
-	)
+	cmd.AddGroup(&cobra.Group{ID: "osint", Title: "OSINT Services:"})
+
+	if len(aliases) > 0 {
+		cmd.AddGroup(&cobra.Group{ID: "aliases", Title: "Aliases:"})
+		for name, expansion := range aliases {
+			n, e := name, expansion
+			cmd.AddCommand(&cobra.Command{
+				Use:     n,
+				Short:   fmt.Sprintf("Alias for %q", e),
+				GroupID: "aliases",
+				RunE: func(aliasCmd *cobra.Command, extraArgs []string) error {
+					parts := append(strings.Fields(e), extraArgs...)
+					aliasCmd.Root().SetArgs(parts)
+					return aliasCmd.Root().ExecuteContext(aliasCmd.Context())
+				},
+			})
+		}
+	}
+
+	cmd.AddGroup(&cobra.Group{ID: "utility", Title: "Utility Commands:"})
 
 	cmd.AddCommand(
 		newDNSCmd(&d),
@@ -88,44 +104,34 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 // Callers must not execute the returned command — use it only for
 // tree traversal (man pages, shell completions).
 func NewRootCmd() *cobra.Command {
-	return newRootCmd()
+	return newRootCmd(nil)
 }
 
 // Execute builds the root command and runs it with os.Args.
 func Execute(ctx context.Context, stdout, stderr io.Writer) error {
-	cmd := newRootCmd()
-	cmd.SetOut(stdout)
-	cmd.SetErr(stderr)
-
-	// Lightweight alias pre-expansion: load aliases before cobra parses args so
-	// that alias names are recognized as subcommands and shown in --help.
+	// Load aliases before constructing the command so the "Aliases:" group and
+	// stub commands are registered in the correct position (after "OSINT Services:"
+	// and before "Utility Commands:") and only when aliases actually exist.
+	aliases := map[string]string{}
 	cfgPath, err := config.DefaultConfigPath()
 	if err == nil {
 		cfgPath = peekConfigFlag(os.Args[1:], cfgPath)
-		if aliases, aErr := config.LoadAliases(cfgPath); aErr == nil && len(aliases) > 0 {
-			// If the first positional arg is an alias, rewrite args for cobra.
-			args := os.Args[1:]
-			if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-				if expansion, ok := aliases[args[0]]; ok {
-					expanded := append(strings.Fields(expansion), args[1:]...)
-					cmd.SetArgs(expanded)
-				}
-			}
-			// Register alias stub commands so they appear in --help under "Aliases:".
-			for name, expansion := range aliases {
-				n, e := name, expansion // capture loop vars
-				cmd.AddCommand(&cobra.Command{
-					Use:     n,
-					Short:   fmt.Sprintf("Alias for %q", e),
-					GroupID: "aliases",
-					// RunE is a safety fallback; the pre-expansion above normally
-					// rewrites args so this branch is not reached in practice.
-					RunE: func(aliasCmd *cobra.Command, extraArgs []string) error {
-						parts := append(strings.Fields(e), extraArgs...)
-						aliasCmd.Root().SetArgs(parts)
-						return aliasCmd.Root().ExecuteContext(aliasCmd.Context())
-					},
-				})
+		if loaded, aErr := config.LoadAliases(cfgPath); aErr == nil {
+			aliases = loaded
+		}
+	}
+
+	cmd := newRootCmd(aliases)
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
+
+	// Arg rewriting: if the first positional arg matches an alias name, expand it.
+	if len(aliases) > 0 {
+		args := os.Args[1:]
+		if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+			if expansion, ok := aliases[args[0]]; ok {
+				expanded := append(strings.Fields(expansion), args[1:]...)
+				cmd.SetArgs(expanded)
 			}
 		}
 	}
