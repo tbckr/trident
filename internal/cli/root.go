@@ -56,7 +56,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 	})
 
 	cmd.Version = version
-	cmd.SetVersionTemplate("trident version {{.Version}}\n")
+	cmd.SetVersionTemplate("trident {{.Version}}\n")
 
 	cmd.AddGroup(
 		&cobra.Group{ID: "osint", Title: "OSINT Services:"},
