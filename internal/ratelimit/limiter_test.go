@@ -32,18 +32,18 @@ func TestWait_ContextCancelled(t *testing.T) {
 }
 
 func TestWait_JitterWithinBounds(t *testing.T) {
-	// Run many waits at a constrained rate and verify jitter stays within ±20%.
-	// Use a high RPS with burst=0 workaround: set burst=1 and RPS low enough to force delay.
-	// 2 RPS → expected delay ~500ms for second token after burst exhausted.
-	l := New(2, 1)
-	// Consume burst token instantly.
-	require.NoError(t, l.Wait(context.Background()))
-
-	const runs = 10
+	// Run several waits and verify jitter stays within ±20%.
+	// Each iteration uses a fresh limiter so there is no drift between runs.
+	// 2 RPS → expected delay ~500ms for the second token after burst exhausted.
+	const runs = 5
 	const expectedDelay = 500 * time.Millisecond
 	const tolerance = 0.25 // allow slightly more than 20% for timer resolution
 
 	for range runs {
+		l := New(2, 1)
+		// Consume burst token instantly.
+		require.NoError(t, l.Wait(context.Background()))
+
 		start := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		err := l.Wait(ctx)
