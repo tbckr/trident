@@ -227,7 +227,7 @@ File permissions are set to `0600`. All flags can be persisted in the config fil
 
 ```yaml
 output: json
-pap: amber
+pap_limit: amber
 concurrency: 20
 proxy: socks5://127.0.0.1:9050
 ```
