@@ -73,6 +73,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 		newVersionCmd(&d),
 	)
 
+	cmd.SetHelpCommandGroupID("utility")
 	cmd.MarkFlagsMutuallyExclusive("defang", "no-defang")
 
 	return cmd

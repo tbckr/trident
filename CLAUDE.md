@@ -127,7 +127,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`completion` subcommand exception** — the `completion` command overrides root's `PersistentPreRunE` with a no-op to prevent `buildDeps` side effects (config dir creation) during shell completion generation. This is the only permitted exception to the invariant.
 
-**Cobra command grouping** — `cmd.AddGroup(&cobra.Group{ID: "osint", Title: "OSINT Services:"})` then set `GroupID: "osint"` on each `*cobra.Command` struct. Currently: `"osint"` for OSINT services, `"utility"` for completion/version. Requires cobra v1.7+; project uses v1.10.2.
+**Cobra command grouping** — `cmd.AddGroup(&cobra.Group{ID: "osint", Title: "OSINT Services:"})` then set `GroupID: "osint"` on each `*cobra.Command` struct. Currently: `"osint"` for OSINT services, `"utility"` for completion/version. Requires cobra v1.7+; project uses v1.10.2. `cmd.SetHelpCommandGroupID("utility")` — call after `AddCommand(...)` to assign Cobra's built-in `help` subcommand to a named group; without it, `help` appears under a separate "Additional Commands:" section.
 
 **`cmd.MarkFlagsMutuallyExclusive`** — works for persistent flags on root command (calls `mergePersistentFlags()` internally). Used for `"defang"` / `"no-defang"`; the `buildDeps` check remains as a defensive fallback.
 
