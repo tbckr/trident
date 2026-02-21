@@ -323,6 +323,10 @@ alias:
   myasn: "asn --pap-limit=amber"
 ```
 
+> **Note:** The `alias` block is config-file only — it has no corresponding flag or environment
+> variable. Use `trident alias set` / `trident alias delete` to manage aliases, or edit the
+> file directly.
+
 Environment variables override config file values using the `TRIDENT_` prefix:
 
 | Variable | Corresponding flag |
