@@ -13,7 +13,6 @@ import (
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
-	"github.com/tbckr/trident/internal/validate"
 )
 
 const (
@@ -207,7 +206,7 @@ func classify(input string) (inputType, error) {
 	if isHash(input) {
 		return inputHash, nil
 	}
-	if validate.IsDomain(input) {
+	if services.IsDomain(input) {
 		return inputDomain, nil
 	}
 	return "", fmt.Errorf("unrecognised input")

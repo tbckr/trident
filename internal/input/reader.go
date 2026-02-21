@@ -1,4 +1,4 @@
-package worker
+package input
 
 import (
 	"bufio"
@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// ReadInputs reads lines from r, trims whitespace, and returns non-empty lines.
+// Read reads lines from r, trims whitespace, and returns non-empty lines.
 // Blank lines and lines that are only whitespace are dropped.
-func ReadInputs(r io.Reader) ([]string, error) {
+func Read(r io.Reader) ([]string, error) {
 	var inputs []string
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {

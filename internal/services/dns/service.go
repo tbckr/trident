@@ -9,7 +9,6 @@ import (
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
-	"github.com/tbckr/trident/internal/validate"
 )
 
 // Service performs DNS lookups using the injected resolver.
@@ -48,7 +47,7 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 	if ip := net.ParseIP(input); ip != nil {
 		return s.runReverse(ctx, result, ip.String())
 	}
-	if !validate.IsDomain(input) {
+	if !services.IsDomain(input) {
 		return nil, fmt.Errorf("%w: must be a valid domain name or IP address: %q", services.ErrInvalidInput, input)
 	}
 	return s.runForward(ctx, result, input)

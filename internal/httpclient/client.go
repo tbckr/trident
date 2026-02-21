@@ -43,7 +43,7 @@ func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client,
 		}
 		// SetProxyURL with a socks5:// URL forwards hostnames (not pre-resolved IPs)
 		// through the proxy via golang.org/x/net/proxy.SOCKS5, preventing DNS leaks
-		// for HTTP-based services. DNS-based services (dns, asn) use NewResolver instead.
+		// for HTTP-based services. DNS-based services (dns, asn) use resolver.NewResolver instead.
 		client.SetProxyURL(proxy)
 	} else {
 		client.SetProxy(http.ProxyFromEnvironment)

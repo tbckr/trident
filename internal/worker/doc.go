@@ -1,2 +1,2 @@
-// Package worker provides utilities for bulk input processing and concurrent service execution.
+// Package worker provides a bounded goroutine pool for concurrent service execution.
 package worker

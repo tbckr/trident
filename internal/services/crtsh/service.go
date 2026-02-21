@@ -13,7 +13,6 @@ import (
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
-	"github.com/tbckr/trident/internal/validate"
 )
 
 const (
@@ -62,7 +61,7 @@ func (s *Service) AggregateResults(results []services.Result) services.Result {
 // Run queries crt.sh for subdomains of the given domain.
 func (s *Service) Run(ctx context.Context, domain string) (services.Result, error) {
 	domain = output.StripANSI(domain)
-	if !validate.IsDomain(domain) {
+	if !services.IsDomain(domain) {
 		return nil, fmt.Errorf("%w: must be a valid domain name: %q", services.ErrInvalidInput, domain)
 	}
 
@@ -123,7 +122,7 @@ func (s *Service) isValidSubdomain(sub, domain string) bool {
 		s.logger.Debug("crt.sh: skipping foreign domain", "sub", sub, "domain", domain)
 		return false
 	}
-	if !validate.IsDomain(sub) {
+	if !services.IsDomain(sub) {
 		s.logger.Debug("crt.sh: skipping invalid format", "sub", sub, "domain", domain)
 		return false
 	}
