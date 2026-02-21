@@ -2,6 +2,7 @@ version: 2
 
 before:
   hooks:
+    - go run github.com/google/go-licenses/v2@latest save ./... --save_path=dist/third_party_licenses --force --ignore=github.com/tbckr/trident
     - go run ./cmd/docgen/main.go --version={{ .Version }} --output-dir=dist
 
 builds:
@@ -45,6 +46,11 @@ archives:
           owner: root
           group: root
       - src: README.md
+        info:
+          owner: root
+          group: root
+      - src: dist/third_party_licenses
+        dst: THIRD_PARTY_LICENSES
         info:
           owner: root
           group: root
@@ -147,6 +153,12 @@ nfpms:
       # License
       - src: LICENSE
         dst: /usr/share/licenses/trident/LICENSE
+        file_info:
+          owner: root
+          group: root
+          mode: 0644
+      - src: dist/third_party_licenses/
+        dst: /usr/share/licenses/trident/third_party/
         file_info:
           owner: root
           group: root

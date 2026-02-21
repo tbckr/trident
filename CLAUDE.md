@@ -242,7 +242,7 @@ type Service interface {
 ## CI/CD
 
 **Workflow files:**
-- `ci.yml` — push/PR: test (with `go mod verify` + tidy check), lint, govulncheck (plain `run` step — no sandbox)
+- `ci.yml` — push/PR: test (with `go mod verify` + tidy check), lint, govulncheck (plain `run` step — no sandbox), license-check (`go-licenses check` against allowlist)
 - `release.yml` — tag push: GoReleaser + SBOM + Cosign
 - `vuln-schedule.yml` — daily 06:00 UTC: govulncheck in gVisor sandbox
 - `latest-deps.yml` — daily 07:00 UTC: `go get -u -t ./... && go test ./...` in gVisor sandbox
@@ -258,6 +258,8 @@ sha=$(gh api repos/ORG/REPO/git/tags/$sha --jq '.object.sha')
 **`geomys/sandboxed-step`** — runs steps in a gVisor sandbox. Requires `persist-credentials: false` on the preceding `actions/checkout` step. Workspace changes don't persist unless `persist-workspace-changes: true` is set.
 
 **Go module dependency policy** — Dependabot is intentionally NOT configured for the `gomod` ecosystem. `govulncheck` (call-graph reachability) and `latest-deps.yml` (freshness) replace Dependabot's noisy, reachability-unaware Go module PRs.
+
+**`go-licenses v2`** — invoked via `go run github.com/google/go-licenses/v2@latest`. `--ignore` is a persistent root flag (not shown in `save --help`); always pass `--ignore=github.com/tbckr/trident` to `save` to prevent copying the project's own module. Allowlist: `MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,GPL-3.0,GPL-3.0-only`.
 
 ## Phase Roadmap
 
