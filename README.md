@@ -259,14 +259,6 @@ internal/
   testutil/         # Shared test helpers (mock resolver, nop logger)
 ```
 
-## Roadmap
-
-| Phase | Status | Focus |
-|-------|--------|-------|
-| Phase 1 — MVP | ✅ Complete | DNS, ASN, crt.sh; core framework, CI |
-| Phase 2 — Bulk & OpSec | ✅ Complete | Stdin, concurrency, proxy, PAP, defanging, ThreatMiner, PGP |
-| Phase 3 — Release Hardening | Planned | GoReleaser, SBOM (CycloneDX), Cosign signing, rate limiting with jitter |
-
 ## Contributing
 
 Contributions are welcome. Please open an issue before implementing a significant change to discuss the approach.

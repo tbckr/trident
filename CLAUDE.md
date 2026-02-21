@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Phase 1 MVP is implemented — three keyless OSINT services: DNS, ASN, and crt.sh. The PRD is in `docs/PRD.md`.
+**Trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Five keyless OSINT services are implemented: DNS, ASN, crt.sh, ThreatMiner, and PGP.
 
 ## Tools
 
@@ -39,7 +39,7 @@ go run ./cmd/trident/main.go crtsh example.com
 
 ## Architecture
 
-### Directory Structure (Phase 2)
+### Directory Structure
 
 ```
 cmd/trident/        # main.go — delegates immediately to run()
@@ -180,7 +180,7 @@ type Service interface {
 }
 ```
 
-### Service Implementations (Phase 2)
+### Service Implementations
 
 | Command | Implementation | PAP |
 |---------|---------------|-----|
@@ -200,7 +200,7 @@ type Service interface {
 - **Flag→viper key discrepancies** (hyphen→underscore, rename): `--user-agent`→`user_agent`, `--pap`→`pap_limit`, `--no-defang`→`no_defang`. These drive mapstructure tags and env vars (`TRIDENT_USER_AGENT`, `TRIDENT_PAP_LIMIT`, `TRIDENT_NO_DEFANG`).
 - **`Config.ConfigFile`** has no mapstructure tag — set manually after `v.Unmarshal(&cfg)` (meta-field, not a viper key).
 
-### Global Flags (Phase 2)
+### Global Flags
 
 | Flag | Default |
 |------|---------|
@@ -271,8 +271,3 @@ sha=$(gh api repos/ORG/REPO/git/tags/$sha --jq '.object.sha')
 
 **`go-licenses v2`** — invoked via `go run github.com/google/go-licenses/v2@latest`. `--ignore` is a persistent root flag (not shown in `save --help`); always pass `--ignore=github.com/tbckr/trident` to `save` to prevent copying the project's own module. Allowlist: `MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,GPL-3.0,GPL-3.0-only`.
 
-## Phase Roadmap
-
-The full PRD is in `docs/PRD.md`. Phases deferred from MVP:
-- **Phase 2:** ✅ Complete — stdin/bulk input, concurrency, proxy, PAP system, defanging, ThreatMiner, PGP; shell completions, command grouping, rich help text, version command (ldflags vars prepped for GoReleaser)
-- **Phase 3:** GoReleaser, SBOM (CycloneDX), Cosign signing, rate limiting with jitter, `burn` command
