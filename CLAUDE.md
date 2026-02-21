@@ -236,7 +236,7 @@ type Service interface {
 ## CI/CD
 
 **Workflow files:**
-- `ci.yml` — push/PR: test (with `go mod verify` + tidy check), lint, govulncheck
+- `ci.yml` — push/PR: test (with `go mod verify` + tidy check), lint, govulncheck (plain `run` step — no sandbox)
 - `release.yml` — tag push: GoReleaser + SBOM + Cosign
 - `vuln-schedule.yml` — daily 06:00 UTC: govulncheck in gVisor sandbox
 - `latest-deps.yml` — daily 07:00 UTC: `go get -u -t ./... && go test ./...` in gVisor sandbox
