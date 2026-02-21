@@ -336,6 +336,8 @@ Environment variables override config file values using the `TRIDENT_` prefix:
 | `TRIDENT_DEFANG` | `--defang` |
 | `TRIDENT_NO_DEFANG` | `--no-defang` |
 
+When `--proxy` / `TRIDENT_PROXY` is not set, Trident honours the standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables automatically.
+
 ## Development
 
 ### Requirements
