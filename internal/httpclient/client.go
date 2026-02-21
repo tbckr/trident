@@ -3,26 +3,21 @@ package httpclient
 import (
 	"fmt"
 	"log/slog"
-	"math/rand/v2"
 	"net/http"
 	"time"
 
 	"github.com/imroc/req/v3"
+
+	"github.com/tbckr/trident/internal/version"
 )
 
-// defaultUserAgents is a pool of modern browser UA strings used for rotation.
-// Selected randomly when no explicit user-agent is configured.
-var defaultUserAgents = []string{
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
-	"Mozilla/5.0 (Macintosh; Intel Mac OS X 14.7; rv:132.0) Gecko/20100101 Firefox/132.0",
-	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
-}
+// defaultUserAgent is the User-Agent sent when no explicit value is configured.
+// It identifies Trident honestly so server operators can recognise its traffic.
+// var (not const) because version.Version is a link-time variable, not a compile-time constant.
+var defaultUserAgent = "trident/" + version.Version + " (+https://github.com/tbckr/trident)"
 
 // New builds a *req.Client with optional proxy and user-agent configuration.
-// If userAgent is empty, a random UA from the built-in pool is selected.
+// If userAgent is empty, defaultUserAgent is used.
 // proxy supports http://, https://, and socks5:// URLs via req's SetProxyURL.
 // When proxy is empty, HTTP_PROXY / HTTPS_PROXY / NO_PROXY environment variables
 // are honoured automatically via http.ProxyFromEnvironment.
@@ -32,7 +27,7 @@ var defaultUserAgents = []string{
 func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client, error) {
 	ua := userAgent
 	if ua == "" {
-		ua = defaultUserAgents[rand.IntN(len(defaultUserAgents))] //nolint:gosec // non-cryptographic random is fine for UA selection
+		ua = defaultUserAgent
 	}
 
 	client := req.NewClient().SetUserAgent(ua)

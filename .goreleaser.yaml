@@ -25,9 +25,9 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X github.com/tbckr/trident/internal/cli.version={{ .Version }}
-      - -X github.com/tbckr/trident/internal/cli.commit={{ .ShortCommit }}
-      - -X github.com/tbckr/trident/internal/cli.date={{ .CommitDate }}
+      - -X github.com/tbckr/trident/internal/version.Version={{ .Version }}
+      - -X github.com/tbckr/trident/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/tbckr/trident/internal/version.Date={{ .CommitDate }}
 
 gomod:
   proxy: true

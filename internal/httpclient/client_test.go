@@ -47,13 +47,10 @@ func TestNew_InvalidProxyScheme(t *testing.T) {
 	assert.Contains(t, err.Error(), "proxy scheme")
 }
 
-func TestNew_RotatesUA(t *testing.T) {
-	// Call multiple times and verify we get non-nil clients (UA rotation doesn't error)
-	for i := range 5 {
-		client, err := httpclient.New("", "", nil, false)
-		require.NoError(t, err, "iteration %d", i)
-		assert.NotNil(t, client)
-	}
+func TestNew_DefaultUserAgent(t *testing.T) {
+	client, err := httpclient.New("", "", nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, client)
 }
 
 func TestNew_WithDebugLogger(t *testing.T) {

@@ -83,6 +83,8 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`httpclient.New()` signature:** `New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client, error)` — pass `nil, false` in tests/non-debug paths. When `debug && logger != nil`, attaches `OnAfterResponse` hook that logs timing + error body via `client.EnableTraceAll()`. Proxy precedence: explicit `proxy` arg → `client.SetProxyURL(proxy)`; empty `proxy` → `client.SetProxy(http.ProxyFromEnvironment)` (honours `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` env vars at request time). `req.Client.SetProxy` accepts `func(*http.Request) (*url.URL, error)` — same signature as `http.ProxyFromEnvironment`.
 
+**`httpclient.defaultUserAgent`** — package-level `var` (not `const`) in `internal/httpclient/client.go` that concatenates `version.Version` at runtime; imports `internal/version`. Single source of truth for the default UA — do not add a UA override in `buildDeps`.
+
 **`req.TraceInfo` fields** (context7 doesn't index this struct — fetch from `https://raw.githubusercontent.com/imroc/req/master/trace.go`): `DNSLookupTime`, `ConnectTime`, `TCPConnectTime`, `TLSHandshakeTime`, `TotalTime`. Access via `resp.TraceInfo()` in hook; request method/URL via `resp.Request.RawRequest.Method` / `.URL.String()`. `resp.String()` is safe in `OnAfterResponse` — req buffers the body; downstream readers are unaffected.
 
 **`req.Client` retry API** — client-level retry uses `SetCommonRetryCount(n)`, `AddCommonRetryCondition(func(*req.Response, error) bool)`, `SetCommonRetryInterval(func(*req.Response, attempt int) time.Duration)`. The bare `SetRetryCount`/`AddRetryCondition`/`SetRetryHook` are request-level only (`*req.Request`), not on `*req.Client`.
@@ -133,7 +135,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **Shell completion generation** — `GenBashCompletionV2(w, true)`, `GenZshCompletion(w)`, `GenFishCompletion(w, true)`, `GenPowerShellCompletionWithDesc(w)` all return `error` — always propagate. Completion subcommand lives in `internal/cli/completion.go`.
 
-**Version build variables** — `var version`, `commit`, `date` in `internal/cli/version.go`; injected at build time via `-X github.com/tbckr/trident/internal/cli.version=v1.0.0`. `cmd.Version = version` enables `trident --version`; `cmd.SetVersionTemplate("trident version {{.Version}}\n")` controls its format.
+**Version build variables** — `var Version`, `Commit`, `Date` in `internal/version/version.go`; injected at build time via `-X github.com/tbckr/trident/internal/version.Version=v1.0.0`. `internal/cli/version.go` imports `internal/version` and reads these vars. `cmd.Version = version.Version` enables `trident --version`; `cmd.SetVersionTemplate("trident {{.Version}}\n")` controls its format.
 
 **Flag completions** — registered inline in `newRootCmd` via two `cmd.RegisterFlagCompletionFunc` calls (for `"output"` and `"pap"`). `RegisterFlagCompletionFunc` returns `error` — discard with `_ =`.
 

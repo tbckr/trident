@@ -7,17 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tbckr/trident/internal/output"
-)
-
-// Build-time variables injected via ldflags:
-//
-//	-X github.com/tbckr/trident/internal/cli.version=v1.0.0
-//	-X github.com/tbckr/trident/internal/cli.commit=abc1234
-//	-X github.com/tbckr/trident/internal/cli.date=2024-01-01
-var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
+	"github.com/tbckr/trident/internal/version"
 )
 
 type versionInfo struct {
@@ -33,7 +23,7 @@ func newVersionCmd(d *deps) *cobra.Command {
 		Args:    cobra.NoArgs,
 		GroupID: "utility",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			info := versionInfo{Version: version, Commit: commit, Date: date}
+			info := versionInfo{Version: version.Version, Commit: version.Commit, Date: version.Date}
 			if output.Format(d.cfg.Output) == output.FormatJSON {
 				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetIndent("", "  ")

@@ -29,6 +29,10 @@ linters:
       - linters:
           - gosec
         text: "G304" # file inclusion via variable — acceptable in config loading
+      - path: "internal/version/"
+        linters:
+          - revive
+        text: "var-naming" # 'version' is a conventional package name for build-time vars
 
 formatters:
   enable:

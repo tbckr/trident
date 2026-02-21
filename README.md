@@ -186,7 +186,7 @@ trident pgp "Alice Smith"
 | `--output`, `-o` | `text` | Output format: `text`, `json`, `plain` |
 | `--concurrency`, `-c` | `10` | Worker pool size for bulk input |
 | `--proxy` | — | Proxy URL (`http://`, `https://`, `socks5://`) |
-| `--user-agent` | rotating browser UAs | Override HTTP User-Agent |
+| `--user-agent` | `trident/<version> (+https://github.com/tbckr/trident)` | Override HTTP User-Agent |
 | `--pap-limit` | `white` | PAP limit: `red`, `amber`, `green`, `white` |
 | `--defang` | `false` | Force output defanging |
 | `--no-defang` | `false` | Disable output defanging |
@@ -214,6 +214,19 @@ trident --pap-limit=red asn 8.8.8.8  # error: service level AMBER exceeds limit 
 ```
 
 Defanging is automatically applied at AMBER and below unless `--no-defang` is passed.
+
+## Responsible Use
+
+Trident is designed for use in **authorised environments only** — internal security assessments,
+red team engagements you have permission to conduct, and OSINT research on infrastructure you
+own or have been explicitly authorised to investigate.
+
+**Malicious use is strictly prohibited.** Do not use Trident to query systems or services
+without authorisation. Misuse may violate computer fraud laws and the terms of service of the
+queried APIs.
+
+Trident identifies itself honestly with a `trident/<version>` HTTP User-Agent so that server
+operators can recognise and control its traffic.
 
 ## Configuration
 

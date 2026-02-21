@@ -15,6 +15,7 @@ import (
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
+	"github.com/tbckr/trident/internal/version"
 	"github.com/tbckr/trident/internal/worker"
 )
 
@@ -55,7 +56,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 		return []string{"red", "amber", "green", "white"}, cobra.ShellCompDirectiveNoFileComp
 	})
 
-	cmd.Version = version
+	cmd.Version = version.Version
 	cmd.SetVersionTemplate("trident {{.Version}}\n")
 
 	cmd.AddGroup(
