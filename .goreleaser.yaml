@@ -2,6 +2,7 @@ version: 2
 
 before:
   hooks:
+    - go mod tidy
     - go run github.com/google/go-licenses/v2@latest save ./... --save_path=.build/third_party_licenses --force --ignore=github.com/tbckr/trident
     - go run ./cmd/docgen/main.go --version={{ .Version }} --output-dir=.build
 
