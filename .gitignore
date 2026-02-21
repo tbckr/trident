@@ -346,3 +346,4 @@ secring.*
 .ai/
 .idea/
 .claude/plans/
+.build/
