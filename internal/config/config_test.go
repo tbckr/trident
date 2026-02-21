@@ -228,7 +228,7 @@ func TestLoadAliases_NoAliasesKey(t *testing.T) {
 func TestLoadAliases_WithAliases(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
-	require.NoError(t, os.WriteFile(cfgFile, []byte("aliases:\n  mydns: dns -o json\n  qs: crtsh\n"), 0o600))
+	require.NoError(t, os.WriteFile(cfgFile, []byte("alias:\n  mydns: dns -o json\n  qs: crtsh\n"), 0o600))
 
 	aliases, err := config.LoadAliases(cfgFile)
 	require.NoError(t, err)

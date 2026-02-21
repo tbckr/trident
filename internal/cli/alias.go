@@ -59,12 +59,12 @@ func newAliasSetCmd(d *deps) *cobra.Command {
 				}
 			}
 
-			aliasMap, _ := raw["aliases"].(map[string]any)
+			aliasMap, _ := raw["alias"].(map[string]any)
 			if aliasMap == nil {
 				aliasMap = map[string]any{}
 			}
 			aliasMap[name] = expansion
-			raw["aliases"] = aliasMap
+			raw["alias"] = aliasMap
 
 			out, err := yaml.Marshal(raw)
 			if err != nil {
@@ -156,13 +156,13 @@ func newAliasDeleteCmd(d *deps) *cobra.Command {
 				}
 			}
 
-			aliasMap, _ := raw["aliases"].(map[string]any)
+			aliasMap, _ := raw["alias"].(map[string]any)
 			if aliasMap != nil {
 				delete(aliasMap, name)
 				if len(aliasMap) == 0 {
-					delete(raw, "aliases")
+					delete(raw, "alias")
 				} else {
-					raw["aliases"] = aliasMap
+					raw["alias"] = aliasMap
 				}
 			}
 

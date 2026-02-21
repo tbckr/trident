@@ -129,7 +129,7 @@ type Config struct {
 	Defang      bool              `mapstructure:"defang"`      // force defang
 	NoDefang    bool              `mapstructure:"no_defang"`   // suppress defang
 	Concurrency int               `mapstructure:"concurrency"` // default 10
-	Aliases     map[string]string `mapstructure:"aliases"`     // file-only; no flag/env binding
+	Aliases     map[string]string `mapstructure:"alias"`       // file-only; no flag/env binding
 }
 
 // RegisterFlags defines all persistent CLI flags on the given FlagSet.
@@ -232,8 +232,8 @@ func DefaultConfigPath() (string, error) {
 	return filepath.Join(dir, "config.yaml"), nil
 }
 
-// LoadAliases reads only the aliases section from the config file at path.
-// Returns an empty (non-nil) map when the file is missing or has no aliases key.
+// LoadAliases reads only the alias section from the config file at path.
+// Returns an empty (non-nil) map when the file is missing or has no alias key.
 func LoadAliases(path string) (map[string]string, error) {
 	v := viper.New()
 	v.SetConfigFile(path)
@@ -244,7 +244,7 @@ func LoadAliases(path string) (map[string]string, error) {
 		}
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
-	return v.GetStringMapString("aliases"), nil
+	return v.GetStringMapString("alias"), nil
 }
 
 // ensureConfigFile creates the config file (and its parent directory) if they do

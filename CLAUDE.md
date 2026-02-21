@@ -124,7 +124,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **Alias pre-expansion in `Execute()`** — before `cmd.ExecuteContext(ctx)`, load aliases via `config.LoadAliases(peekConfigFlag(os.Args[1:], defaultPath))`. If `os.Args[1]` matches an alias name, call `cmd.SetArgs(expanded)` to rewrite args. Register stub `*cobra.Command` entries with `GroupID: "aliases"` so aliases appear in `--help`. `peekConfigFlag` scans for `--config <path>` / `--config=<path>` before Cobra parses; uses `strings.CutPrefix`.
 
-**YAML nested map type assertion** — `yaml.Unmarshal` into `map[string]any` produces `map[string]any` for nested maps (not `map[string]string`). Always type-assert inner maps as `map[string]any`: `aliasMap, _ := raw["aliases"].(map[string]any)`.
+**YAML nested map type assertion** — `yaml.Unmarshal` into `map[string]any` produces `map[string]any` for nested maps (not `map[string]string`). Always type-assert inner maps as `map[string]any`: `aliasMap, _ := raw["alias"].(map[string]any)`.
 
 **`deps` struct fields:** `cfg *config.Config`, `logger *slog.Logger`, `doDefang bool` — no derived type-casts. Only multi-input computed values (like `doDefang`) belong in `deps`; inline simple casts at usage (`output.Format(d.cfg.Output)`, `pap.MustParse(d.cfg.PAPLimit)`).
 
@@ -210,9 +210,9 @@ type Service interface {
 - **Config API:** `config.RegisterFlags(cmd.PersistentFlags())` in root.go; `config.Load(cmd.Flags())` in `buildDeps`. Viper owns the full precedence chain — no scattered `if flag == "" {}` guards.
 - **Flag→viper key discrepancies** (hyphen→underscore): `--user-agent`→`user_agent`, `--pap-limit`→`pap_limit`, `--no-defang`→`no_defang`. These drive mapstructure tags and env vars (`TRIDENT_USER_AGENT`, `TRIDENT_PAP_LIMIT`, `TRIDENT_NO_DEFANG`).
 - **`Config.ConfigFile`** has no mapstructure tag — set manually after `v.Unmarshal(&cfg)` (meta-field, not a viper key).
-- **`Config.Aliases`** — `map[string]string` with `mapstructure:"aliases"`; file-only, no flag/env binding. Populated by Viper from the `aliases:` YAML key.
+- **`Config.Aliases`** — `map[string]string` with `mapstructure:"alias"`; file-only, no flag/env binding. Populated by Viper from the `alias:` YAML key.
 - **`config.DefaultConfigPath()`** — returns the OS-appropriate default config path without creating the file (unlike `Load`). Use in `Execute()` for pre-parse alias loading.
-- **`config.LoadAliases(path)`** — reads only the `aliases:` section via a fresh Viper instance; returns empty non-nil map when file missing or key absent.
+- **`config.LoadAliases(path)`** — reads only the `alias:` section via a fresh Viper instance; returns empty non-nil map when file missing or key absent.
 
 ### Global Flags
 
