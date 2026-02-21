@@ -103,6 +103,73 @@ func TestLoad_PAPLimitDefault(t *testing.T) {
 	assert.Equal(t, "white", cfg.PAPLimit)
 }
 
+func TestValidateKey(t *testing.T) {
+	t.Run("valid_underscore", func(t *testing.T) {
+		require.NoError(t, config.ValidateKey("pap_limit"))
+	})
+	t.Run("valid_hyphen", func(t *testing.T) {
+		require.NoError(t, config.ValidateKey("pap-limit"))
+	})
+	t.Run("all_keys", func(t *testing.T) {
+		for _, k := range config.ValidKeys() {
+			require.NoError(t, config.ValidateKey(k), "key %q should be valid", k)
+		}
+	})
+	t.Run("unknown", func(t *testing.T) {
+		err := config.ValidateKey("does_not_exist")
+		require.Error(t, err)
+		require.ErrorIs(t, err, config.ErrUnknownKey)
+	})
+}
+
+func TestParseValue(t *testing.T) {
+	tests := []struct {
+		key     string
+		value   string
+		want    any
+		wantErr bool
+	}{
+		// bool
+		{key: "verbose", value: "true", want: true},
+		{key: "verbose", value: "false", want: false},
+		{key: "defang", value: "1", want: true},
+		{key: "verbose", value: "yes", wantErr: true},
+		// int
+		{key: "concurrency", value: "5", want: 5},
+		{key: "concurrency", value: "0", wantErr: true},
+		{key: "concurrency", value: "-1", wantErr: true},
+		{key: "concurrency", value: "abc", wantErr: true},
+		// enum string — output
+		{key: "output", value: "json", want: "json"},
+		{key: "output", value: "text", want: "text"},
+		{key: "output", value: "plain", want: "plain"},
+		{key: "output", value: "xml", wantErr: true},
+		// enum string — pap_limit (hyphenated key)
+		{key: "pap-limit", value: "amber", want: "amber"},
+		{key: "pap_limit", value: "white", want: "white"},
+		{key: "pap_limit", value: "invalid", wantErr: true},
+		// free-form string
+		{key: "proxy", value: "http://proxy:3128", want: "http://proxy:3128"},
+		{key: "user_agent", value: "MyAgent/1.0", want: "MyAgent/1.0"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.key+"/"+tc.value, func(t *testing.T) {
+			got, err := config.ParseValue(tc.key, tc.value)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestParseValue_UnknownKey(t *testing.T) {
+	_, err := config.ParseValue("nonexistent", "value")
+	require.ErrorIs(t, err, config.ErrUnknownKey)
+}
+
 func TestLoad_ConfigFileValues(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")

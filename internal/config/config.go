@@ -5,10 +5,118 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
+
+// ErrUnknownKey is returned when a config key is not recognised.
+var ErrUnknownKey = errors.New("unknown config key")
+
+// configKeyType describes the Go type a config key holds.
+type configKeyType string
+
+const (
+	keyTypeBool   configKeyType = "bool"
+	keyTypeInt    configKeyType = "int"
+	keyTypeString configKeyType = "string"
+)
+
+// configKeyMeta bundles the type and optional allowed values for one config key.
+type configKeyMeta struct {
+	typ     configKeyType
+	allowed []string // non-nil → enum; nil → free-form
+}
+
+// configKeys is the single source of truth for valid config keys.
+// Keys use the viper/mapstructure naming convention (underscores, not hyphens).
+var configKeys = map[string]configKeyMeta{
+	"verbose":     {typ: keyTypeBool},
+	"output":      {typ: keyTypeString, allowed: []string{"text", "json", "plain"}},
+	"proxy":       {typ: keyTypeString},
+	"user_agent":  {typ: keyTypeString},
+	"pap_limit":   {typ: keyTypeString, allowed: []string{"red", "amber", "green", "white"}},
+	"defang":      {typ: keyTypeBool},
+	"no_defang":   {typ: keyTypeBool},
+	"concurrency": {typ: keyTypeInt},
+}
+
+// ValidKeys returns every recognised config key in sorted order.
+func ValidKeys() []string {
+	keys := make([]string, 0, len(configKeys))
+	for k := range configKeys {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// KeyCompletions returns the allowed completions for the given key, or nil when
+// the key accepts free-form input (string / int).
+func KeyCompletions(key string) []string {
+	if meta, ok := configKeys[key]; ok {
+		if meta.typ == keyTypeBool {
+			return []string{"true", "false"}
+		}
+		return meta.allowed // nil for free-form string/int
+	}
+	return nil
+}
+
+// ValidateKey returns ErrUnknownKey when key is not a recognised config key.
+// Accepts both hyphenated (user-agent) and underscored (user_agent) forms.
+func ValidateKey(key string) error {
+	if _, ok := configKeys[normalizeKey(key)]; !ok {
+		return fmt.Errorf("%w: %q", ErrUnknownKey, key)
+	}
+	return nil
+}
+
+// ParseValue converts the raw string value to the correct Go type for key and
+// validates enum constraints. Returns an error for type mismatches or invalid
+// enum values.
+func ParseValue(key, value string) (any, error) {
+	meta, ok := configKeys[normalizeKey(key)]
+	if !ok {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownKey, key)
+	}
+	switch meta.typ {
+	case keyTypeBool:
+		b, err := strconv.ParseBool(value)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bool value for %q: %q (want true or false)", key, value)
+		}
+		return b, nil
+	case keyTypeInt:
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 1 {
+			return nil, fmt.Errorf("invalid integer value for %q: %q (want a positive integer)", key, value)
+		}
+		return n, nil
+	default: // keyTypeString
+		if len(meta.allowed) > 0 {
+			if !slices.Contains(meta.allowed, value) {
+				return nil, fmt.Errorf("invalid value for %q: %q (allowed: %v)", key, value, meta.allowed)
+			}
+			return value, nil
+		}
+		return value, nil
+	}
+}
+
+// normalizeKey converts hyphenated flag names to their viper key equivalents.
+func normalizeKey(key string) string {
+	result := make([]byte, len(key))
+	for i := range key {
+		if key[i] == '-' {
+			result[i] = '_'
+		} else {
+			result[i] = key[i]
+		}
+	}
+	return string(result)
+}
 
 // Config holds the runtime settings resolved from flags, env vars, and config file.
 type Config struct {

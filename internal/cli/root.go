@@ -72,6 +72,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 		newPGPCmd(&d),
 		newCompletionCmd(),
 		newVersionCmd(&d),
+		newConfigCmd(&d),
 	)
 
 	cmd.SetHelpCommandGroupID("utility")

@@ -97,7 +97,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **tablewriter header uppercasing:** `table.Header([]string{...})` renders all headers in ALL CAPS — test assertions must use uppercase strings: `"DOMAIN"` not `"Domain"`, `"FIRST SEEN"` not `"First Seen"`.
 
-**tablewriter error returns:** Both `table.Bulk(rows)` and `table.Render()` return `error` — always propagate them; `errcheck` will fail the lint if ignored.
+**tablewriter error returns:** `table.Header([]string{...})` is **void** (no return value). Only `table.Bulk(rows)` and `table.Render()` return `error` — always propagate those; `errcheck` will fail the lint if ignored.
 
 **`output.NewWrappingTable`** — shared factory in `internal/output/terminal.go`; use for plain (ungrouped) tables. **`output.NewGroupedWrappingTable`** — use when rows are grouped by a type column (e.g. DNS): merges repeated first-column cells (`MergeHierarchical`) and draws separator lines between groups (`BetweenRows: tw.On`); requires `"github.com/olekukonko/tablewriter/renderer"` imported in `terminal.go`. Overhead values: 20 for 2-column tables, 6 for 1-column tables.
 
@@ -139,6 +139,8 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **Flag completions** — registered inline in `newRootCmd` via two `cmd.RegisterFlagCompletionFunc` calls (for `"output"` and `"pap"`). `RegisterFlagCompletionFunc` returns `error` — discard with `_ =`.
 
+**Cobra positional arg completions** — set `ValidArgsFunction` on the `*cobra.Command` struct for positional argument tab-completion. `RegisterFlagCompletionFunc` is only for named flag completions, not positional args.
+
 **`services.ErrInvalidInput`** — unified validation sentinel in `internal/services/service.go`. New services must use this (not define their own `ErrInvalidInput`). Wrap with context: `fmt.Errorf("%w: must be …: %q", services.ErrInvalidInput, input)`.
 
 **Type assertions in tests** — always use two-value form: `result, ok := raw.(*T); require.True(t, ok, "expected *T")`. Bare `raw.(*T)` panics on failure.
@@ -168,7 +170,7 @@ if ok && someResult.IsEmpty() {
 
 **`DefangURL` host extraction** — never use `strings.Index(s, "/")` to find the host/path boundary; it hits the first `/` inside `://`. Find `://` first, skip 3 bytes, then search for the next `/` in `s[hostStart:]`.
 
-**`gofmt` struct field alignment** — never pad struct field types/tags with extra spaces for visual alignment (e.g., `Input      string     \`json:"input"\``); gofmt normalizes to single-tab separation and `golangci-lint` will fail.
+**`gofmt` alignment** — never pad struct field types/tags **or map key→value pairs** with extra spaces for visual alignment (e.g., `Input      string` or `"key":    value`); gofmt normalizes both to single-tab separation and `golangci-lint` will fail.
 
 **PGP testdata workaround** — a pre-tool-use hook blocks creation of `.txt` files in `testdata/`; inline the MRINDEX fixture as a `const mrindexFixture` string directly in `service_test.go` instead.
 
@@ -236,6 +238,7 @@ type Service interface {
 - **`cobra/doc` subpackage** — `github.com/spf13/cobra/doc` is within the existing cobra module; no new `go get` needed, but `go mod tidy` will pull transitive deps (`go-md2man`, `blackfriday`).
 - **golangci-lint v2 config structure:** `linters-settings` → `linters.settings`; `formatters-settings` → `formatters.settings`; `issues.exclude-rules` → `linters.exclusions.rules`. `goimports.local-prefixes` is an array (not a string). `gosimple` is merged into `staticcheck` — do not list it separately.
 - **gosec suppressions:** `gosec.excludes` under `linters.settings` is unreliable; prefer `linters.exclusions.rules` with `text: "G304"` or an inline `//nolint:gosec // reason` comment. `nolintlint` will error if the directive is present but gosec doesn't fire on that line — remove unused nolint directives rather than suppressing them.
+- **gosec G304 scope** — `os.ReadFile` with a variable path does **not** trigger G304; do not add a nolint directive there. G304 fires on `os.Open`, `os.OpenFile`, and similar — not `ReadFile`.
 - **revive `package-comments`:** Every package must have a `// Package foo ...` comment in `doc.go` (never inline in an implementation file). New packages without this will fail lint.
 - **cosign v3 signing** — `cosign-installer@v4.x` is required for cosign v3.x (`@v3.x` only installs v2). In GoReleaser `signs:`, use `signature: "${artifact}.sigstore.json"` + `--bundle=${signature}` (v3 replaced `--output-certificate`/`--output-signature` with a single bundle). Do not pin `cosign-release:` in the action — let the installer default handle the version.
 
