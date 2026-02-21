@@ -216,10 +216,10 @@ type Service interface {
 - **Tables:** `olekukonko/tablewriter`
 - **Tests:** `stretchr/testify` + `jarcoal/httpmock`
 - **Lint:** `golangci-lint` v2 (strict — CI fails on any lint error). Config requires `version: "2"` at top; formatters (`gofmt`, `goimports`) go in `formatters:` section, not `linters:`. GitHub Action: `golangci/golangci-lint-action@v8` with `version: latest` (pinning a specific version risks Go version mismatch with `go.mod`).
-- **GoReleaser v2 `format_overrides`** — use `format: zip` (singular scalar), not `formats: [zip]` (list); `goreleaser check` catches this at validation time.
-- **GoReleaser nfpms `builds` vs `ids`** — to scope an nfpm to specific build IDs, use `builds: [trident]` (not `ids:`; that field doesn't exist in the nfpm schema).
-- **GoReleaser nfpms `mtime`** — top-level `mtime: "{{ .CommitDate }}"` and templated `file_info.mtime` both require v2.6+; v2.3.2 parses `mtime` as a literal RFC3339 timestamp and rejects templates. Use `file_info: {owner: root, group: root, mode: 0644}` for reproducible ownership/permissions — it works in v2.3.2. Add top-level `mtime` once CI's `~> v2` pin resolves to v2.6+.
-- **GoReleaser archives `builds_info`** — sets `owner`/`group` on the binary inside archives for reproducible ownership; same `mtime` template restriction as nfpms (v2.6+ only — omit until confirmed).
+- **GoReleaser v2 `format_overrides`** — use `formats: [zip]` (list), not `format: zip` (deprecated scalar since v2.6); `goreleaser check` catches this at validation time.
+- **GoReleaser nfpms `builds` vs `ids`** — to scope an nfpm to specific build IDs, use `ids: [trident]` (not `builds:`; deprecated since v2.8).
+- **GoReleaser nfpms `mtime`** — `file_info.mtime: "{{ .CommitDate }}"` template is supported since v2.6. Use on all `contents` entries for reproducible packages.
+- **GoReleaser archives `builds_info`** — sets `owner`/`group`/`mtime` on the binary inside archives. Use `mtime: "{{ .CommitDate }}"` for reproducibility (supported since v2.6).
 - **GoReleaser archives `files` format** — plain strings (`- LICENSE`) work for bare includes; use object form (`- src: LICENSE\n  info: {owner: root, group: root}`) when per-file ownership is needed. Switch the whole list to object form when any entry needs `info:`.
 - **GoReleaser archives `name_template`** — use `title .Os` + arch map for conventional human-readable names: `{{- title .Os }}_{{- if eq .Arch "amd64" }}x86_64{{- else if eq .Arch "386" }}i386{{- else }}{{ .Arch }}{{ end }}{{- if .Arm }}v{{ .Arm }}{{ end -}}`.
 - **`cobra/doc` subpackage** — `github.com/spf13/cobra/doc` is within the existing cobra module; no new `go get` needed, but `go mod tidy` will pull transitive deps (`go-md2man`, `blackfriday`).

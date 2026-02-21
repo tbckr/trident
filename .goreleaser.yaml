@@ -36,32 +36,38 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end -}}
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
     builds_info:
       group: root
       owner: root
+      mtime: "{{ .CommitDate }}"
     files:
       - src: LICENSE
         info:
           owner: root
           group: root
+          mtime: "{{ .CommitDate }}"
       - src: README.md
         info:
           owner: root
           group: root
+          mtime: "{{ .CommitDate }}"
       - src: dist/third_party_licenses
         dst: THIRD_PARTY_LICENSES
         info:
           owner: root
           group: root
+          mtime: "{{ .CommitDate }}"
       - src: dist/completions/*
         info:
           owner: root
           group: root
+          mtime: "{{ .CommitDate }}"
       - src: dist/man/*.1
         info:
           owner: root
           group: root
+          mtime: "{{ .CommitDate }}"
 
 checksum:
   algorithm: sha256
@@ -106,7 +112,7 @@ nfpms:
   - id: trident
     package_name: trident
     file_name_template: "{{ .ConventionalFileName }}"
-    builds:
+    ids:
       - trident
     vendor: tbckr
     homepage: https://github.com/tbckr/trident
@@ -129,6 +135,7 @@ nfpms:
           owner: root
           group: root
           mode: 0644
+          mtime: "{{ .CommitDate }}"
       # Bash completion
       - src: dist/completions/trident.bash
         dst: /etc/bash_completion.d/trident
@@ -136,6 +143,7 @@ nfpms:
           owner: root
           group: root
           mode: 0644
+          mtime: "{{ .CommitDate }}"
       # Zsh completion
       - src: dist/completions/_trident
         dst: /usr/share/zsh/site-functions/_trident
@@ -143,6 +151,7 @@ nfpms:
           owner: root
           group: root
           mode: 0644
+          mtime: "{{ .CommitDate }}"
       # Fish completion
       - src: dist/completions/trident.fish
         dst: /usr/share/fish/vendor_completions.d/trident.fish
@@ -150,6 +159,7 @@ nfpms:
           owner: root
           group: root
           mode: 0644
+          mtime: "{{ .CommitDate }}"
       # License
       - src: LICENSE
         dst: /usr/share/licenses/trident/LICENSE
@@ -157,12 +167,14 @@ nfpms:
           owner: root
           group: root
           mode: 0644
+          mtime: "{{ .CommitDate }}"
       - src: dist/third_party_licenses/
         dst: /usr/share/licenses/trident/third_party/
         file_info:
           owner: root
           group: root
           mode: 0644
+          mtime: "{{ .CommitDate }}"
 
 snapshot:
   version_template: "{{ .Tag }}-next"
