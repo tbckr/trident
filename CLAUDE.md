@@ -233,6 +233,26 @@ type Service interface {
 - **80% minimum test coverage** — enforced on `./internal/services/...` only (CLI/cmd packages intentionally have 0%). CI uses `go test ./internal/services/... -coverprofile=svc_coverage.out`.
 - **Cross-platform** — must compile on Linux, macOS, Windows; use `filepath.Join`
 
+## CI/CD
+
+**Workflow files:**
+- `ci.yml` — push/PR: test (with `go mod verify` + tidy check), lint, govulncheck
+- `release.yml` — tag push: GoReleaser + SBOM + Cosign
+- `vuln-schedule.yml` — daily 06:00 UTC: govulncheck in gVisor sandbox
+- `latest-deps.yml` — daily 07:00 UTC: `go get -u -t ./... && go test ./...` in gVisor sandbox
+
+**SHA pinning:** all `uses:` lines are pinned by 40-char commit SHA. Dependabot (`.github/dependabot.yml`, weekly, `github-actions` ecosystem only) opens PRs when action authors release new versions. To look up a SHA when updating:
+```bash
+sha=$(gh api repos/ORG/REPO/git/ref/tags/vX --jq '.object.sha')
+type=$(gh api repos/ORG/REPO/git/ref/tags/vX --jq '.object.type')
+# If type == "tag" (annotated), dereference:
+sha=$(gh api repos/ORG/REPO/git/tags/$sha --jq '.object.sha')
+```
+
+**`geomys/sandboxed-step`** — runs steps in a gVisor sandbox. Requires `persist-credentials: false` on the preceding `actions/checkout` step. Workspace changes don't persist unless `persist-workspace-changes: true` is set.
+
+**Go module dependency policy** — Dependabot is intentionally NOT configured for the `gomod` ecosystem. `govulncheck` (call-graph reachability) and `latest-deps.yml` (freshness) replace Dependabot's noisy, reachability-unaware Go module PRs.
+
 ## Phase Roadmap
 
 The full PRD is in `docs/PRD.md`. Phases deferred from MVP:
