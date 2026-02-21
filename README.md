@@ -318,6 +318,9 @@ output: json
 pap_limit: amber
 concurrency: 20
 proxy: socks5://127.0.0.1:9050
+aliases:
+  ct: crtsh
+  myasn: "asn --pap-limit=amber"
 ```
 
 Environment variables override config file values using the `TRIDENT_` prefix:
