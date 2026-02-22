@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"codeberg.org/miekg/dns"
 	"github.com/imroc/req/v3"
 
 	"github.com/tbckr/trident/internal/output"
@@ -52,7 +53,7 @@ func (s *BlockedService) Run(ctx context.Context, domain string) (services.Resul
 
 	result := &BlockedResult{Input: domain}
 
-	resp, err := makeDoHRequest(ctx, s.client, domain, dnsTypeA)
+	resp, err := makeDoHRequest(ctx, s.client, domain, dns.TypeA)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			s.logger.Debug("quad9 blocked: context cancelled", "domain", domain)
@@ -61,7 +62,7 @@ func (s *BlockedService) Run(ctx context.Context, domain string) (services.Resul
 		return nil, err
 	}
 
-	if resp.Status == dohStatusNXDomain && !resp.HasAuthority {
+	if resp.Status == dns.RcodeNameError && !resp.HasAuthority {
 		result.Blocked = true
 	}
 

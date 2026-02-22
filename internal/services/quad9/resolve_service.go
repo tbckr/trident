@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"codeberg.org/miekg/dns"
 	"github.com/imroc/req/v3"
 
 	"github.com/tbckr/trident/internal/output"
@@ -50,14 +51,14 @@ func (s *ResolveService) Run(ctx context.Context, domain string) (services.Resul
 	result := &ResolveResult{Input: domain}
 
 	recordTypes := []struct {
-		typeCode int
+		typeCode uint16
 		name     string
 	}{
-		{dnsTypeA, "A"},
-		{dnsTypeAAAA, "AAAA"},
-		{dnsTypeNS, "NS"},
-		{dnsTypeMX, "MX"},
-		{dnsTypeTXT, "TXT"},
+		{dns.TypeA, "A"},
+		{dns.TypeAAAA, "AAAA"},
+		{dns.TypeNS, "NS"},
+		{dns.TypeMX, "MX"},
+		{dns.TypeTXT, "TXT"},
 	}
 
 	for _, rt := range recordTypes {
@@ -75,15 +76,15 @@ func (s *ResolveService) Run(ctx context.Context, domain string) (services.Resul
 			}
 			val := output.StripANSI(ans.Data)
 			switch rt.typeCode {
-			case dnsTypeA:
+			case dns.TypeA:
 				result.A = append(result.A, val)
-			case dnsTypeAAAA:
+			case dns.TypeAAAA:
 				result.AAAA = append(result.AAAA, val)
-			case dnsTypeNS:
+			case dns.TypeNS:
 				result.NS = append(result.NS, val)
-			case dnsTypeMX:
+			case dns.TypeMX:
 				result.MX = append(result.MX, val)
-			case dnsTypeTXT:
+			case dns.TypeTXT:
 				result.TXT = append(result.TXT, val)
 			}
 		}

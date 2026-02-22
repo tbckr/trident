@@ -21,21 +21,11 @@ const (
 	DefaultRPS float64 = 5
 	// DefaultBurst is the burst capacity above DefaultRPS.
 	DefaultBurst = 10
-
-	// DNS record type codes (RFC 1035 / RFC 3596).
-	dnsTypeA    = 1
-	dnsTypeNS   = 2
-	dnsTypeMX   = 15
-	dnsTypeAAAA = 28
-	dnsTypeTXT  = 16
-
-	// DoH status codes (RFC 8482 / RFC 1035).
-	dohStatusNXDomain = 3
 )
 
 // dohResponse holds the parsed DNS wire-format response.
 type dohResponse struct {
-	Status       int
+	Status       uint16
 	HasAuthority bool
 	Answer       []dohAnswer
 }
@@ -43,14 +33,14 @@ type dohResponse struct {
 // dohAnswer holds a single DNS resource record from a DoH response.
 type dohAnswer struct {
 	Name string
-	Type int
+	Type uint16
 	TTL  int
 	Data string
 }
 
 // buildDNSQuery encodes a DNS query for the given domain and record type into wire format.
-func buildDNSQuery(domain string, recordType int) ([]byte, error) {
-	m := dns.NewMsg(domain, uint16(recordType))
+func buildDNSQuery(domain string, recordType uint16) ([]byte, error) {
+	m := dns.NewMsg(domain, recordType)
 	if m == nil {
 		return nil, fmt.Errorf("unknown DNS record type: %d", recordType)
 	}
@@ -68,7 +58,7 @@ func parseDNSResponse(data []byte) (*dohResponse, error) {
 		return nil, fmt.Errorf("failed to parse DNS response: %w", err)
 	}
 	resp := &dohResponse{
-		Status:       int(m.Rcode),
+		Status:       m.Rcode,
 		HasAuthority: len(m.Ns) > 0,
 	}
 	for _, rr := range m.Answer {
@@ -78,19 +68,19 @@ func parseDNSResponse(data []byte) (*dohResponse, error) {
 		}
 		switch v := rr.(type) {
 		case *dns.A:
-			ans.Type = dnsTypeA
+			ans.Type = dns.TypeA
 			ans.Data = v.Addr.String()
 		case *dns.AAAA:
-			ans.Type = dnsTypeAAAA
+			ans.Type = dns.TypeAAAA
 			ans.Data = v.Addr.String()
 		case *dns.NS:
-			ans.Type = dnsTypeNS
+			ans.Type = dns.TypeNS
 			ans.Data = v.Ns
 		case *dns.MX:
-			ans.Type = dnsTypeMX
+			ans.Type = dns.TypeMX
 			ans.Data = fmt.Sprintf("%d %s", v.Preference, v.Mx)
 		case *dns.TXT:
-			ans.Type = dnsTypeTXT
+			ans.Type = dns.TypeTXT
 			ans.Data = strings.Join(v.Txt, "")
 		default:
 			continue
@@ -102,7 +92,7 @@ func parseDNSResponse(data []byte) (*dohResponse, error) {
 
 // makeDoHRequest performs a DNS-over-HTTPS query using RFC 8484 wire format.
 // It encodes the DNS query as base64url and sends it as the "dns" query parameter.
-func makeDoHRequest(ctx context.Context, client *req.Client, domain string, recordType int) (*dohResponse, error) {
+func makeDoHRequest(ctx context.Context, client *req.Client, domain string, recordType uint16) (*dohResponse, error) {
 	query, err := buildDNSQuery(domain, recordType)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to build DNS query for %q type %d: %w", services.ErrRequestFailed, domain, recordType, err)
