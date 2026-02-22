@@ -14,4 +14,6 @@ type DNSResolverInterface interface {
 	LookupNS(ctx context.Context, name string) ([]*net.NS, error)
 	LookupTXT(ctx context.Context, name string) ([]string, error)
 	LookupAddr(ctx context.Context, addr string) ([]string, error)
+	LookupCNAME(ctx context.Context, host string) (string, error)
+	LookupSRV(ctx context.Context, service, proto, name string) (string, []*net.SRV, error)
 }

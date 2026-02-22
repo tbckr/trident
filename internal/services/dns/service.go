@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
@@ -65,8 +66,23 @@ func (s *Service) runReverse(ctx context.Context, result *Result, ip string) (*R
 	return result, nil
 }
 
-// runForward resolves A, AAAA, MX, NS, and TXT records for the given domain.
+// runForward resolves NS, CNAME, A, AAAA, MX, SRV, and TXT records for the given domain.
 func (s *Service) runForward(ctx context.Context, result *Result, domain string) (*Result, error) {
+	nss, err := s.resolver.LookupNS(ctx, domain)
+	if err != nil {
+		s.logger.Debug("NS lookup failed", "domain", domain, "error", err)
+	}
+	for _, ns := range nss {
+		result.NS = append(result.NS, output.StripANSI(ns.Host))
+	}
+
+	canonical, err := s.resolver.LookupCNAME(ctx, domain)
+	if err != nil {
+		s.logger.Debug("CNAME lookup failed", "domain", domain, "error", err)
+	} else if canonical != "" && strings.TrimSuffix(canonical, ".") != domain {
+		result.CNAME = append(result.CNAME, output.StripANSI(canonical))
+	}
+
 	addrs, err := s.resolver.LookupIPAddr(ctx, domain)
 	if err != nil {
 		s.logger.Debug("A/AAAA lookup failed", "domain", domain, "error", err)
@@ -88,12 +104,13 @@ func (s *Service) runForward(ctx context.Context, result *Result, domain string)
 		result.MX = append(result.MX, output.StripANSI(mx.Host))
 	}
 
-	nss, err := s.resolver.LookupNS(ctx, domain)
+	_, srvs, err := s.resolver.LookupSRV(ctx, "", "", domain)
 	if err != nil {
-		s.logger.Debug("NS lookup failed", "domain", domain, "error", err)
+		s.logger.Debug("SRV lookup failed", "domain", domain, "error", err)
 	}
-	for _, ns := range nss {
-		result.NS = append(result.NS, output.StripANSI(ns.Host))
+	for _, srv := range srvs {
+		result.SRV = append(result.SRV, output.StripANSI(
+			fmt.Sprintf("%d %d %d %s", srv.Priority, srv.Weight, srv.Port, srv.Target)))
 	}
 
 	txts, err := s.resolver.LookupTXT(ctx, domain)

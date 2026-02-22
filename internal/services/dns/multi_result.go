@@ -20,6 +20,9 @@ func (m *MultiResult) WriteText(w io.Writer) error {
 		for _, v := range r.NS {
 			rows = append(rows, []string{r.Input, "NS", v})
 		}
+		for _, v := range r.CNAME {
+			rows = append(rows, []string{r.Input, "CNAME", v})
+		}
 		for _, v := range r.A {
 			rows = append(rows, []string{r.Input, "A", v})
 		}
@@ -28,6 +31,9 @@ func (m *MultiResult) WriteText(w io.Writer) error {
 		}
 		for _, v := range r.MX {
 			rows = append(rows, []string{r.Input, "MX", v})
+		}
+		for _, v := range r.SRV {
+			rows = append(rows, []string{r.Input, "SRV", v})
 		}
 		for _, v := range r.TXT {
 			rows = append(rows, []string{r.Input, "TXT", v})

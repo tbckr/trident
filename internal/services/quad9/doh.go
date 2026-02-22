@@ -79,9 +79,30 @@ func parseDNSResponse(data []byte) (*dohResponse, error) {
 		case *dns.MX:
 			ans.Type = dns.TypeMX
 			ans.Data = fmt.Sprintf("%d %s", v.Preference, v.Mx)
+		case *dns.CNAME:
+			ans.Type = dns.TypeCNAME
+			ans.Data = v.Target
+		case *dns.SOA:
+			ans.Type = dns.TypeSOA
+			ans.Data = fmt.Sprintf("%s %s %d %d %d %d %d", v.Ns, v.Mbox, v.Serial, v.Refresh, v.Retry, v.Expire, v.Minttl)
+		case *dns.SRV:
+			ans.Type = dns.TypeSRV
+			ans.Data = fmt.Sprintf("%d %d %d %s", v.Priority, v.Weight, v.Port, v.Target)
 		case *dns.TXT:
 			ans.Type = dns.TypeTXT
 			ans.Data = strings.Join(v.Txt, "")
+		case *dns.CAA:
+			ans.Type = dns.TypeCAA
+			ans.Data = fmt.Sprintf("%d %s %q", v.Flag, v.Tag, v.Value)
+		case *dns.DNSKEY:
+			ans.Type = dns.TypeDNSKEY
+			ans.Data = fmt.Sprintf("%d %d %d %s", v.Flags, v.Protocol, v.Algorithm, v.PublicKey)
+		case *dns.HTTPS:
+			ans.Type = dns.TypeHTTPS
+			ans.Data = fmt.Sprintf("%d %s", v.Priority, v.Target)
+		case *dns.SSHFP:
+			ans.Type = dns.TypeSSHFP
+			ans.Data = fmt.Sprintf("%d %d %s", v.Algorithm, v.Type, v.FingerPrint)
 		default:
 			continue
 		}

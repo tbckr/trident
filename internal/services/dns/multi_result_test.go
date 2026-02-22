@@ -43,7 +43,9 @@ func TestMultiResult_WriteText(t *testing.T) {
 		{
 			Input: "example.com",
 			NS:    []string{"ns1.example.com."},
+			CNAME: []string{"alias.example.com."},
 			A:     []string{"1.2.3.4"},
+			SRV:   []string{"10 20 443 web.example.com."},
 		},
 		{
 			Input: "example.org",
@@ -63,7 +65,9 @@ func TestMultiResult_WriteText(t *testing.T) {
 	assert.Contains(t, out, "example.com")
 	assert.Contains(t, out, "example.org")
 	assert.Contains(t, out, "ns1.example.com.")
+	assert.Contains(t, out, "alias.example.com.")
 	assert.Contains(t, out, "1.2.3.4")
+	assert.Contains(t, out, "web.example.com.")
 	assert.Contains(t, out, "5.6.7.8")
 	assert.Contains(t, out, "v=spf1 -all")
 

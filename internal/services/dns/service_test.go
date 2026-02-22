@@ -31,6 +31,13 @@ func TestRun_ValidDomain(t *testing.T) {
 		LookupTXTFn: func(_ context.Context, _ string) ([]string, error) {
 			return []string{"v=spf1 -all"}, nil
 		},
+		LookupCNAMEFn: func(_ context.Context, _ string) (string, error) {
+			// Return same name (FQDN) → no alias, should not appear in result
+			return "example.com.", nil
+		},
+		LookupSRVFn: func(_ context.Context, _, _, _ string) (string, []*net.SRV, error) {
+			return "", []*net.SRV{{Priority: 10, Weight: 20, Port: 5060, Target: "sip.example.com."}}, nil
+		},
 	}
 
 	svc := dns.NewService(resolver, testutil.NopLogger())
@@ -46,7 +53,64 @@ func TestRun_ValidDomain(t *testing.T) {
 	assert.Equal(t, []string{"mail.example.com."}, result.MX)
 	assert.Equal(t, []string{"ns1.example.com.", "ns2.example.com."}, result.NS)
 	assert.Equal(t, []string{"v=spf1 -all"}, result.TXT)
+	assert.Nil(t, result.CNAME, "no CNAME alias expected when canonical == domain")
+	assert.Equal(t, []string{"10 20 5060 sip.example.com."}, result.SRV)
 	assert.Nil(t, result.PTR)
+}
+
+func TestRun_CNAME_WithAlias(t *testing.T) {
+	resolver := &testutil.MockResolver{
+		LookupCNAMEFn: func(_ context.Context, _ string) (string, error) {
+			return "alias.example.com.", nil
+		},
+	}
+
+	svc := dns.NewService(resolver, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "www.example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*dns.Result)
+	require.True(t, ok, "expected *dns.Result")
+	assert.Equal(t, []string{"alias.example.com."}, result.CNAME)
+}
+
+func TestRun_CNAME_NoAlias(t *testing.T) {
+	resolver := &testutil.MockResolver{
+		LookupCNAMEFn: func(_ context.Context, host string) (string, error) {
+			// Return same name (FQDN) — no real CNAME
+			return host + ".", nil
+		},
+	}
+
+	svc := dns.NewService(resolver, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*dns.Result)
+	require.True(t, ok, "expected *dns.Result")
+	assert.Nil(t, result.CNAME)
+}
+
+func TestRun_SRV(t *testing.T) {
+	resolver := &testutil.MockResolver{
+		LookupSRVFn: func(_ context.Context, _, _, _ string) (string, []*net.SRV, error) {
+			return "", []*net.SRV{
+				{Priority: 10, Weight: 20, Port: 443, Target: "web.example.com."},
+				{Priority: 20, Weight: 0, Port: 443, Target: "backup.example.com."},
+			}, nil
+		},
+	}
+
+	svc := dns.NewService(resolver, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*dns.Result)
+	require.True(t, ok, "expected *dns.Result")
+	assert.Equal(t, []string{
+		"10 20 443 web.example.com.",
+		"20 0 443 backup.example.com.",
+	}, result.SRV)
 }
 
 func TestRun_IP(t *testing.T) {

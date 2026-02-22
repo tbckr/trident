@@ -17,6 +17,8 @@ type MockResolver struct {
 	LookupNSFn     func(ctx context.Context, name string) ([]*net.NS, error)
 	LookupTXTFn    func(ctx context.Context, name string) ([]string, error)
 	LookupAddrFn   func(ctx context.Context, addr string) ([]string, error)
+	LookupCNAMEFn  func(ctx context.Context, host string) (string, error)
+	LookupSRVFn    func(ctx context.Context, service, proto, name string) (string, []*net.SRV, error)
 }
 
 var _ services.DNSResolverInterface = (*MockResolver)(nil)
@@ -59,6 +61,22 @@ func (m *MockResolver) LookupAddr(ctx context.Context, addr string) ([]string, e
 		return m.LookupAddrFn(ctx, addr)
 	}
 	return nil, nil
+}
+
+// LookupCNAME implements DNSResolverInterface.
+func (m *MockResolver) LookupCNAME(ctx context.Context, host string) (string, error) {
+	if m.LookupCNAMEFn != nil {
+		return m.LookupCNAMEFn(ctx, host)
+	}
+	return "", nil
+}
+
+// LookupSRV implements DNSResolverInterface.
+func (m *MockResolver) LookupSRV(ctx context.Context, service, proto, name string) (string, []*net.SRV, error) {
+	if m.LookupSRVFn != nil {
+		return m.LookupSRVFn(ctx, service, proto, name)
+	}
+	return "", nil, nil
 }
 
 // NopLogger returns a logger that discards all output.
