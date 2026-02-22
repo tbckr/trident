@@ -1,53 +1,63 @@
 # Trident
 
-**Trident** is a fast, keyless OSINT CLI for network reconnaissance. It is a Go port and evolution of the Python [Harpoon](https://github.com/Te-k/harpoon) tool — single binary, no API keys required, built for analysts and security researchers.
+[![CI](https://github.com/tbckr/trident/actions/workflows/ci.yml/badge.svg)](https://github.com/tbckr/trident/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/tbckr/trident)](https://github.com/tbckr/trident/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/tbckr/trident)](https://github.com/tbckr/trident/blob/main/go.mod)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tbckr/trident)](https://goreportcard.com/report/github.com/tbckr/trident)
+[![License: GPL-3.0](https://img.shields.io/github/license/tbckr/trident)](LICENSE)
 
-## Quickstart
+**Fast, keyless OSINT in a single binary.** DNS lookups, ASN info, certificate transparency, threat intelligence, and PGP key search — no API keys, no registration, no configuration required.
 
-**Prerequisites:** Go 1.26+ (`go version`)
+Trident is a Go port and evolution of the Python [Harpoon](https://github.com/Te-k/harpoon) tool, built for analysts and security researchers who live in the terminal.
 
-```bash
-go install github.com/tbckr/trident/cmd/trident@latest
-```
-
-```bash
-# DNS records for a domain
+```console
 $ trident dns example.com
-
-# Subdomains from certificate transparency logs
-$ trident crtsh example.com
-
-# ASN info for an IP or ASN number
-$ trident asn 8.8.8.8
++------+------------------------------------------+
+| TYPE | VALUE                                    |
++------+------------------------------------------+
+| NS   | a.iana-servers.net.                      |
+|      | b.iana-servers.net.                      |
++------+------------------------------------------+
+| A    | 93.184.216.34                            |
++------+------------------------------------------+
+| AAAA | 2606:2800:21f:cb07:6819:42b5:ba16:c9cb  |
++------+------------------------------------------+
+| MX   | 0 .                                      |
++------+------------------------------------------+
+| TXT  | "v=spf1 -all"                            |
++------+------------------------------------------+
 ```
 
-## Features
+---
 
-- **No API keys** — all current services are keyless
-- **Bulk input** — pipe targets via stdin or pass multiple arguments
-- **Three output formats** — `text` (tables), `json`, and `plain` (one result per line for piping)
-- **Proxy support** — HTTP, HTTPS, and SOCKS5 proxies
-- **PAP system** — Permissible Actions Protocol (RED/AMBER/GREEN/WHITE) to prevent accidental active interaction
-- **Auto-defanging** — URLs and IPs are defanged at strict PAP levels
-- **Rate limiting** — per-service token-bucket rate limiter with jitter to avoid detectable request patterns
-- **Concurrent processing** — configurable worker pool for bulk lookups
-- **Cross-platform** — Linux, macOS, Windows
+## Contents
+
+- [Installation](#installation)
+- [Quickstart](#quickstart)
+- [Features](#features)
+- [Services](#services)
+- [Output Formats](#output-formats)
+- [Bulk Input](#bulk-input)
+- [PAP System](#pap-system)
+- [Configuration](#configuration)
+- [Global Flags](#global-flags)
+- [Commands Reference](#commands-reference)
+- [Development](#development)
+- [Responsible Use](#responsible-use)
+
+---
 
 ## Installation
 
-### Pre-built binaries
-
-Download the latest release from the [GitHub releases page](https://github.com/tbckr/trident/releases). Archives are available for Linux, macOS, and Windows (amd64 and arm64).
-
-Linux users can install via package managers using the `.deb`, `.rpm`, or `.apk` packages included in each release.
-
-### Go install
+**The fastest way** — requires Go 1.26+:
 
 ```bash
 go install github.com/tbckr/trident/cmd/trident@latest
 ```
 
-### Build from source
+**Pre-built binaries** — download for Linux, macOS, or Windows (amd64/arm64) from the [releases page](https://github.com/tbckr/trident/releases). Linux packages (`.deb`, `.rpm`, `.apk`) are included.
+
+**Build from source:**
 
 ```bash
 git clone https://github.com/tbckr/trident
@@ -55,52 +65,59 @@ cd trident
 go build -o trident ./cmd/trident
 ```
 
-## Usage
+---
 
-### Common Workflows
+## Quickstart
 
 ```bash
-# DNS records for a domain or reverse PTR lookup for an IP
+# DNS records — forward lookup or reverse PTR
 trident dns example.com
 trident dns 8.8.8.8
 
-# ASN info for an IP or ASN number (IPv4 and IPv6 supported)
+# ASN info — IP address or ASN number (IPv4 and IPv6)
 trident asn 8.8.8.8
 trident asn AS15169
-trident asn 2001:4860:4860::8888
 
 # Subdomains from certificate transparency logs
 trident crtsh example.com
 
-# Threat intelligence (domain, IP, or file hash)
+# Threat intelligence — domain, IP, or file hash
 trident threatminer example.com
-trident threatminer 198.51.100.1
 trident threatminer d41d8cd98f00b204e9800998ecf8427e
 
-# PGP key search by email or name
+# PGP key search
 trident pgp alice@example.com
-trident pgp "Alice Smith"
 ```
 
-### Bulk Input
+---
 
-Any command accepts multiple targets as arguments or from stdin (one per line):
+## Features
 
-```bash
-# Multiple arguments
-trident dns example.com google.com cloudflare.com
+- **No API keys** — all current services are keyless; install and run immediately
+- **Bulk input** — pipe a target list via stdin or pass multiple arguments
+- **Three output formats** — `text` (tables), `json`, and `plain` (one result per line for piping)
+- **PAP system** — Permissible Actions Protocol (RED/AMBER/GREEN/WHITE) prevents accidental active interaction
+- **Proxy support** — HTTP, HTTPS, and SOCKS5 proxies; honours `HTTP_PROXY`/`HTTPS_PROXY` env vars automatically
+- **Auto-defanging** — URLs and IPs are defanged at strict PAP levels
+- **Rate limiting** — per-service token-bucket rate limiter with jitter to avoid detectable request patterns
+- **Concurrent processing** — configurable worker pool for fast bulk lookups
+- **Cross-platform** — single binary for Linux, macOS, and Windows
 
-# From a file via stdin
-cat targets.txt | trident crtsh
+---
 
-# From another command
-cat /etc/hosts | awk '{print $1}' | trident asn
+## Services
 
-# Control concurrency for large lists
-cat ips.txt | trident asn --concurrency=20
-```
+| Command | Description | PAP | Data Source |
+|---------|-------------|-----|-------------|
+| `dns` | A, AAAA, MX, NS, TXT records; reverse PTR | GREEN | Direct DNS resolver |
+| `asn` | ASN info for IPs and ASN numbers (IPv4 + IPv6) | AMBER | Team Cymru DNS |
+| `crtsh` | Subdomain enumeration via certificate transparency | AMBER | [crt.sh](https://crt.sh) |
+| `threatminer` | Threat intel for domains, IPs, and file hashes | AMBER | [ThreatMiner](https://www.threatminer.org) |
+| `pgp` | PGP key search by email or name | AMBER | [keys.openpgp.org](https://keys.openpgp.org) |
 
-### Output Formats
+---
+
+## Output Formats
 
 **Text (default)** — formatted ASCII tables for human reading:
 
@@ -123,12 +140,122 @@ trident crtsh example.com -o plain | sort -u > subdomains.txt
 trident dns example.com -o plain | grep "^A "
 ```
 
-## Commands
+---
 
-### `dns` — DNS Lookups (PAP: GREEN)
+## Bulk Input
 
-Resolves A, AAAA, MX, NS, and TXT records for a domain, or performs a reverse PTR lookup for an IP
-address. Makes direct queries to the configured DNS resolver.
+Any command accepts multiple targets as arguments or from stdin (one per line):
+
+```bash
+# Multiple arguments
+trident dns example.com google.com cloudflare.com
+
+# From a file via stdin
+cat targets.txt | trident crtsh
+
+# Combine with other tools
+cat /etc/hosts | awk '{print $1}' | trident asn
+
+# Control concurrency for large lists
+cat ips.txt | trident asn --concurrency=20
+```
+
+---
+
+## PAP System
+
+Trident implements the [Permissible Actions Protocol (PAP)](https://www.misp-project.org/taxonomies.html#_pap)
+to prevent accidental active interaction with targets:
+
+| Level | Meaning | Permitted Services |
+|-------|---------|-------------------|
+| `red` | Offline/local only — non-detectable | none |
+| `amber` | Limited 3rd-party APIs — no direct target contact | ASN, crt.sh, ThreatMiner, PGP |
+| `green` | Direct target interaction permitted | DNS + all AMBER |
+| `white` | Unrestricted **(default)** | all |
+
+Set `--pap-limit` to block services above that level:
+
+```bash
+# Only use 3rd-party APIs (no direct DNS queries to the target)
+trident --pap-limit=amber crtsh example.com
+
+# This will error — AMBER exceeds RED limit
+trident --pap-limit=red asn 8.8.8.8
+```
+
+At AMBER and below, URLs and IPs in output are automatically defanged (e.g. `hxxp://`) unless
+`--no-defang` is passed.
+
+---
+
+## Configuration
+
+The config file is created automatically at first run:
+
+| Platform | Default Path |
+|----------|-------------|
+| Linux | `$XDG_CONFIG_HOME/trident/config.yaml` (typically `~/.config/trident/config.yaml`) |
+| macOS | `~/Library/Application Support/trident/config.yaml` |
+| Windows | `%AppData%\trident\config.yaml` |
+
+Use `trident config set` to modify values without opening the file, or `trident config edit` to
+edit directly. The config file supports all global flags plus the `alias` block:
+
+```yaml
+output: json
+pap_limit: amber
+concurrency: 20
+proxy: socks5://127.0.0.1:9050
+alias:
+  ct: crtsh
+  myasn: "asn --pap-limit=amber"
+```
+
+> **Note:** The `alias` block is config-file only — it has no corresponding flag or environment
+> variable. Use `trident alias set` / `trident alias delete` to manage aliases, or edit the
+> file directly.
+
+Environment variables override config file values using the `TRIDENT_` prefix:
+
+| Variable | Corresponding Flag |
+|----------|--------------------|
+| `TRIDENT_OUTPUT` | `--output` |
+| `TRIDENT_PAP_LIMIT` | `--pap-limit` |
+| `TRIDENT_PROXY` | `--proxy` |
+| `TRIDENT_USER_AGENT` | `--user-agent` |
+| `TRIDENT_CONCURRENCY` | `--concurrency` |
+| `TRIDENT_VERBOSE` | `--verbose` |
+| `TRIDENT_DEFANG` | `--defang` |
+| `TRIDENT_NO_DEFANG` | `--no-defang` |
+
+When `--proxy` / `TRIDENT_PROXY` is not set, Trident honours the standard `HTTP_PROXY`,
+`HTTPS_PROXY`, and `NO_PROXY` environment variables automatically.
+
+---
+
+## Global Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--config` | platform config dir | Config file path |
+| `--verbose`, `-v` | `false` | Enable debug logging |
+| `--output`, `-o` | `text` | Output format: `text`, `json`, `plain` |
+| `--concurrency`, `-c` | `10` | Worker pool size for bulk input |
+| `--proxy` | — | Proxy URL (`http://`, `https://`, `socks5://`) |
+| `--user-agent` | `trident/<version> (+https://github.com/tbckr/trident)` | Override HTTP User-Agent |
+| `--pap-limit` | `white` | PAP limit: `red`, `amber`, `green`, `white` |
+| `--defang` | `false` | Force output defanging |
+| `--no-defang` | `false` | Disable output defanging |
+
+---
+
+## Commands Reference
+
+### `dns` — DNS Lookups
+
+Resolves A, AAAA, MX, NS, and TXT records for a domain, or performs a reverse PTR lookup for an
+IP address. Makes direct queries to the configured DNS resolver (PAP: GREEN).
 
 ```bash
 trident dns example.com
@@ -136,10 +263,10 @@ trident dns 8.8.8.8
 trident dns 2001:4860:4860::8888
 ```
 
-### `asn` — ASN Lookup (PAP: AMBER)
+### `asn` — ASN Lookup
 
 Looks up ASN information for an IP address or ASN number via the Team Cymru DNS service. Supports
-both IPv4 and IPv6.
+both IPv4 and IPv6 (PAP: AMBER).
 
 ```bash
 trident asn 8.8.8.8
@@ -147,19 +274,20 @@ trident asn AS15169
 trident asn 2001:4860:4860::8888
 ```
 
-### `crtsh` — Certificate Transparency (PAP: AMBER)
+### `crtsh` — Certificate Transparency
 
-Searches [crt.sh](https://crt.sh) certificate transparency logs for subdomains of a domain.
+Searches [crt.sh](https://crt.sh) certificate transparency logs for subdomains of a domain
+(PAP: AMBER).
 
 ```bash
 trident crtsh example.com
 ```
 
-### `threatminer` — Threat Intelligence (PAP: AMBER)
+### `threatminer` — Threat Intelligence
 
 Queries the [ThreatMiner](https://www.threatminer.org) API for contextual threat intelligence.
 Automatically detects whether input is a domain, IP address, or file hash. Rate-limited to 1
-request/second with jitter to avoid triggering ThreatMiner's rate limits.
+request/second with jitter to avoid triggering ThreatMiner's rate limits (PAP: AMBER).
 
 ```bash
 trident threatminer example.com
@@ -167,10 +295,10 @@ trident threatminer 198.51.100.1
 trident threatminer d41d8cd98f00b204e9800998ecf8427e
 ```
 
-### `pgp` — PGP Key Search (PAP: AMBER)
+### `pgp` — PGP Key Search
 
 Searches [keys.openpgp.org](https://keys.openpgp.org) for PGP keys by email address or name using
-the HKP protocol.
+the HKP protocol (PAP: AMBER).
 
 ```bash
 trident pgp alice@example.com
@@ -225,17 +353,17 @@ and appear in `trident --help` under *Aliases:*.
 
 ```bash
 # Create or update an alias
-trident alias set myctsh "crtsh --pap-limit=amber"
+trident alias set ct "crtsh --pap-limit=amber"
 
 # Use the alias — extra arguments are appended after the expansion
-trident myctsh example.com
+trident ct example.com
 
 # List all aliases
 trident alias list
 trident alias list -o json
 
 # Delete an alias
-trident alias delete myctsh
+trident alias delete ct
 ```
 
 **Limitations:**
@@ -251,96 +379,7 @@ trident alias delete myctsh
 - Alias names must not start with `-` or contain whitespace.
 - Changes take effect on the next invocation.
 
-## Global Flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--config` | platform config dir | Config file path |
-| `--verbose`, `-v` | `false` | Enable debug logging |
-| `--output`, `-o` | `text` | Output format: `text`, `json`, `plain` |
-| `--concurrency`, `-c` | `10` | Worker pool size for bulk input |
-| `--proxy` | — | Proxy URL (`http://`, `https://`, `socks5://`) |
-| `--user-agent` | `trident/<version> (+https://github.com/tbckr/trident)` | Override HTTP User-Agent |
-| `--pap-limit` | `white` | PAP limit: `red`, `amber`, `green`, `white` |
-| `--defang` | `false` | Force output defanging |
-| `--no-defang` | `false` | Disable output defanging |
-
-## PAP System
-
-Trident implements the [Permissible Actions Protocol (PAP)](https://www.misp-project.org/taxonomies.html#_pap)
-to prevent accidental active interaction with targets:
-
-| Level | Meaning | Services |
-|-------|---------|----------|
-| `red` | Non-detectable, offline/local only | — |
-| `amber` | Limited 3rd-party APIs, no direct target contact | ASN, crt.sh, ThreatMiner, PGP |
-| `green` | Direct target interaction permitted | DNS |
-| `white` | Unrestricted (default) | all |
-
-Set a limit to block services above that level:
-
-```bash
-# Only run services that use 3rd-party APIs (no direct target contact)
-trident --pap-limit=amber crtsh example.com
-
-# Block all active interaction
-trident --pap-limit=red asn 8.8.8.8  # error: service level AMBER exceeds limit RED
-```
-
-Defanging is automatically applied at AMBER and below unless `--no-defang` is passed.
-
-## Responsible Use
-
-Trident is designed for use in **authorised environments only** — internal security assessments,
-red team engagements you have permission to conduct, and OSINT research on infrastructure you
-own or have been explicitly authorised to investigate.
-
-**Malicious use is strictly prohibited.** Do not use Trident to query systems or services
-without authorisation. Misuse may violate computer fraud laws and the terms of service of the
-queried APIs.
-
-Trident identifies itself honestly with a `trident/<version>` HTTP User-Agent so that server
-operators can recognise and control its traffic.
-
-## Configuration
-
-The config file is created automatically at first run. The default location is platform-specific:
-
-- **Linux:** `$XDG_CONFIG_HOME/trident/config.yaml` (typically `~/.config/trident/config.yaml`)
-- **macOS:** `~/Library/Application Support/trident/config.yaml`
-- **Windows:** `%AppData%\trident\config.yaml`
-
-File permissions are set to `0600`. Use `trident config set` to modify individual values, or
-`trident config edit` to edit the file directly. All flags can be persisted in the config file:
-
-```yaml
-output: json
-pap_limit: amber
-concurrency: 20
-proxy: socks5://127.0.0.1:9050
-alias:
-  ct: crtsh
-  myasn: "asn --pap-limit=amber"
-```
-
-> **Note:** The `alias` block is config-file only — it has no corresponding flag or environment
-> variable. Use `trident alias set` / `trident alias delete` to manage aliases, or edit the
-> file directly.
-
-Environment variables override config file values using the `TRIDENT_` prefix:
-
-| Variable | Corresponding flag |
-|----------|--------------------|
-| `TRIDENT_OUTPUT` | `--output` |
-| `TRIDENT_PAP_LIMIT` | `--pap-limit` |
-| `TRIDENT_PROXY` | `--proxy` |
-| `TRIDENT_USER_AGENT` | `--user-agent` |
-| `TRIDENT_CONCURRENCY` | `--concurrency` |
-| `TRIDENT_VERBOSE` | `--verbose` |
-| `TRIDENT_DEFANG` | `--defang` |
-| `TRIDENT_NO_DEFANG` | `--no-defang` |
-
-When `--proxy` / `TRIDENT_PROXY` is not set, Trident honours the standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables automatically.
+---
 
 ## Development
 
@@ -388,6 +427,23 @@ internal/
   output/           # Text (tablewriter), JSON, plain formatters + defang
   testutil/         # Shared test helpers (mock resolver, nop logger)
 ```
+
+---
+
+## Responsible Use
+
+Trident is designed for use in **authorised environments only** — internal security assessments,
+red team engagements you have permission to conduct, and OSINT research on infrastructure you
+own or have been explicitly authorised to investigate.
+
+**Malicious use is strictly prohibited.** Do not use Trident to query systems or services
+without authorisation. Misuse may violate computer fraud laws and the terms of service of the
+queried APIs.
+
+Trident identifies itself honestly with a `trident/<version>` HTTP User-Agent so that server
+operators can recognise and control its traffic.
+
+---
 
 ## Contributing
 
