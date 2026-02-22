@@ -271,7 +271,7 @@ type Service interface {
 - `ci.yml` — push/PR: test (with `go mod verify` + tidy check), lint, govulncheck (plain `run` step — no sandbox), license-check (`go-licenses check` against allowlist)
 - `release.yml` — tag push: GoReleaser + SBOM + Cosign
 - `vuln-schedule.yml` — daily 06:00 UTC: govulncheck in gVisor sandbox
-- `latest-deps.yml` — daily 07:00 UTC: `go get -u -t ./... && go test ./...` in gVisor sandbox
+- `latest-deps.yml` — daily 07:00 UTC: upgrades direct deps only (`go get -u <direct>` + `go mod tidy` + `go test ./...`) in gVisor sandbox; indirect deps are intentionally resolved from direct dep constraints, not force-upgraded independently
 
 **SHA pinning:** all `uses:` lines are pinned by 40-char commit SHA. Dependabot (`.github/dependabot.yml`, weekly, `github-actions` ecosystem only) opens PRs when action authors release new versions. To look up a SHA when updating:
 ```bash

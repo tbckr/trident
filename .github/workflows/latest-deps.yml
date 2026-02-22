@@ -24,5 +24,6 @@ jobs:
       - uses: geomys/sandboxed-step@7d75eb49d17fdeeb3656b3a57d35932d205bcfb9  # v1.2.1
         with:
           run: |
-            go get -u -t ./...
+            go get -u $(grep -E '^\s+\S+ v[0-9]' go.mod | grep -v '// indirect' | awk '{print $1}')
+            go mod tidy
             go test ./...
