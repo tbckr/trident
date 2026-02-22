@@ -13,13 +13,15 @@ import (
 func newPGPCmd(d *deps) *cobra.Command {
 	return &cobra.Command{
 		Use:     "pgp [query...]",
-		Short:   "Search keys.openpgp.org for PGP keys by email or name",
+		Short:   "Search keys.openpgp.org for PGP keys by email, name, or fingerprint",
 		GroupID: "osint",
-		Long: `Search keys.openpgp.org for PGP public keys by email address or name.
+		Long: `Search keys.openpgp.org for PGP public keys by email address, name, or key fingerprint/ID.
 
 Queries the HKP (HTTP Keyserver Protocol) machine-readable index at
 keys.openpgp.org. Returns key fingerprints, UIDs (email addresses / names),
 and key flags (e.g. encryption, signing). A 404 response means no keys found.
+
+Key fingerprints and IDs must be prefixed with 0x (e.g. 0xDEADBEEF).
 
 PAP level: AMBER (queries the keys.openpgp.org third-party service).
 
@@ -30,6 +32,12 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 
   # Search by name
   trident pgp "Alice Smith"
+
+  # Search by key fingerprint (prefix with 0x)
+  trident pgp 0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF
+
+  # Search by short key ID
+  trident pgp 0x1234567890ABCDEF
 
   # Bulk input from stdin
   echo -e "alice@example.com\nbob@example.com" | trident pgp

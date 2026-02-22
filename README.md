@@ -85,8 +85,9 @@ trident crtsh example.com
 trident threatminer example.com
 trident threatminer d41d8cd98f00b204e9800998ecf8427e
 
-# PGP key search
+# PGP key search — by email, name, or fingerprint
 trident pgp alice@example.com
+trident pgp 0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF
 ```
 
 ---
@@ -113,7 +114,7 @@ trident pgp alice@example.com
 | `asn` | ASN info for IPs and ASN numbers (IPv4 + IPv6) | AMBER | Team Cymru DNS |
 | `crtsh` | Subdomain enumeration via certificate transparency | AMBER | [crt.sh](https://crt.sh) |
 | `threatminer` | Threat intel for domains, IPs, and file hashes | AMBER | [ThreatMiner](https://www.threatminer.org) |
-| `pgp` | PGP key search by email or name | AMBER | [keys.openpgp.org](https://keys.openpgp.org) |
+| `pgp` | PGP key search by email, name, or fingerprint | AMBER | [keys.openpgp.org](https://keys.openpgp.org) |
 
 ---
 
@@ -297,12 +298,14 @@ trident threatminer d41d8cd98f00b204e9800998ecf8427e
 
 ### `pgp` — PGP Key Search
 
-Searches [keys.openpgp.org](https://keys.openpgp.org) for PGP keys by email address or name using
-the HKP protocol (PAP: AMBER).
+Searches [keys.openpgp.org](https://keys.openpgp.org) for PGP keys by email address, name, or key
+fingerprint/ID using the HKP protocol (PAP: AMBER). Fingerprints and key IDs must be prefixed
+with `0x`.
 
 ```bash
 trident pgp alice@example.com
 trident pgp "Alice Smith"
+trident pgp 0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF
 ```
 
 ### `config` — Configuration Management

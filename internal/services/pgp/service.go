@@ -52,7 +52,7 @@ func (s *Service) AggregateResults(results []services.Result) services.Result {
 	return mr
 }
 
-// Run searches for PGP keys matching the given query (email or name).
+// Run searches for PGP keys matching the given query (email, name, or key fingerprint/ID).
 func (s *Service) Run(ctx context.Context, input string) (services.Result, error) {
 	if strings.TrimSpace(input) == "" {
 		return nil, fmt.Errorf("%w: query must not be empty", services.ErrInvalidInput)
