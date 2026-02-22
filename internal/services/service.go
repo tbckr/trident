@@ -26,7 +26,7 @@ type Result interface {
 	IsEmpty() bool
 }
 
-// Service is the contract every Trident service must implement.
+// Service is the contract every trident service must implement.
 type Service interface {
 	Name() string
 	PAP() pap.Level

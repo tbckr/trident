@@ -12,7 +12,7 @@ import (
 )
 
 // defaultUserAgent is the User-Agent sent when no explicit value is configured.
-// It identifies Trident honestly so server operators can recognise its traffic.
+// It identifies trident honestly so server operators can recognise its traffic.
 // var (not const) because version.Version is a link-time variable, not a compile-time constant.
 var defaultUserAgent = "trident/" + version.Version + " (+https://github.com/tbckr/trident)"
 

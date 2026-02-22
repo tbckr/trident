@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Five keyless OSINT services are implemented: DNS, ASN, crt.sh, ThreatMiner, and PGP.
+**trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Five keyless OSINT services are implemented: DNS, ASN, crt.sh, ThreatMiner, and PGP.
+
+**Naming:** The project name is always lowercase `trident` — never `Trident`. This applies in docs, comments, CLI help text, and release metadata.
 
 ## Tools
 

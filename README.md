@@ -1,4 +1,4 @@
-# Trident
+# trident
 
 [![CI](https://github.com/tbckr/trident/actions/workflows/ci.yml/badge.svg)](https://github.com/tbckr/trident/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/tbckr/trident)](https://github.com/tbckr/trident/releases)
@@ -8,7 +8,7 @@
 
 **Fast, keyless OSINT in a single binary.** DNS lookups, ASN info, certificate transparency, threat intelligence, and PGP key search — no API keys, no registration, no configuration required.
 
-Trident is a Go port and evolution of the Python [Harpoon](https://github.com/Te-k/harpoon) tool, built for analysts and security researchers who live in the terminal.
+trident is a Go port and evolution of the Python [Harpoon](https://github.com/Te-k/harpoon) tool, built for analysts and security researchers who live in the terminal.
 
 ```console
 $ trident dns example.com
@@ -164,7 +164,7 @@ cat ips.txt | trident asn --concurrency=20
 
 ## PAP System
 
-Trident implements the [Permissible Actions Protocol (PAP)](https://www.misp-project.org/taxonomies.html#_pap)
+trident implements the [Permissible Actions Protocol (PAP)](https://www.misp-project.org/taxonomies.html#_pap)
 to prevent accidental active interaction with targets:
 
 | Level | Meaning | Permitted Services |
@@ -229,7 +229,7 @@ Environment variables override config file values using the `TRIDENT_` prefix:
 | `TRIDENT_DEFANG` | `--defang` |
 | `TRIDENT_NO_DEFANG` | `--no-defang` |
 
-When `--proxy` / `TRIDENT_PROXY` is not set, Trident honours the standard `HTTP_PROXY`,
+When `--proxy` / `TRIDENT_PROXY` is not set, trident honours the standard `HTTP_PROXY`,
 `HTTPS_PROXY`, and `NO_PROXY` environment variables automatically.
 
 ---
@@ -432,15 +432,15 @@ internal/
 
 ## Responsible Use
 
-Trident is designed for use in **authorised environments only** — internal security assessments,
+trident is designed for use in **authorised environments only** — internal security assessments,
 red team engagements you have permission to conduct, and OSINT research on infrastructure you
 own or have been explicitly authorised to investigate.
 
-**Malicious use is strictly prohibited.** Do not use Trident to query systems or services
+**Malicious use is strictly prohibited.** Do not use trident to query systems or services
 without authorisation. Misuse may violate computer fraud laws and the terms of service of the
 queried APIs.
 
-Trident identifies itself honestly with a `trident/<version>` HTTP User-Agent so that server
+trident identifies itself honestly with a `trident/<version>` HTTP User-Agent so that server
 operators can recognise and control its traffic.
 
 ---

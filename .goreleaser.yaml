@@ -124,7 +124,7 @@ nfpms:
     homepage: https://github.com/tbckr/trident
     maintainer: tbckr <https://github.com/tbckr>
     description: |-
-      Trident — keyless OSINT reconnaissance tool.
+      trident — keyless OSINT reconnaissance tool.
       Fast CLI for DNS, ASN, certificate transparency, ThreatMiner, and PGP lookups.
       No API keys required.
     license: GPL-3.0-only

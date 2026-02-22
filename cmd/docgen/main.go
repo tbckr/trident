@@ -38,7 +38,7 @@ func run(version, outputDir string) error {
 		Title:   "TRIDENT",
 		Section: "1",
 		Source:  fmt.Sprintf("trident %s", version),
-		Manual:  "Trident Manual",
+		Manual:  "trident Manual",
 	}
 	if err := doc.GenManTree(root, header, manDir); err != nil {
 		return fmt.Errorf("man pages: %w", err)
