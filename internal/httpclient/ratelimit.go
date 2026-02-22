@@ -1,6 +1,8 @@
 package httpclient
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,6 +17,8 @@ const (
 	retryAfterFallback = 5 * time.Second
 	// retryAfterCap is the maximum sleep duration honoured from a Retry-After header.
 	retryAfterCap = 60 * time.Second
+	// transportRetryInterval is the wait between retries on transient connection errors.
+	transportRetryInterval = 1 * time.Second
 )
 
 // AttachRateLimit hooks a Limiter onto the client's request pipeline.
@@ -22,7 +26,8 @@ const (
 // OnBeforeRequest: calls limiter.Wait(ctx), gating every outbound request.
 // Retry: up to 3 retries on HTTP 429, using the Retry-After header (or
 // retryAfterFallback when absent). Capped at retryAfterCap to prevent
-// unbounded waits.
+// unbounded waits. Also retries transient transport-level errors (e.g.
+// connection reset by peer), except context cancellation/deadline.
 func AttachRateLimit(client *req.Client, limiter *ratelimit.Limiter) {
 	client.OnBeforeRequest(func(_ *req.Client, r *req.Request) error {
 		return limiter.Wait(r.Context())
@@ -30,11 +35,19 @@ func AttachRateLimit(client *req.Client, limiter *ratelimit.Limiter) {
 
 	client.SetCommonRetryCount(3)
 	client.AddCommonRetryCondition(func(resp *req.Response, _ error) bool {
-		return resp != nil && resp.StatusCode == http.StatusTooManyRequests
+		return resp != nil && resp.Response != nil && resp.StatusCode == http.StatusTooManyRequests
+	})
+	// Also retry on transient transport-level failures (e.g. connection reset by peer).
+	// Context cancellations and deadlines are never retried.
+	client.AddCommonRetryCondition(func(_ *req.Response, err error) bool {
+		if err == nil {
+			return false
+		}
+		return !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded)
 	})
 	client.SetCommonRetryInterval(func(resp *req.Response, _ int) time.Duration {
-		if resp == nil {
-			return retryAfterFallback
+		if resp == nil || resp.Response == nil {
+			return transportRetryInterval
 		}
 		return parseRetryAfter(resp.Header.Get("Retry-After"))
 	})

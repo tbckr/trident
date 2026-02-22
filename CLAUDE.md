@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Five keyless OSINT services are implemented: DNS, ASN, crt.sh, ThreatMiner, and PGP.
+**trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Six keyless OSINT services are implemented: DNS, ASN, crt.sh, ThreatMiner, PGP, and Quad9.
 
 **Naming:** The project name is always lowercase `trident` — never `Trident`. This applies in docs, comments, CLI help text, and release metadata.
 
@@ -86,6 +86,8 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`*req.Client` is a hard dependency** — not abstracted behind an interface. Mock HTTP in tests via `httpmock.ActivateNonDefault(client.GetClient())`.
 
+**`req.Response` embedded `*http.Response` nil case** — when a transport-level error occurs (no HTTP response received), `*req.Response` is non-nil but its embedded `resp.Response` (`*http.Response`) is nil. Always guard `resp.Response != nil` before accessing promoted fields (`StatusCode`, `Header`). The library's own `IsSuccessState()` uses the same guard.
+
 **`httpclient.New()` signature:** `New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client, error)` — pass `nil, false` in tests/non-debug paths. When `debug && logger != nil`, attaches `OnAfterResponse` hook that logs timing + error body via `client.EnableTraceAll()`. Proxy precedence: explicit `proxy` arg → `client.SetProxyURL(proxy)`; empty `proxy` → `client.SetProxy(http.ProxyFromEnvironment)` (honours `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` env vars at request time). `req.Client.SetProxy` accepts `func(*http.Request) (*url.URL, error)` — same signature as `http.ProxyFromEnvironment`.
 
 **`httpclient.defaultUserAgent`** — package-level `var` (not `const`) in `internal/httpclient/client.go` that concatenates `version.Version` at runtime; imports `internal/version`. Single source of truth for the default UA — do not add a UA override in `buildDeps`.
@@ -164,6 +166,8 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`runServiceCmd`** — shared `RunE` body in `internal/cli/root.go`; handles PAP check, input resolution, single-result and bulk paths (calls `svc.AggregateResults(valid)` for 2+ valid results). Each subcommand's `RunE` just instantiates the service and calls `runServiceCmd(cmd, d, svc, args)`.
 
+**Subcommand service pattern** — when a service needs multiple operations (e.g. `quad9 resolve`/`quad9 blocked`), use a parent `*cobra.Command` with `GroupID: "osint"` and no `RunE`; add child subcommands via `cmd.AddCommand(...)`. Children inherit root's `PersistentPreRunE` automatically. `GroupID` is set only on the parent, not on children. See `internal/cli/quad9.go`.
+
 **CLI empty-result pattern** — after `svc.Run()` succeeds, each CLI command checks `IsEmpty()` and returns early without calling `writeResult()`:
 ```go
 if ok && someResult.IsEmpty() {
@@ -181,9 +185,17 @@ if ok && someResult.IsEmpty() {
 
 **`DefangURL` host extraction** — never use `strings.Index(s, "/")` to find the host/path boundary; it hits the first `/` inside `://`. Find `://` first, skip 3 bytes, then search for the next `/` in `s[hostStart:]`.
 
-**`gofmt` alignment** — never pad struct field types/tags **or map key→value pairs** with extra spaces for visual alignment (e.g., `Input      string` or `"key":    value`); gofmt normalizes both to single-tab separation and `golangci-lint` will fail.
+**`gofmt` alignment** — never pad struct field types/tags **or map key→value pairs** with extra spaces for visual alignment (e.g., `Input      string` or `"key":    value`); gofmt normalizes both to single-tab separation and `golangci-lint` will fail. Exception: `const` blocks — gofmt **does** align `=` signs when identifier names have different lengths; write them unpadded and let `gofmt`/`goimports` fix, or pre-align manually to avoid lint failures.
 
 **PGP testdata workaround** — a pre-tool-use hook blocks creation of `.txt` files in `testdata/`; inline the MRINDEX fixture as a `const mrindexFixture` string directly in `service_test.go` instead.
+
+**httpmock regex URL matching** — `httpmock.RegisterResponder(http.MethodGet, "=~^"+baseURL, responder)` matches any GET URL whose string starts with `baseURL`. Use for catch-all error tests (HTTPError, NetworkError) where exact query params vary by record type.
+
+**`httpmock.NewErrorResponder(err)`** — simulates a transport-level failure (no HTTP response, e.g. connection refused). Use this (not `NewStringResponder(500, ...)`) when testing code paths where `resp.Response` may be nil.
+
+**httpmock function responder** — pass a `func(*http.Request) (*http.Response, error)` directly to `RegisterResponder` for stateful/sequential behavior (e.g. fail N times then succeed). Use a closure counter: `callCount := 0; httpmock.RegisterResponder(..., func(r *http.Request) (*http.Response, error) { callCount++; if callCount < N { return nil, err }; return httpmock.NewStringResponse(200, "ok"), nil })`.
+
+**`httpmock.NewBytesResponse(code, data)`** — use when the mocked response body is binary (e.g. DNS wire format); counterpart to `NewStringResponder` for `[]byte` payloads.
 
 **Service interface** — every service implements:
 ```go
@@ -195,6 +207,8 @@ type Service interface {
 }
 ```
 
+**README.md updates** — whenever a new service is added, update all four places in `README.md`: (1) quick-start code block, (2) Services table, (3) Commands Reference section (add a `### <service>` entry before `config`), (4) architecture directory tree under `services/`.
+
 ### Service Implementations
 
 | Command | Implementation | PAP |
@@ -204,6 +218,8 @@ type Service interface {
 | `crtsh` | HTTP GET `https://crt.sh/?q=%.<domain>&output=json` via `imroc/req` | AMBER (3rd-party API) |
 | `threatminer` | `https://api.threatminer.org/v2/{domain,host,sample}.php` — auto-detects domain/IP/hash input; status_code "404" → empty result (not error) | AMBER (3rd-party API) |
 | `pgp` | `https://keys.openpgp.org/pks/lookup?op=index&options=mr` — HKP MRINDEX format; HTTP 404 → empty result (not error); accepts any HKP query: email, name, or `0x`-prefixed key fingerprint/ID — no format validation beyond non-empty | AMBER (3rd-party API) |
+| `quad9 resolve` | Quad9 DoH `https://dns.quad9.net/dns-query` — RFC 8484 wire format (GET `?dns=<base64url>` + `Accept: application/dns-message`); HTTP/2 required; A, AAAA, NS, MX, TXT; partial result returned on context cancellation | AMBER (3rd-party API) |
+| `quad9 blocked` | Same endpoint — A query only; RFC 8484 wire format + HTTP/2; blocked = `Rcode==3 (NXDOMAIN) && empty authority section (HasAuthority==false)`; genuine NXDOMAIN includes SOA in authority section; `IsEmpty()` returns false when Input is set (always renders) | AMBER (3rd-party API) |
 
 ### Configuration
 
@@ -239,6 +255,7 @@ type Service interface {
 - **HTTP:** `imroc/req` v3 (no external SDKs — all APIs implemented natively)
 - **Logging:** `log/slog` (stdlib only — no zap/logrus)
 - **Tables:** `olekukonko/tablewriter`
+- **DNS wire format:** `codeberg.org/miekg/dns` — the library moved from `github.com/miekg/dns` to Codeberg; maintainers call it "expected to be v2" but it is NOT a Go `/v2` module (import path has no version suffix); RFC 8484 encoding/decoding for Quad9 DoH; `Pack()` stores to `m.Data`, `Unpack()` reads from `m.Data`; promoted rdata fields: `*dns.A.Addr`, `*dns.NS.Ns`, `*dns.MX.Preference`/`.Mx`, `*dns.TXT.Txt`; `dns.NewMsg(domain, uint16(type))` convenience constructor (returns nil for unknown type); `dns.RRToType(rr)` extracts type code from any RR including Question entries; in test response messages set `m.Response = true` or the client may reject the response; RR struct literals in tests require `codeberg.org/miekg/dns/rdata` import: `&dns.NS{Hdr: dns.Header{...}, NS: rdata.NS{Ns: "..."}}`
 - **Tests:** `stretchr/testify` + `jarcoal/httpmock`
 - **Lint:** `golangci-lint` v2 (strict — CI fails on any lint error). Config requires `version: "2"` at top; formatters (`gofmt`, `goimports`) go in `formatters:` section, not `linters:`. GitHub Action: `golangci/golangci-lint-action@v8` with `version: latest` (pinning a specific version risks Go version mismatch with `go.mod`).
 - **GoReleaser v2 `format_overrides`** — use `formats: [zip]` (list), not `format: zip` (deprecated scalar since v2.6); `goreleaser check` catches this at validation time.

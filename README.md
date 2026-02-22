@@ -88,6 +88,12 @@ trident threatminer d41d8cd98f00b204e9800998ecf8427e
 # PGP key search — by email, name, or fingerprint
 trident pgp alice@example.com
 trident pgp 0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF
+
+# DNS resolution via Quad9 DoH
+trident quad9 resolve example.com
+
+# Check whether Quad9 has blocked a domain as malicious
+trident quad9 blocked malicious.example.com
 ```
 
 ---
@@ -115,6 +121,8 @@ trident pgp 0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF
 | `crtsh` | Subdomain enumeration via certificate transparency | AMBER | [crt.sh](https://crt.sh) |
 | `threatminer` | Threat intel for domains, IPs, and file hashes | AMBER | [ThreatMiner](https://www.threatminer.org) |
 | `pgp` | PGP key search by email, name, or fingerprint | AMBER | [keys.openpgp.org](https://keys.openpgp.org) |
+| `quad9 resolve` | DNS record lookups (A, AAAA, NS, MX, TXT) via Quad9 DoH | AMBER | [dns.quad9.net](https://www.quad9.net) |
+| `quad9 blocked` | Detect whether Quad9 has flagged a domain as malicious | AMBER | [dns.quad9.net](https://www.quad9.net) |
 
 ---
 
@@ -308,6 +316,29 @@ trident pgp "Alice Smith"
 trident pgp 0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF
 ```
 
+### `quad9` — Quad9 DNS-over-HTTPS
+
+Queries domains via the [Quad9](https://www.quad9.net) DNS-over-HTTPS resolver — a security-focused
+DNS service that integrates threat intelligence from 19+ partners (PAP: AMBER).
+
+**`quad9 resolve`** — Resolves A, AAAA, NS, MX, and TXT records via Quad9 DoH.
+
+```bash
+trident quad9 resolve example.com
+trident quad9 resolve example.com example.org
+echo -e "example.com\nexample.org" | trident quad9 resolve
+```
+
+**`quad9 blocked`** — Detects whether Quad9 has flagged a domain as malicious. Quad9 returns
+NXDOMAIN with a "blocked" comment for known-malicious domains, providing a passive
+threat-intelligence verdict without revealing the query to the target domain.
+
+```bash
+trident quad9 blocked malicious.example.com
+trident quad9 blocked example.com malicious.example.com
+cat domains.txt | trident quad9 blocked
+```
+
 ### `config` — Configuration Management
 
 Read and write config file values without opening the file by hand.
@@ -427,6 +458,7 @@ internal/
     crtsh/          # Certificate transparency via crt.sh (PAP: AMBER)
     threatminer/    # Threat intel via ThreatMiner API (PAP: AMBER)
     pgp/            # PGP key search via keys.openpgp.org (PAP: AMBER)
+    quad9/          # DNS-over-HTTPS resolve + blocked check via Quad9 (PAP: AMBER)
   output/           # Text (tablewriter), JSON, plain formatters + defang
   testutil/         # Shared test helpers (mock resolver, nop logger)
 ```
