@@ -38,6 +38,9 @@ the Quad9 DNS-over-HTTPS endpoint (https://dns.quad9.net/dns-query).
 
 Results are grouped by record type in canonical order: NS → A → AAAA → MX → TXT.
 
+When a second-level domain (e.g. example.com) is given, www.example.com is
+automatically resolved alongside it.
+
 PAP level: AMBER (queries go to Quad9 third-party servers).
 
 Multiple inputs can be supplied as arguments or piped via stdin (one per line).
@@ -68,7 +71,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			client.EnableForceHTTP2()
 			httpclient.AttachRateLimit(client, ratelimit.New(quad9svc.DefaultRPS, quad9svc.DefaultBurst))
 			svc := quad9svc.NewResolveService(client, d.logger)
-			return runServiceCmd(cmd, d, svc, args)
+			return runServiceCmd(cmd, d, svc, args, expandWithWWW)
 		},
 	}
 }

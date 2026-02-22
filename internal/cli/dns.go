@@ -19,6 +19,9 @@ func newDNSCmd(d *deps) *cobra.Command {
 Queries A, AAAA, MX, NS, TXT records for domains. For IP addresses, performs a
 reverse PTR lookup. Results are grouped by record type.
 
+When a second-level domain (e.g. example.com) is given, www.example.com is
+automatically resolved alongside it.
+
 PAP level: GREEN (direct interaction with the target's DNS servers).
 
 Multiple inputs can be supplied as arguments or piped via stdin (one per line).
@@ -47,7 +50,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 				return fmt.Errorf("creating DNS resolver: %w", err)
 			}
 			svc := dnssvc.NewService(r, d.logger)
-			return runServiceCmd(cmd, d, svc, args)
+			return runServiceCmd(cmd, d, svc, args, expandWithWWW)
 		},
 	}
 }
