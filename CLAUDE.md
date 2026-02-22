@@ -164,9 +164,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`services.MultiResultBase[T, PT]`** — generic base in `internal/services/multi.go`; `PT multiItem[T]` constrains the element type (`*T` + `IsEmpty() bool` + `WritePlain(io.Writer) error`). Provides `IsEmpty`, `MarshalJSON`, `WritePlain`; embed it and add `WriteText` to complete a service's `MultiResult`.
 
-**`runServiceCmd`** — shared `RunE` body in `internal/cli/root.go`; handles PAP check, input resolution, single-result and bulk paths (calls `svc.AggregateResults(valid)` for 2+ valid results). Accepts variadic `inputTransformers ...func([]string) []string` applied in order after `resolveInputs`; callers that need no transformation pass none (zero-cost). Each subcommand's `RunE` calls `runServiceCmd(cmd, d, svc, args[, transformer...])`.
-
-**`expandWithWWW` transformer** — in `internal/cli/root.go`; for each input with exactly one dot not starting with `"www."`, appends `"www.<domain>"`. Deduplicates against the original input set so passing `example.com www.example.com` together never produces duplicates. Passed from `dns.go` and `quad9 resolve` only (`quad9 blocked` is unchanged). White-box unit tests in `internal/cli/root_test.go` (`package cli`).
+**`runServiceCmd`** — shared `RunE` body in `internal/cli/root.go`; handles PAP check, input resolution, single-result and bulk paths (calls `svc.AggregateResults(valid)` for 2+ valid results). Each subcommand's `RunE` just instantiates the service and calls `runServiceCmd(cmd, d, svc, args)`.
 
 **Subcommand service pattern** — when a service needs multiple operations (e.g. `quad9 resolve`/`quad9 blocked`), use a parent `*cobra.Command` with `GroupID: "osint"` and no `RunE`; add child subcommands via `cmd.AddCommand(...)`. Children inherit root's `PersistentPreRunE` automatically. `GroupID` is set only on the parent, not on children. See `internal/cli/quad9.go`.
 
@@ -183,7 +181,7 @@ if ok && someResult.IsEmpty() {
 
 **`pap.MustParse`** — like `Parse` but panics on invalid input; safe to call in subcommands after `buildDeps` has already validated `cfg.PAPLimit`. Subcommands use `pap.MustParse(d.cfg.PAPLimit)` wherever a `pap.Level` is needed at call time.
 
-**`output.ResolveDefang`** — defanging decision function in `internal/output/defang.go`; extracted from CLI so it can be unit-tested independently of Cobra wiring. Accepts `(papLevel, format, explicitDefang, noDefang)` and encodes all PAP-trigger rules.
+**`output.ResolveDefang`** — defanging decision function in `internal/output/defang.go`; extracted from CLI so it can be unit-tested (since `internal/cli/` has intentional 0% coverage). Accepts `(papLevel, format, explicitDefang, noDefang)` and encodes all PAP-trigger rules.
 
 **`DefangURL` host extraction** — never use `strings.Index(s, "/")` to find the host/path boundary; it hits the first `/` inside `://`. Find `://` first, skip 3 bytes, then search for the next `/` in `s[hostStart:]`.
 
@@ -285,7 +283,7 @@ type Service interface {
 - **No `os/exec`** for DNS — use `net.Resolver` directly
 - **Enforced HTTPS only** — no `InsecureSkipVerify`
 - **Output sanitization** — strip ANSI escape sequences from external data before printing
-- **80% minimum test coverage** — enforced on `./internal/services/...` only; `cmd/` is excluded. `internal/cli/` may have white-box tests (`package cli`, not `package cli_test`) for pure utility functions (e.g. `expandWithWWW` in `root_test.go`) — these run but are not gated. CI uses `go test ./internal/services/... -coverprofile=svc_coverage.out`.
+- **80% minimum test coverage** — enforced on `./internal/services/...` only (CLI/cmd packages intentionally have 0%). CI uses `go test ./internal/services/... -coverprofile=svc_coverage.out`.
 - **Cross-platform** — must compile on Linux, macOS, Windows; use `filepath.Join`
 
 ## CI/CD

@@ -215,8 +215,7 @@ func resolveInputs(cmd *cobra.Command, args []string) ([]string, error) {
 
 // runServiceCmd is the shared RunE body for all OSINT subcommands.
 // It handles PAP enforcement, input resolution, single-result and bulk paths.
-// Optional inputTransformers are applied in order after resolveInputs.
-func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []string, inputTransformers ...func([]string) []string) error {
+func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []string) error {
 	if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.PAP()) {
 		return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
 			services.ErrPAPBlocked, svc.Name(), svc.PAP(), pap.MustParse(d.cfg.PAPLimit))
@@ -225,9 +224,6 @@ func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []str
 	inputs, err := resolveInputs(cmd, args)
 	if err != nil {
 		return err
-	}
-	for _, fn := range inputTransformers {
-		inputs = fn(inputs)
 	}
 
 	if len(inputs) == 1 {
@@ -264,28 +260,6 @@ func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []str
 	default:
 		return writeResult(cmd.OutOrStdout(), d, svc.AggregateResults(valid))
 	}
-}
-
-// expandWithWWW appends www.<domain> for each second-level domain in inputs that
-// is not already prefixed with "www.". IPv4 addresses (3 dots) and deeper
-// subdomains (2+ dots) are passed through unchanged. Already-present www variants
-// are not duplicated.
-func expandWithWWW(inputs []string) []string {
-	inputSet := make(map[string]struct{}, len(inputs))
-	for _, input := range inputs {
-		inputSet[input] = struct{}{}
-	}
-	expanded := make([]string, 0, len(inputs)*2)
-	for _, input := range inputs {
-		expanded = append(expanded, input)
-		if strings.Count(input, ".") == 1 && !strings.HasPrefix(input, "www.") {
-			www := "www." + input
-			if _, ok := inputSet[www]; !ok {
-				expanded = append(expanded, www)
-			}
-		}
-	}
-	return expanded
 }
 
 // writeResult formats and writes a service result to stdout.
