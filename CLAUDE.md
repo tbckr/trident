@@ -96,6 +96,8 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`golang.org/x/net/proxy` SOCKS5 dialer** — `proxy.SOCKS5("tcp", host, nil, proxy.Direct)` returns a value that satisfies `proxy.ContextDialer`; type-assert with `dialer.(proxy.ContextDialer)` to get `.DialContext` for use in `net.Resolver.Dial`.
 
+**`proxy.FromEnvironment()` caching** — caches its result via an internal `sync.Once`; `t.Setenv` has no effect after the first call in a test binary. Read proxy env vars with `os.Getenv("ALL_PROXY")` / `os.Getenv("all_proxy")` directly when the value must be live (e.g. in `NewResolver`).
+
 **`resolver.NewResolver` caller convention** — use `r` (not `resolver`) as the local variable name; naming it `resolver` shadows the package import and causes a compile error.
 
 **tablewriter v1.1.3 API:** `table.Header([]string{...})` + `table.Bulk([][]string{...})` + `table.Render()`. Old `SetHeader`/`Append([]string)` don't exist — use `Bulk` for multi-row, `Append(any)` for single row.

@@ -30,3 +30,20 @@ func TestNewResolver_Socks5Proxy(t *testing.T) {
 	assert.NotNil(t, r.Dial, "socks5 proxy should set a custom Dial function")
 	assert.True(t, r.PreferGo, "socks5 resolver must use Go resolver (PreferGo=true)")
 }
+
+func TestNewResolver_AllProxy_Socks5(t *testing.T) {
+	t.Setenv("ALL_PROXY", "socks5://127.0.0.1:1080")
+	r, err := NewResolver("")
+	require.NoError(t, err)
+	assert.NotNil(t, r)
+	assert.NotNil(t, r.Dial, "ALL_PROXY socks5 should set a custom Dial function")
+	assert.True(t, r.PreferGo, "ALL_PROXY socks5 resolver must use Go resolver (PreferGo=true)")
+}
+
+func TestNewResolver_AllProxy_Http(t *testing.T) {
+	t.Setenv("ALL_PROXY", "http://proxy.example.com:8080")
+	r, err := NewResolver("")
+	require.NoError(t, err)
+	assert.NotNil(t, r)
+	assert.Nil(t, r.Dial, "HTTP ALL_PROXY should fall back to standard resolver (nil Dial)")
+}
