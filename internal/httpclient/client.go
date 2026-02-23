@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/imroc/req/v3"
 
@@ -22,7 +21,7 @@ var defaultUserAgent = "trident/" + version.Version + " (+https://github.com/tbc
 // When proxy is empty, HTTP_PROXY / HTTPS_PROXY / NO_PROXY environment variables
 // are honoured automatically via http.ProxyFromEnvironment.
 // When debug is true and logger is non-nil, an OnAfterResponse hook is attached
-// that logs request timing and error body snippets at DEBUG level.
+// that logs the HTTP method, URL, and status code at DEBUG level.
 // Returns an error only if the proxy URL is syntactically invalid.
 func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client, error) {
 	ua := userAgent
@@ -51,25 +50,17 @@ func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client,
 	return client, nil
 }
 
-// attachDebugHook enables req trace capture and registers an OnAfterResponse hook
-// that logs HTTP timing and (on non-2xx) a body snippet at DEBUG level.
+// attachDebugHook registers an OnAfterResponse hook that logs the HTTP method,
+// URL, and status code at DEBUG level, and logs a body snippet on non-2xx responses.
 func attachDebugHook(client *req.Client, logger *slog.Logger) {
-	client.EnableTraceAll()
 	client.OnAfterResponse(func(_ *req.Client, resp *req.Response) error {
 		if resp.Request == nil || resp.Request.RawRequest == nil {
 			return nil
 		}
-		method := resp.Request.RawRequest.Method
-		url := resp.Request.RawRequest.URL.String()
-		ti := resp.TraceInfo()
 		logger.Debug("http response",
-			"method", method,
-			"url", url,
+			"method", resp.Request.RawRequest.Method,
+			"url", resp.Request.RawRequest.URL.String(),
 			"status", resp.StatusCode,
-			"total", ti.TotalTime.Round(time.Millisecond),
-			"dns", ti.DNSLookupTime.Round(time.Millisecond),
-			"tcp", ti.TCPConnectTime.Round(time.Millisecond),
-			"tls", ti.TLSHandshakeTime.Round(time.Millisecond),
 		)
 		if !resp.IsSuccessState() {
 			body := resp.String()
