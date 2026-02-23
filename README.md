@@ -94,6 +94,9 @@ trident quad9 malicious.example.com
 
 # Aggregate DNS recon for an apex domain
 trident apex example.com
+
+# Identify providers from known DNS record values (no network calls)
+trident identify --cname abc.cloudfront.net --mx aspmx.l.google.com
 ```
 
 ---
@@ -123,6 +126,7 @@ trident apex example.com
 | `pgp` | PGP key search by email, name, or fingerprint | AMBER | [keys.openpgp.org](https://keys.openpgp.org) |
 | `quad9` | Detect whether Quad9 has flagged a domain as malicious | AMBER | [dns.quad9.net](https://www.quad9.net) |
 | `apex` | Aggregate DNS recon (NS, SOA, A, AAAA, MX, TXT, CNAME, CDN) for an apex domain | AMBER | [dns.quad9.net](https://www.quad9.net) |
+| `identify` | Identify CDN, email, and DNS hosting providers from known DNS record values | RED | Local (no network) |
 
 ---
 
@@ -343,6 +347,18 @@ cat domains.txt | trident apex
 trident apex --output json example.com
 ```
 
+### `identify` — Offline Provider Identification
+
+Matches CNAME, MX, and NS record values against known provider patterns to identify CDN, email,
+and DNS hosting providers. Unlike `detect`, no DNS queries are made — this operates entirely on
+record values you already have (PAP: RED).
+
+```bash
+trident identify --cname abc.cloudfront.net
+trident identify --domain example.com --ns ns1.cloudflare.com
+trident identify --domain example.com --cname abc.cloudfront.net --mx aspmx.l.google.com --ns ns1.cloudflare.com
+```
+
 ### `config` — Configuration Management
 
 Read and write config file values without opening the file by hand.
@@ -464,7 +480,9 @@ internal/
     threatminer/    # Threat intel via ThreatMiner API (PAP: AMBER)
     pgp/            # PGP key search via keys.openpgp.org (PAP: AMBER)
     quad9/          # Quad9 threat-intelligence blocked check via DoH (PAP: AMBER)
+    detect/         # Active provider detection via DNS lookups (PAP: GREEN)
     apex/           # Aggregate DNS recon via Quad9 DoH (PAP: AMBER)
+    identify/       # Offline provider detection from known record values (PAP: RED)
   output/           # Text (tablewriter), JSON, text formatters + defang
   testutil/         # Shared test helpers (mock resolver, nop logger)
 ```

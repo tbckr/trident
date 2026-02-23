@@ -57,7 +57,7 @@ internal/
   doh/              # Shared DNS-over-HTTPS client (RFC 8484, Quad9 endpoint); exports MakeDoHRequest, DefaultRPS, DefaultBurst, Response, Answer
   resolver/         # *net.Resolver factory with SOCKS5 DNS-leak prevention
   worker/           # Bounded goroutine pool (pool.go only)
-  services/         # One package per service (dns/, asn/, crtsh/, threatminer/, pgp/, detect/); IsDomain() lives here
+  services/         # One package per service (dns/, asn/, crtsh/, threatminer/, pgp/, detect/, identify/); IsDomain() lives here
   detect/           # Provider detection from DNS data: CDN (CNAME), EmailProvider (MX), DNSHost (NS); pure-function, no I/O
   output/           # Text (tablewriter), JSON, text formatters + defang helpers
 ```
@@ -71,12 +71,16 @@ internal/services/<name>/
 └── multi_result.go  # MultiResult struct + WriteTable (embeds MultiResultBase)
 ```
 
+Omit `multi_result.go` (and `multi_result_test.go`) when the service has no bulk/aggregate path (e.g. `identify` — all inputs arrive via flags in a single invocation).
+
 **Per-service test file layout** — 3 test files mirror the 4 source files:
 ```
 ├── service_test.go      # TestRun_*, TestService_*, shared helpers (newTestClient, fixtures)
 ├── result_test.go       # TestResult_* only
 └── multi_result_test.go # TestMultiResult_* only
 ```
+
+**Services that don't implement `services.Service`** — when inputs are typed slices rather than a single string (e.g. `identify`), use a custom `Run` signature and call `writeResult` directly from `RunE`. No `runServiceCmd`, no `AggregateResults`. PAP check is inlined in `RunE`.
 
 ### Core Patterns
 
@@ -231,6 +235,9 @@ type Service interface {
 | `quad9 resolve` | Quad9 DoH `https://dns.quad9.net/dns-query` — RFC 8484 wire format (GET `?dns=<base64url>` + `Accept: application/dns-message`); HTTP/2 required; A, AAAA, NS, MX, TXT; partial result returned on context cancellation | AMBER (3rd-party API) |
 | `quad9 blocked` | Same endpoint — A query only; RFC 8484 wire format + HTTP/2; blocked = `Rcode==3 (NXDOMAIN) && empty authority section (HasAuthority==false)`; genuine NXDOMAIN includes SOA in authority section; `IsEmpty()` returns false when Input is set (always renders) | AMBER (3rd-party API) |
 | `detect` | Go `net` package — CNAME (apex + www), MX, NS; matches against `internal/detect` provider patterns (CDN/email/DNS hosting); import as `providers "github.com/tbckr/trident/internal/detect"` inside the service package to avoid name collision | GREEN (direct target interaction) |
+| `identify` | Pure pattern matching — no I/O; accepts `(cnames, mxHosts, nsHosts []string)`; reuses `internal/detect` provider functions; custom `Run` signature (not `services.Service`); no `multi_result.go` | RED (local only) |
+
+**Cloudflare DNS NS hostname format** — Cloudflare NS servers are subdomains of `ns.cloudflare.com` (e.g. `diana.ns.cloudflare.com`), not `ns1.cloudflare.com`. Use the correct format in test fixtures for `internal/detect` DNS pattern tests.
 
 ### Configuration
 
