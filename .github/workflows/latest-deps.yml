@@ -42,5 +42,5 @@ jobs:
                 echo "$UPGRADES"
                 echo "\`\`\`"
               fi
-            } | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
+            }
             go test ./...
