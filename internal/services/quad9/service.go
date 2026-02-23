@@ -28,7 +28,7 @@ func NewService(client *req.Client, logger *slog.Logger) *Service {
 }
 
 // Name returns the service identifier.
-func (s *Service) Name() string { return "quad9-blocked" }
+func (s *Service) Name() string { return "quad9" }
 
 // PAP returns the PAP activity level for the Quad9 blocked service (external API query).
 func (s *Service) PAP() pap.Level { return pap.AMBER }
