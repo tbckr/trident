@@ -71,13 +71,13 @@ func TestResult_WriteTable(t *testing.T) {
 
 func TestResult_WriteTable_SortOrder(t *testing.T) {
 	// Records are intentionally out of natural order to verify sorting:
-	// apex domain first, other hosts alphabetically, sentinel rows (cdn/email/dns) last.
+	// apex domain first, other hosts alphabetically, sentinel rows (detected) last.
 	r := &apex.Result{
 		Input: "example.com",
 		Records: []apex.Record{
-			{Host: "cdn", Type: "CDN", Value: "CloudFront"},
-			{Host: "email", Type: "Email", Value: "Google Workspace (mx: aspmx.l.google.com.)"},
-			{Host: "dns", Type: "DNS", Value: "Cloudflare DNS (ns: liz.ns.cloudflare.com.)"},
+			{Host: "detected", Type: "CDN", Value: "CloudFront"},
+			{Host: "detected", Type: "Email", Value: "Google Workspace (mx: aspmx.l.google.com.)"},
+			{Host: "detected", Type: "DNS", Value: "Cloudflare DNS (ns: liz.ns.cloudflare.com.)"},
 			{Host: "www.example.com", Type: "A", Value: "9.9.9.9"},
 			{Host: "example.com", Type: "TXT", Value: "v=spf1"},
 			{Host: "autodiscover.example.com", Type: "A", Value: "5.6.7.8"},

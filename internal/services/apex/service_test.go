@@ -187,7 +187,7 @@ func TestApexService_Run_EmailProviderDetection(t *testing.T) {
 
 	var emailRecords []apex.Record
 	for _, rec := range result.Records {
-		if rec.Host == "email" {
+		if rec.Host == "detected" && rec.Type == "Email" {
 			emailRecords = append(emailRecords, rec)
 		}
 	}
@@ -221,7 +221,7 @@ func TestApexService_Run_DNSHostDetection(t *testing.T) {
 
 	var dnsRecords []apex.Record
 	for _, rec := range result.Records {
-		if rec.Host == "dns" {
+		if rec.Host == "detected" && rec.Type == "DNS" {
 			dnsRecords = append(dnsRecords, rec)
 		}
 	}

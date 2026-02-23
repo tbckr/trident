@@ -53,7 +53,7 @@ func recSortKey(input string, rec Record) string {
 	switch rec.Host {
 	case input:
 		return "0:" + rec.Type + ":" + rec.Value
-	case "cdn", "email", "dns":
+	case "detected":
 		return "2:" + rec.Host + ":" + rec.Type + ":" + rec.Value
 	default:
 		return "1:" + rec.Host + ":" + rec.Type + ":" + rec.Value

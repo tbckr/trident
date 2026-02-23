@@ -211,7 +211,7 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 	if len(allCNAMEs) > 0 {
 		for _, d := range detect.CDN(allCNAMEs) {
 			result.Records = append(result.Records, Record{
-				Host:  "cdn",
+				Host:  "detected",
 				Type:  string(d.Type),
 				Value: d.Provider + " (cname: " + d.Evidence + ")",
 			})
@@ -232,7 +232,7 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 	if len(mxHosts) > 0 {
 		for _, d := range detect.EmailProvider(mxHosts) {
 			result.Records = append(result.Records, Record{
-				Host:  "email",
+				Host:  "detected",
 				Type:  string(d.Type),
 				Value: d.Provider + " (mx: " + d.Evidence + ")",
 			})
@@ -249,7 +249,7 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 	if len(nsHosts) > 0 {
 		for _, d := range detect.DNSHost(nsHosts) {
 			result.Records = append(result.Records, Record{
-				Host:  "dns",
+				Host:  "detected",
 				Type:  string(d.Type),
 				Value: d.Provider + " (ns: " + d.Evidence + ")",
 			})
