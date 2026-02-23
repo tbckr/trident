@@ -11,6 +11,7 @@ import (
 	"codeberg.org/miekg/dns"
 	"github.com/imroc/req/v3"
 
+	"github.com/tbckr/trident/internal/detect"
 	"github.com/tbckr/trident/internal/doh"
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
@@ -83,50 +84,6 @@ func (s *Service) resolveCNAMEChain(ctx context.Context, domain string) ([]strin
 		}
 	}
 	return chain, nil
-}
-
-// cdnPattern maps a CNAME suffix to a CDN provider name.
-type cdnPattern struct {
-	suffix   string
-	provider string
-}
-
-var cdnPatterns = []cdnPattern{
-	{"cloudfront.net", "AWS CloudFront"},
-	{"akamaiedge.net", "Akamai"},
-	{"edgekey.net", "Akamai"},
-	{"edgesuite.net", "Akamai"},
-	{"fastly.net", "Fastly"},
-	{"cloudflare.net", "Cloudflare"},
-	{"azureedge.net", "Azure CDN"},
-	{"azurefd.net", "Azure CDN"},
-	{"googleplex.com", "Google Cloud CDN"},
-	{"l.google.com", "Google Cloud CDN"},
-	{"b-cdn.net", "Bunny CDN"},
-}
-
-// detectCDN matches CNAME targets against known CDN suffixes and returns CDN records.
-func detectCDN(cnames []string) []Record {
-	var records []Record
-	seen := map[string]bool{}
-	for _, cname := range cnames {
-		target := strings.TrimSuffix(cname, ".")
-		for _, p := range cdnPatterns {
-			if target == p.suffix || strings.HasSuffix(target, "."+p.suffix) {
-				key := p.provider + ":" + cname
-				if seen[key] {
-					continue
-				}
-				seen[key] = true
-				records = append(records, Record{
-					Host:  "cdn",
-					Type:  "CDN",
-					Value: p.provider + " (cname: " + cname + ")",
-				})
-			}
-		}
-	}
-	return records
 }
 
 // directQuery represents a single (hostname, DNS record type) lookup.
@@ -250,8 +207,53 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		result.Records = append(result.Records, recs...)
 	}
 
+	// CDN detection from CNAME chains
 	if len(allCNAMEs) > 0 {
-		result.Records = append(result.Records, detectCDN(allCNAMEs)...)
+		for _, d := range detect.CDN(allCNAMEs) {
+			result.Records = append(result.Records, Record{
+				Host:  "cdn",
+				Type:  string(d.Type),
+				Value: d.Provider + " (cname: " + d.Evidence + ")",
+			})
+		}
+	}
+
+	// Email provider detection from MX records
+	var mxHosts []string
+	for _, rec := range result.Records {
+		if rec.Type == "MX" {
+			// MX value format: "10 aspmx.l.google.com." — take last token
+			parts := strings.Fields(rec.Value)
+			if len(parts) >= 2 {
+				mxHosts = append(mxHosts, parts[len(parts)-1])
+			}
+		}
+	}
+	if len(mxHosts) > 0 {
+		for _, d := range detect.EmailProvider(mxHosts) {
+			result.Records = append(result.Records, Record{
+				Host:  "email",
+				Type:  string(d.Type),
+				Value: d.Provider + " (mx: " + d.Evidence + ")",
+			})
+		}
+	}
+
+	// DNS hosting detection from NS records
+	var nsHosts []string
+	for _, rec := range result.Records {
+		if rec.Type == "NS" {
+			nsHosts = append(nsHosts, rec.Value)
+		}
+	}
+	if len(nsHosts) > 0 {
+		for _, d := range detect.DNSHost(nsHosts) {
+			result.Records = append(result.Records, Record{
+				Host:  "dns",
+				Type:  string(d.Type),
+				Value: d.Provider + " (ns: " + d.Evidence + ")",
+			})
+		}
 	}
 
 	return result, nil

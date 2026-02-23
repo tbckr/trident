@@ -71,11 +71,13 @@ func TestResult_WriteTable(t *testing.T) {
 
 func TestResult_WriteTable_SortOrder(t *testing.T) {
 	// Records are intentionally out of natural order to verify sorting:
-	// apex domain first, other hosts alphabetically, cdn last.
+	// apex domain first, other hosts alphabetically, sentinel rows (cdn/email/dns) last.
 	r := &apex.Result{
 		Input: "example.com",
 		Records: []apex.Record{
 			{Host: "cdn", Type: "CDN", Value: "CloudFront"},
+			{Host: "email", Type: "Email", Value: "Google Workspace (mx: aspmx.l.google.com.)"},
+			{Host: "dns", Type: "DNS", Value: "Cloudflare DNS (ns: liz.ns.cloudflare.com.)"},
 			{Host: "www.example.com", Type: "A", Value: "9.9.9.9"},
 			{Host: "example.com", Type: "TXT", Value: "v=spf1"},
 			{Host: "autodiscover.example.com", Type: "A", Value: "5.6.7.8"},
@@ -95,7 +97,13 @@ func TestResult_WriteTable_SortOrder(t *testing.T) {
 	// autodiscover appears before www (alphabetical among non-apex).
 	assert.Less(t, strings.Index(out, "autodiscover.example.com"), strings.Index(out, "www.example.com"),
 		"autodiscover should appear before www alphabetically")
-	// cdn appears last.
+	// cdn appears after all non-sentinel hosts.
 	assert.Greater(t, strings.Index(out, "CloudFront"), strings.Index(out, "9.9.9.9"),
 		"cdn row should appear after all other hosts")
+	// email appears after all non-sentinel hosts.
+	assert.Greater(t, strings.Index(out, "Google Workspace"), strings.Index(out, "9.9.9.9"),
+		"email row should appear after all other hosts")
+	// dns appears after all non-sentinel hosts.
+	assert.Greater(t, strings.Index(out, "Cloudflare DNS"), strings.Index(out, "9.9.9.9"),
+		"dns row should appear after all other hosts")
 }

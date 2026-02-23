@@ -162,6 +162,74 @@ func TestApexService_Run_CDNDetection(t *testing.T) {
 	assert.Contains(t, cdnRecords[0].Value, "abc.cloudfront.net.")
 }
 
+func TestApexService_Run_EmailProviderDetection(t *testing.T) {
+	client := newTestClient(t)
+
+	mxRR := &dns.MX{
+		Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300},
+		MX:  rdata.MX{Preference: 10, Mx: "aspmx.l.google.com."},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "example.com" && qtype == dns.TypeMX {
+				return buildWireResponse(t, 0, []dns.RR{mxRR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	svc := apex.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	var emailRecords []apex.Record
+	for _, rec := range result.Records {
+		if rec.Host == "email" {
+			emailRecords = append(emailRecords, rec)
+		}
+	}
+	require.Len(t, emailRecords, 1)
+	assert.Equal(t, "Email", emailRecords[0].Type)
+	assert.Contains(t, emailRecords[0].Value, "Google Workspace")
+}
+
+func TestApexService_Run_DNSHostDetection(t *testing.T) {
+	client := newTestClient(t)
+
+	nsRR := &dns.NS{
+		Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 3600},
+		NS:  rdata.NS{Ns: "liz.ns.cloudflare.com."},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "example.com" && qtype == dns.TypeNS {
+				return buildWireResponse(t, 0, []dns.RR{nsRR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	svc := apex.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	var dnsRecords []apex.Record
+	for _, rec := range result.Records {
+		if rec.Host == "dns" {
+			dnsRecords = append(dnsRecords, rec)
+		}
+	}
+	require.Len(t, dnsRecords, 1)
+	assert.Equal(t, "DNS", dnsRecords[0].Type)
+	assert.Contains(t, dnsRecords[0].Value, "Cloudflare DNS")
+}
+
 func TestApexService_Run_InvalidInput(t *testing.T) {
 	client := newTestClient(t)
 	svc := apex.NewService(client, testutil.NopLogger())

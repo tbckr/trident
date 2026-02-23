@@ -58,6 +58,7 @@ internal/
   resolver/         # *net.Resolver factory with SOCKS5 DNS-leak prevention
   worker/           # Bounded goroutine pool (pool.go only)
   services/         # One package per service (dns/, asn/, crtsh/, threatminer/, pgp/); IsDomain() lives here
+  detect/           # Provider detection from DNS data: CDN (CNAME), EmailProvider (MX), DNSHost (NS); pure-function, no I/O
   output/           # Text (tablewriter), JSON, text formatters + defang helpers
 ```
 
@@ -111,7 +112,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`output.NewWrappingTable`** — shared factory in `internal/output/terminal.go`; use for plain (ungrouped) tables. **`output.NewGroupedWrappingTable`** — use when rows are grouped by a type column (e.g. DNS): merges repeated first-column cells (`MergeHierarchical`) and draws separator lines between groups (`BetweenRows: tw.On`); requires `"github.com/olekukonko/tablewriter/renderer"` imported in `terminal.go`. Overhead values: 20 for 2-column tables, 6 for 1-column tables. **Merging is consecutive-only** — the same value appearing non-contiguously creates separate merged groups. Sort rows before calling `Bulk` when parallel-gathered records for the same host may be interleaved.
 
-**Display-only sort in `WriteTable`** — when a service runs parallel queries that may interleave records for the same host, sort a copy inside `WriteTable` (not in `Run`/`AggregateResults`) to keep JSON/text output order stable. Pattern: `sorted := make([]Record, len(records)); copy(sorted, records); sort.Slice(sorted, ...)`. Use a sort-key function with string prefix `"0:"` for the primary input, `"2:"` for sentinel rows (e.g. `cdn`), `"1:"` for everything else.
+**Display-only sort in `WriteTable`** — when a service runs parallel queries that may interleave records for the same host, sort a copy inside `WriteTable` (not in `Run`/`AggregateResults`) to keep JSON/text output order stable. Pattern: `sorted := make([]Record, len(records)); copy(sorted, records); sort.Slice(sorted, ...)`. Use a sort-key function with string prefix `"0:"` for the primary input, `"2:"` for sentinel rows (e.g. `cdn`, `email`, `dns`), `"1:"` for everything else.
 
 **Table render-order tests** — use `strings.Index(out, valueA) < strings.Index(out, valueB)` assertions to verify that sorted records appear in the correct order in rendered table output, without parsing table structure.
 
@@ -280,7 +281,7 @@ type Service interface {
 - **`strings.CutPrefix`** — golangci-lint's `stringscutprefix` rule fires on `strings.HasPrefix(s, p)` + `strings.TrimPrefix(s, p)` combos; always use `if v, ok := strings.CutPrefix(s, p); ok { ... }` instead.
 - **staticcheck QF1002** — fires on typeless `switch { case x == y: }` when a tagged `switch x { case y: }` is equivalent. Always use the tagged form.
 - **revive `package-comments`:** Every package must have a `// Package foo ...` comment in `doc.go` (never inline in an implementation file). New packages without this will fail lint.
-- **revive `exported` stutter rule** — type names must NOT repeat the package name: use `Service`, `Result`, `MultiResult`, `Record` — never `ApexService`, `ApexResult`, `DnsResult`. In a new package `foo`, never name a type `FooBar` (callers would write `foo.FooBar`). `revive` fires on any `pkg.PkgFoo` pattern across all packages.
+- **revive `exported` stutter rule** — exported **types and functions** must NOT start with the package name: use `Service`, `Result`, `CDN`, `DNSHost` — never `ApexService`, `DetectCDN`, `DetectDNSHost`. In a new package `foo`, never name an identifier `FooBar` (callers would write `foo.FooBar`). `revive` fires on any `pkg.PkgFoo` pattern across all packages. When renaming a function to avoid stutter would conflict with an existing constant (e.g. package `detect`, function `CDN` vs const `CDN`), prefix the constants with `Type` (`TypeCDN`, `TypeEmail`, `TypeDNS`) — constants don't stutter since `detect.TypeCDN` has no "detect" prefix in "Type".
 - **cosign v3 signing** — `cosign-installer@v4.x` is required for cosign v3.x (`@v3.x` only installs v2). In GoReleaser `signs:`, use `signature: "${artifact}.sigstore.json"` + `--bundle=${signature}` (v3 replaced `--output-certificate`/`--output-signature` with a single bundle). Do not pin `cosign-release:` in the action — let the installer default handle the version.
 
 ## Key Constraints
