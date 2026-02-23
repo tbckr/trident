@@ -167,10 +167,6 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		{"www." + domain, dns.TypeA, "A"},
 		{"www." + domain, dns.TypeAAAA, "AAAA"},
 		{"www." + domain, dns.TypeHTTPS, "HTTPS"},
-		// mail subdomain
-		{"mail." + domain, dns.TypeA, "A"},
-		{"mail." + domain, dns.TypeAAAA, "AAAA"},
-		{"mail." + domain, dns.TypeMX, "MX"},
 		// autodiscover subdomain
 		{"autodiscover." + domain, dns.TypeA, "A"},
 		{"autodiscover." + domain, dns.TypeAAAA, "AAAA"},
@@ -193,7 +189,6 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 	cnameHosts := []string{
 		domain,
 		"www." + domain,
-		"mail." + domain,
 		"autodiscover." + domain,
 	}
 
