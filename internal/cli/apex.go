@@ -19,13 +19,18 @@ func newApexCmd(d *deps) *cobra.Command {
 		Long: `Perform parallel DNS reconnaissance for an apex domain via Quad9 DoH.
 
 apex fans out queries for the apex domain and well-known derived hostnames
-(www, mail, autodiscover, _dmarc, _mta-sts, DKIM selectors, BIMI) and
-consolidates the results into a single output. CNAME chains are followed
-automatically and CDN providers are detected from CNAME targets.
+(www, mail, autodiscover, _dmarc, _domainkey, _mta-sts, DKIM selectors, BIMI)
+and consolidates the results into a single output. CNAME chains are followed
+automatically and CDN providers are detected from CNAME targets. Results are
+returned in a deterministic order matching the query list.
 
-Queried record types: NS, SOA, A, AAAA, MX, TXT, CAA, HTTPS, CNAME chain.
-Derived hostnames: www, mail, autodiscover, _dmarc, _mta-sts, _smtp._tls,
-default._bimi, google._domainkey, selector1._domainkey, selector2._domainkey.
+Queried record types: A, AAAA, CAA, DNSKEY, HTTPS, MX, NS, SOA, SRV, SSHFP,
+TXT, CNAME (direct + chain).
+SRV services: _sip._tls, _sipfederationtls._tcp, _xmpp-client._tcp,
+_xmpp-server._tcp.
+Derived hostnames: www, mail, autodiscover, _dmarc, _domainkey, _mta-sts,
+_smtp._tls, default._bimi, google._domainkey, selector1._domainkey,
+selector2._domainkey.
 
 PAP level: AMBER (queries go to Quad9 third-party servers).
 

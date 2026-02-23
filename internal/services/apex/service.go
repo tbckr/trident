@@ -146,40 +146,44 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 
 	result := &Result{Input: domain}
 
-	var mu sync.Mutex
-	var allCNAMEs []string
-
-	addRecords := func(recs []Record) {
-		mu.Lock()
-		result.Records = append(result.Records, recs...)
-		mu.Unlock()
-	}
-
-	addCNAMEs := func(cnames []string) {
-		mu.Lock()
-		allCNAMEs = append(allCNAMEs, cnames...)
-		mu.Unlock()
-	}
-
 	directQueries := []directQuery{
-		{domain, dns.TypeNS, "NS"},
-		{domain, dns.TypeSOA, "SOA"},
+		// Apex domain — core types
 		{domain, dns.TypeA, "A"},
 		{domain, dns.TypeAAAA, "AAAA"},
-		{domain, dns.TypeMX, "MX"},
-		{domain, dns.TypeTXT, "TXT"},
 		{domain, dns.TypeCAA, "CAA"},
+		{domain, dns.TypeDNSKEY, "DNSKEY"},
 		{domain, dns.TypeHTTPS, "HTTPS"},
+		{domain, dns.TypeMX, "MX"},
+		{domain, dns.TypeNS, "NS"},
+		{domain, dns.TypeSOA, "SOA"},
+		// SRV services
+		{"_sip._tls." + domain, dns.TypeSRV, "SRV"},
+		{"_sipfederationtls._tcp." + domain, dns.TypeSRV, "SRV"},
+		{"_xmpp-client._tcp." + domain, dns.TypeSRV, "SRV"},
+		{"_xmpp-server._tcp." + domain, dns.TypeSRV, "SRV"},
+		{domain, dns.TypeSSHFP, "SSHFP"},
+		{domain, dns.TypeTXT, "TXT"},
+		// www subdomain
 		{"www." + domain, dns.TypeA, "A"},
 		{"www." + domain, dns.TypeAAAA, "AAAA"},
+		{"www." + domain, dns.TypeHTTPS, "HTTPS"},
+		// mail subdomain
 		{"mail." + domain, dns.TypeA, "A"},
 		{"mail." + domain, dns.TypeAAAA, "AAAA"},
 		{"mail." + domain, dns.TypeMX, "MX"},
+		// autodiscover subdomain
 		{"autodiscover." + domain, dns.TypeA, "A"},
 		{"autodiscover." + domain, dns.TypeAAAA, "AAAA"},
+		// Email security subdomains (TXT then CNAME for each)
 		{"_dmarc." + domain, dns.TypeTXT, "TXT"},
+		{"_dmarc." + domain, dns.TypeCNAME, "CNAME"},
+		{"_domainkey." + domain, dns.TypeTXT, "TXT"},
+		{"_domainkey." + domain, dns.TypeCNAME, "CNAME"},
 		{"_mta-sts." + domain, dns.TypeTXT, "TXT"},
+		{"_mta-sts." + domain, dns.TypeCNAME, "CNAME"},
 		{"_smtp._tls." + domain, dns.TypeTXT, "TXT"},
+		{"_smtp._tls." + domain, dns.TypeCNAME, "CNAME"},
+		// BIMI + DKIM selectors
 		{"default._bimi." + domain, dns.TypeTXT, "TXT"},
 		{"google._domainkey." + domain, dns.TypeTXT, "TXT"},
 		{"selector1._domainkey." + domain, dns.TypeTXT, "TXT"},
@@ -193,12 +197,12 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		"autodiscover." + domain,
 	}
 
+	results := make([][]Record, len(directQueries))
+	cnameResults := make([][]Record, len(cnameHosts))
 	var wg sync.WaitGroup
 
-	for _, q := range directQueries {
-		wg.Add(1)
-		go func(q directQuery) {
-			defer wg.Done()
+	for i, q := range directQueries {
+		wg.Go(func() {
 			resp, err := quad9svc.MakeDoHRequest(ctx, s.client, q.host, q.typeCode)
 			if err != nil {
 				if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
@@ -211,22 +215,14 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 				if ans.Type != q.typeCode {
 					continue
 				}
-				recs = append(recs, Record{
-					Host:  q.host,
-					Type:  q.typeName,
-					Value: output.StripANSI(ans.Data),
-				})
+				recs = append(recs, Record{Host: q.host, Type: q.typeName, Value: output.StripANSI(ans.Data)})
 			}
-			if len(recs) > 0 {
-				addRecords(recs)
-			}
-		}(q)
+			results[i] = recs
+		})
 	}
 
-	for _, h := range cnameHosts {
-		wg.Add(1)
-		go func(h string) {
-			defer wg.Done()
+	for i, h := range cnameHosts {
+		wg.Go(func() {
 			chain, err := s.resolveCNAMEChain(ctx, h)
 			if err != nil {
 				s.logger.Debug("apex: CNAME chain failed", "host", h, "error", err)
@@ -237,18 +233,27 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 			}
 			var recs []Record
 			for _, target := range chain {
-				recs = append(recs, Record{
-					Host:  h,
-					Type:  "CNAME",
-					Value: output.StripANSI(target),
-				})
+				recs = append(recs, Record{Host: h, Type: "CNAME", Value: output.StripANSI(target)})
 			}
-			addRecords(recs)
-			addCNAMEs(chain)
-		}(h)
+			cnameResults[i] = recs
+		})
 	}
 
 	wg.Wait()
+
+	// Flatten direct query results in slice order (deterministic).
+	for _, recs := range results {
+		result.Records = append(result.Records, recs...)
+	}
+
+	// Flatten CNAME chains in slice order; collect targets for CDN detection.
+	var allCNAMEs []string
+	for _, recs := range cnameResults {
+		for _, rec := range recs {
+			allCNAMEs = append(allCNAMEs, rec.Value)
+		}
+		result.Records = append(result.Records, recs...)
+	}
 
 	if len(allCNAMEs) > 0 {
 		result.Records = append(result.Records, detectCDN(allCNAMEs)...)

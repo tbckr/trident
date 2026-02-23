@@ -223,6 +223,147 @@ func TestApexService_Run_NetworkError(t *testing.T) {
 	assert.Equal(t, "example.com", result.Input)
 }
 
+func TestApexService_Run_DNSKEY(t *testing.T) {
+	client := newTestClient(t)
+
+	dnskeyRR := &dns.DNSKEY{
+		Hdr:    dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 3600},
+		DNSKEY: rdata.DNSKEY{Flags: 257, Protocol: 3, Algorithm: 8, PublicKey: "AwEAAagAIKlVZrpC"},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "example.com" && qtype == dns.TypeDNSKEY {
+				return buildWireResponse(t, 0, []dns.RR{dnskeyRR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	svc := apex.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	var found []apex.Record
+	for _, rec := range result.Records {
+		if rec.Type == "DNSKEY" {
+			found = append(found, rec)
+		}
+	}
+	require.NotEmpty(t, found)
+	assert.Equal(t, "example.com", found[0].Host)
+}
+
+func TestApexService_Run_SRVServices(t *testing.T) {
+	client := newTestClient(t)
+
+	srvRR := &dns.SRV{
+		Hdr: dns.Header{Name: "_sip._tls.example.com.", Class: dns.ClassINET, TTL: 300},
+		SRV: rdata.SRV{Priority: 10, Weight: 20, Port: 5061, Target: "sip.example.com."},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "_sip._tls.example.com" && qtype == dns.TypeSRV {
+				return buildWireResponse(t, 0, []dns.RR{srvRR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	svc := apex.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	var found []apex.Record
+	for _, rec := range result.Records {
+		if rec.Type == "SRV" && rec.Host == "_sip._tls.example.com" {
+			found = append(found, rec)
+		}
+	}
+	require.NotEmpty(t, found)
+	assert.Equal(t, "_sip._tls.example.com", found[0].Host)
+}
+
+func TestApexService_Run_EmailCNAME(t *testing.T) {
+	client := newTestClient(t)
+
+	cnameRR := &dns.CNAME{
+		Hdr:   dns.Header{Name: "_dmarc.example.com.", Class: dns.ClassINET, TTL: 300},
+		CNAME: rdata.CNAME{Target: "dmarc.provider.com."},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "_dmarc.example.com" && qtype == dns.TypeCNAME {
+				return buildWireResponse(t, 0, []dns.RR{cnameRR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	svc := apex.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	var found []apex.Record
+	for _, rec := range result.Records {
+		if rec.Type == "CNAME" && rec.Host == "_dmarc.example.com" {
+			found = append(found, rec)
+		}
+	}
+	require.NotEmpty(t, found)
+	assert.Equal(t, "_dmarc.example.com", found[0].Host)
+}
+
+func TestApexService_Run_OutputOrder(t *testing.T) {
+	client := newTestClient(t)
+
+	apexARR := &dns.A{Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300}}
+	apexARR.Addr = netip.MustParseAddr("93.184.216.34")
+
+	wwwARR := &dns.A{Hdr: dns.Header{Name: "www.example.com.", Class: dns.ClassINET, TTL: 300}}
+	wwwARR.Addr = netip.MustParseAddr("93.184.216.35")
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			switch {
+			case qname == "example.com" && qtype == dns.TypeA:
+				return buildWireResponse(t, 0, []dns.RR{apexARR}, nil)
+			case qname == "www.example.com" && qtype == dns.TypeA:
+				return buildWireResponse(t, 0, []dns.RR{wwwARR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	svc := apex.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	var apexIdx, wwwIdx int
+	apexIdx, wwwIdx = -1, -1
+	for i, rec := range result.Records {
+		if rec.Type == "A" && rec.Host == "example.com" {
+			apexIdx = i
+		}
+		if rec.Type == "A" && rec.Host == "www.example.com" {
+			wwwIdx = i
+		}
+	}
+	require.NotEqual(t, -1, apexIdx, "example.com A record not found")
+	require.NotEqual(t, -1, wwwIdx, "www.example.com A record not found")
+	assert.Less(t, apexIdx, wwwIdx, "example.com A must appear before www.example.com A")
+}
+
 func TestApexService_AggregateResults(t *testing.T) {
 	client := req.NewClient()
 	svc := apex.NewService(client, testutil.NopLogger())
