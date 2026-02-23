@@ -2,6 +2,7 @@ package apex_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,4 +67,35 @@ func TestResult_WriteTable(t *testing.T) {
 	assert.Contains(t, out, "1.2.3.4")
 	assert.Contains(t, out, "NS")
 	assert.Contains(t, out, "ns1.example.com.")
+}
+
+func TestResult_WriteTable_SortOrder(t *testing.T) {
+	// Records are intentionally out of natural order to verify sorting:
+	// apex domain first, other hosts alphabetically, cdn last.
+	r := &apex.Result{
+		Input: "example.com",
+		Records: []apex.Record{
+			{Host: "cdn", Type: "CDN", Value: "CloudFront"},
+			{Host: "www.example.com", Type: "A", Value: "9.9.9.9"},
+			{Host: "example.com", Type: "TXT", Value: "v=spf1"},
+			{Host: "autodiscover.example.com", Type: "A", Value: "5.6.7.8"},
+			{Host: "example.com", Type: "A", Value: "1.2.3.4"},
+		},
+	}
+
+	var buf bytes.Buffer
+	err := r.WriteTable(&buf)
+	require.NoError(t, err)
+
+	out := buf.String()
+
+	// apex domain rows appear before subdomain rows.
+	assert.Less(t, strings.Index(out, "1.2.3.4"), strings.Index(out, "5.6.7.8"),
+		"apex domain rows should appear before subdomain rows")
+	// autodiscover appears before www (alphabetical among non-apex).
+	assert.Less(t, strings.Index(out, "autodiscover.example.com"), strings.Index(out, "www.example.com"),
+		"autodiscover should appear before www alphabetically")
+	// cdn appears last.
+	assert.Greater(t, strings.Index(out, "CloudFront"), strings.Index(out, "9.9.9.9"),
+		"cdn row should appear after all other hosts")
 }

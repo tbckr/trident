@@ -156,13 +156,13 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		{domain, dns.TypeMX, "MX"},
 		{domain, dns.TypeNS, "NS"},
 		{domain, dns.TypeSOA, "SOA"},
+		{domain, dns.TypeSSHFP, "SSHFP"},
+		{domain, dns.TypeTXT, "TXT"},
 		// SRV services
 		{"_sip._tls." + domain, dns.TypeSRV, "SRV"},
 		{"_sipfederationtls._tcp." + domain, dns.TypeSRV, "SRV"},
 		{"_xmpp-client._tcp." + domain, dns.TypeSRV, "SRV"},
 		{"_xmpp-server._tcp." + domain, dns.TypeSRV, "SRV"},
-		{domain, dns.TypeSSHFP, "SSHFP"},
-		{domain, dns.TypeTXT, "TXT"},
 		// www subdomain
 		{"www." + domain, dns.TypeA, "A"},
 		{"www." + domain, dns.TypeAAAA, "AAAA"},

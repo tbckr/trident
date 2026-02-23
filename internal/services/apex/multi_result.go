@@ -17,7 +17,7 @@ type MultiResult struct {
 func (m *MultiResult) WriteTable(w io.Writer) error {
 	var rows [][]string
 	for _, r := range m.Results {
-		for _, rec := range r.Records {
+		for _, rec := range sortRecordsForDisplay(r.Input, r.Records) {
 			rows = append(rows, []string{r.Input, rec.Host, rec.Type, rec.Value})
 		}
 	}
