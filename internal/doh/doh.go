@@ -1,4 +1,4 @@
-package quad9
+package doh
 
 import (
 	"context"
@@ -23,15 +23,15 @@ const (
 	DefaultBurst = 10
 )
 
-// DoHResponse holds the parsed DNS wire-format response.
-type DoHResponse struct {
+// Response holds the parsed DNS wire-format response.
+type Response struct {
 	Status       uint16
 	HasAuthority bool
-	Answer       []DoHAnswer
+	Answer       []Answer
 }
 
-// DoHAnswer holds a single DNS resource record from a DoH response.
-type DoHAnswer struct {
+// Answer holds a single DNS resource record from a DoH response.
+type Answer struct {
 	Name string
 	Type uint16
 	TTL  int
@@ -50,19 +50,19 @@ func buildDNSQuery(domain string, recordType uint16) ([]byte, error) {
 	return m.Data, nil
 }
 
-// parseDNSResponse decodes a DNS wire-format response into a DoHResponse.
-func parseDNSResponse(data []byte) (*DoHResponse, error) {
+// parseDNSResponse decodes a DNS wire-format response into a Response.
+func parseDNSResponse(data []byte) (*Response, error) {
 	m := new(dns.Msg)
 	m.Data = data
 	if err := m.Unpack(); err != nil {
 		return nil, fmt.Errorf("failed to parse DNS response: %w", err)
 	}
-	resp := &DoHResponse{
+	resp := &Response{
 		Status:       m.Rcode,
 		HasAuthority: len(m.Ns) > 0,
 	}
 	for _, rr := range m.Answer {
-		ans := DoHAnswer{
+		ans := Answer{
 			Name: rr.Header().Name,
 			TTL:  int(rr.Header().TTL),
 		}
@@ -113,7 +113,7 @@ func parseDNSResponse(data []byte) (*DoHResponse, error) {
 
 // MakeDoHRequest performs a DNS-over-HTTPS query using RFC 8484 wire format.
 // It encodes the DNS query as base64url and sends it as the "dns" query parameter.
-func MakeDoHRequest(ctx context.Context, client *req.Client, domain string, recordType uint16) (*DoHResponse, error) {
+func MakeDoHRequest(ctx context.Context, client *req.Client, domain string, recordType uint16) (*Response, error) {
 	query, err := buildDNSQuery(domain, recordType)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to build DNS query for %q type %d: %w", services.ErrRequestFailed, domain, recordType, err)

@@ -10,17 +10,17 @@ import (
 	"github.com/tbckr/trident/internal/services/quad9"
 )
 
-func TestBlockedMultiResult_IsEmpty(t *testing.T) {
-	mr := &quad9.BlockedMultiResult{}
+func TestMultiResult_IsEmpty(t *testing.T) {
+	mr := &quad9.MultiResult{}
 	assert.True(t, mr.IsEmpty())
 
-	mr.Results = append(mr.Results, &quad9.BlockedResult{Input: "example.com"})
+	mr.Results = append(mr.Results, &quad9.Result{Input: "example.com"})
 	assert.False(t, mr.IsEmpty(), "result with Input set is never empty")
 }
 
-func TestBlockedMultiResult_WriteTable(t *testing.T) {
-	mr := &quad9.BlockedMultiResult{}
-	mr.Results = []*quad9.BlockedResult{
+func TestMultiResult_WriteTable(t *testing.T) {
+	mr := &quad9.MultiResult{}
+	mr.Results = []*quad9.Result{
 		{Input: "malicious.example", Blocked: true},
 		{Input: "example.com", Blocked: false},
 	}

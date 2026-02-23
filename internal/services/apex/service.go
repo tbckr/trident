@@ -11,10 +11,10 @@ import (
 	"codeberg.org/miekg/dns"
 	"github.com/imroc/req/v3"
 
+	"github.com/tbckr/trident/internal/doh"
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
-	quad9svc "github.com/tbckr/trident/internal/services/quad9"
 )
 
 // Service aggregates DNS reconnaissance for an apex domain via Quad9 DoH.
@@ -56,7 +56,7 @@ func (s *Service) resolveCNAMEChain(ctx context.Context, domain string) ([]strin
 	current := domain
 	var chain []string
 	for range maxCNAMEHops {
-		resp, err := quad9svc.MakeDoHRequest(ctx, s.client, current, dns.TypeCNAME)
+		resp, err := doh.MakeDoHRequest(ctx, s.client, current, dns.TypeCNAME)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return chain, nil
@@ -203,7 +203,7 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 
 	for i, q := range directQueries {
 		wg.Go(func() {
-			resp, err := quad9svc.MakeDoHRequest(ctx, s.client, q.host, q.typeCode)
+			resp, err := doh.MakeDoHRequest(ctx, s.client, q.host, q.typeCode)
 			if err != nil {
 				if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 					s.logger.Debug("apex: query failed", "host", q.host, "type", q.typeName, "error", err)

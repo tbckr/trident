@@ -54,6 +54,7 @@ internal/
   httpclient/       # req.Client factory with proxy + UA rotation
   input/            # Line reader from io.Reader — Read() used by CLI stdin path
   pap/              # PAP level constants and Allows() enforcement
+  doh/              # Shared DNS-over-HTTPS client (RFC 8484, Quad9 endpoint); exports MakeDoHRequest, DefaultRPS, DefaultBurst, Response, Answer
   resolver/         # *net.Resolver factory with SOCKS5 DNS-leak prevention
   worker/           # Bounded goroutine pool (pool.go only)
   services/         # One package per service (dns/, asn/, crtsh/, threatminer/, pgp/); IsDomain() lives here
@@ -274,7 +275,7 @@ type Service interface {
 - **gosec G304 scope** — `os.ReadFile` with a variable path does **not** trigger G304; do not add a nolint directive there. G304 fires on `os.Open`, `os.OpenFile`, and similar — not `ReadFile`.
 - **`strings.CutPrefix`** — golangci-lint's `stringscutprefix` rule fires on `strings.HasPrefix(s, p)` + `strings.TrimPrefix(s, p)` combos; always use `if v, ok := strings.CutPrefix(s, p); ok { ... }` instead.
 - **revive `package-comments`:** Every package must have a `// Package foo ...` comment in `doc.go` (never inline in an implementation file). New packages without this will fail lint.
-- **revive `exported` stutter rule** — type names within a service package must NOT repeat the package name: use `Service`, `Result`, `MultiResult`, `Record` — never `ApexService`, `ApexResult`, `DnsResult`. `revive` fires on any `pkg.PkgFoo` pattern. Applies to all packages under `internal/services/`.
+- **revive `exported` stutter rule** — type names must NOT repeat the package name: use `Service`, `Result`, `MultiResult`, `Record` — never `ApexService`, `ApexResult`, `DnsResult`. In a new package `foo`, never name a type `FooBar` (callers would write `foo.FooBar`). `revive` fires on any `pkg.PkgFoo` pattern across all packages.
 - **cosign v3 signing** — `cosign-installer@v4.x` is required for cosign v3.x (`@v3.x` only installs v2). In GoReleaser `signs:`, use `signature: "${artifact}.sigstore.json"` + `--bundle=${signature}` (v3 replaced `--output-certificate`/`--output-signature` with a single bundle). Do not pin `cosign-release:` in the action — let the installer default handle the version.
 
 ## Key Constraints

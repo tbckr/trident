@@ -5,10 +5,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/tbckr/trident/internal/doh"
 	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/ratelimit"
 	apexsvc "github.com/tbckr/trident/internal/services/apex"
-	quad9svc "github.com/tbckr/trident/internal/services/quad9"
 )
 
 func newApexCmd(d *deps) *cobra.Command {
@@ -57,7 +57,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 				return fmt.Errorf("creating HTTP client: %w", err)
 			}
 			client.EnableForceHTTP2()
-			httpclient.AttachRateLimit(client, ratelimit.New(quad9svc.DefaultRPS, quad9svc.DefaultBurst))
+			httpclient.AttachRateLimit(client, ratelimit.New(doh.DefaultRPS, doh.DefaultBurst))
 			svc := apexsvc.NewService(client, d.logger)
 			return runServiceCmd(cmd, d, svc, args)
 		},

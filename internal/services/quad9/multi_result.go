@@ -7,14 +7,14 @@ import (
 	"github.com/tbckr/trident/internal/services"
 )
 
-// BlockedMultiResult holds Quad9 threat-intelligence verdicts for multiple inputs.
-type BlockedMultiResult struct {
-	services.MultiResultBase[BlockedResult, *BlockedResult]
+// MultiResult holds Quad9 threat-intelligence verdicts for multiple inputs.
+type MultiResult struct {
+	services.MultiResultBase[Result, *Result]
 }
 
 // WriteTable renders all verdicts in a single combined table.
 // Columns: Domain / Blocked.
-func (m *BlockedMultiResult) WriteTable(w io.Writer) error {
+func (m *MultiResult) WriteTable(w io.Writer) error {
 	var rows [][]string
 	for _, r := range m.Results {
 		blocked := "false"

@@ -20,8 +20,31 @@ import (
 	"github.com/tbckr/trident/internal/testutil"
 )
 
-// blockedWireResponder returns a responder that always replies with the given wire data.
-func blockedWireResponder(data []byte) httpmock.Responder {
+func newTestClient(t *testing.T) *req.Client {
+	t.Helper()
+	client := req.NewClient()
+	httpmock.ActivateNonDefault(client.GetClient())
+	t.Cleanup(httpmock.DeactivateAndReset)
+	return client
+}
+
+// dohURL is the Quad9 DoH endpoint, used to register mock responders.
+const dohURL = "https://dns.quad9.net/dns-query"
+
+// buildWireResponse packs a DNS response message into wire format.
+func buildWireResponse(t *testing.T, rcode int, answers []dns.RR, authority []dns.RR) []byte {
+	t.Helper()
+	m := new(dns.Msg)
+	m.Rcode = uint16(rcode)
+	m.Response = true
+	m.Answer = answers
+	m.Ns = authority
+	require.NoError(t, m.Pack())
+	return m.Data
+}
+
+// wireResponder returns a responder that always replies with the given wire data.
+func wireResponder(data []byte) httpmock.Responder {
 	return func(r *http.Request) (*http.Response, error) {
 		encoded := r.URL.Query().Get("dns")
 		if _, err := base64.RawURLEncoding.DecodeString(encoded); err != nil {
@@ -31,42 +54,42 @@ func blockedWireResponder(data []byte) httpmock.Responder {
 	}
 }
 
-func TestBlockedService_Run_Blocked(t *testing.T) {
+func TestService_Run_Blocked(t *testing.T) {
 	client := newTestClient(t)
 
 	// Quad9 blocked: NXDOMAIN with empty authority section.
 	blockedData := buildWireResponse(t, dns.RcodeNameError, nil, nil)
-	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL, blockedWireResponder(blockedData))
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL, wireResponder(blockedData))
 
-	svc := quad9.NewBlockedService(client, testutil.NopLogger())
+	svc := quad9.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "malicious.example")
 	require.NoError(t, err)
 
-	result, ok := raw.(*quad9.BlockedResult)
-	require.True(t, ok, "expected *quad9.BlockedResult")
+	result, ok := raw.(*quad9.Result)
+	require.True(t, ok, "expected *quad9.Result")
 	assert.Equal(t, "malicious.example", result.Input)
 	assert.True(t, result.Blocked)
 }
 
-func TestBlockedService_Run_NotBlocked(t *testing.T) {
+func TestService_Run_NotBlocked(t *testing.T) {
 	client := newTestClient(t)
 
 	aRR := &dns.A{Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300}}
 	aRR.Addr = netip.MustParseAddr("93.184.216.34")
 	notBlockedData := buildWireResponse(t, dns.RcodeSuccess, []dns.RR{aRR}, nil)
-	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL, blockedWireResponder(notBlockedData))
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL, wireResponder(notBlockedData))
 
-	svc := quad9.NewBlockedService(client, testutil.NopLogger())
+	svc := quad9.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
 
-	result, ok := raw.(*quad9.BlockedResult)
-	require.True(t, ok, "expected *quad9.BlockedResult")
+	result, ok := raw.(*quad9.Result)
+	require.True(t, ok, "expected *quad9.Result")
 	assert.Equal(t, "example.com", result.Input)
 	assert.False(t, result.Blocked)
 }
 
-func TestBlockedService_Run_NXDOMAIN_NoComment(t *testing.T) {
+func TestService_Run_NXDOMAIN_NoComment(t *testing.T) {
 	client := newTestClient(t)
 
 	// Genuine NXDOMAIN: Rcode=3 with SOA in authority section → HasAuthority=true → not blocked.
@@ -83,20 +106,20 @@ func TestBlockedService_Run_NXDOMAIN_NoComment(t *testing.T) {
 		},
 	}
 	nxdomainData := buildWireResponse(t, dns.RcodeNameError, nil, []dns.RR{soaRR})
-	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL, blockedWireResponder(nxdomainData))
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL, wireResponder(nxdomainData))
 
-	svc := quad9.NewBlockedService(client, testutil.NopLogger())
+	svc := quad9.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "nonexistent.example")
 	require.NoError(t, err)
 
-	result, ok := raw.(*quad9.BlockedResult)
-	require.True(t, ok, "expected *quad9.BlockedResult")
+	result, ok := raw.(*quad9.Result)
+	require.True(t, ok, "expected *quad9.Result")
 	assert.False(t, result.Blocked, "NXDOMAIN with authority section should not be flagged as blocked")
 }
 
-func TestBlockedService_Run_InvalidInput(t *testing.T) {
+func TestService_Run_InvalidInput(t *testing.T) {
 	client := newTestClient(t)
-	svc := quad9.NewBlockedService(client, testutil.NopLogger())
+	svc := quad9.NewService(client, testutil.NopLogger())
 
 	for _, bad := range []string{"", "not_a_domain", "has space.com"} {
 		_, err := svc.Run(context.Background(), bad)
@@ -105,35 +128,35 @@ func TestBlockedService_Run_InvalidInput(t *testing.T) {
 	}
 }
 
-func TestBlockedService_Run_HTTPError(t *testing.T) {
+func TestService_Run_HTTPError(t *testing.T) {
 	client := newTestClient(t)
 	httpmock.RegisterResponder(http.MethodGet, `=~^`+dohURL,
 		httpmock.NewStringResponder(http.StatusInternalServerError, ""))
 
-	svc := quad9.NewBlockedService(client, testutil.NopLogger())
+	svc := quad9.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, services.ErrRequestFailed)
 	assert.Nil(t, raw)
 }
 
-func TestBlockedService_AggregateResults(t *testing.T) {
+func TestService_AggregateResults(t *testing.T) {
 	client := req.NewClient()
-	svc := quad9.NewBlockedService(client, testutil.NopLogger())
+	svc := quad9.NewService(client, testutil.NopLogger())
 
-	r1 := &quad9.BlockedResult{Input: "a.com", Blocked: true}
-	r2 := &quad9.BlockedResult{Input: "b.com", Blocked: false}
+	r1 := &quad9.Result{Input: "a.com", Blocked: true}
+	r2 := &quad9.Result{Input: "b.com", Blocked: false}
 
 	agg := svc.AggregateResults([]services.Result{r1, r2})
-	mr, ok := agg.(*quad9.BlockedMultiResult)
-	require.True(t, ok, "expected *quad9.BlockedMultiResult")
+	mr, ok := agg.(*quad9.MultiResult)
+	require.True(t, ok, "expected *quad9.MultiResult")
 	assert.Len(t, mr.Results, 2)
 	assert.True(t, mr.Results[0].Blocked)
 	assert.False(t, mr.Results[1].Blocked)
 }
 
-func TestBlockedService_PAP(t *testing.T) {
+func TestService_PAP(t *testing.T) {
 	client := req.NewClient()
-	svc := quad9.NewBlockedService(client, testutil.NopLogger())
+	svc := quad9.NewService(client, testutil.NopLogger())
 	assert.Equal(t, "amber", svc.PAP().String())
 }

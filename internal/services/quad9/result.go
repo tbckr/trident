@@ -7,19 +7,19 @@ import (
 	"github.com/tbckr/trident/internal/output"
 )
 
-// BlockedResult holds the Quad9 threat-intelligence verdict for a single domain.
-type BlockedResult struct {
+// Result holds the Quad9 threat-intelligence verdict for a single domain.
+type Result struct {
 	Input   string `json:"input"`
 	Blocked bool   `json:"blocked"`
 }
 
 // IsEmpty reports whether the result is unpopulated (no input was set).
-func (r *BlockedResult) IsEmpty() bool {
+func (r *Result) IsEmpty() bool {
 	return r.Input == ""
 }
 
 // WriteText renders the verdict as a single line: "blocked" or "not blocked".
-func (r *BlockedResult) WriteText(w io.Writer) error {
+func (r *Result) WriteText(w io.Writer) error {
 	verdict := "not blocked"
 	if r.Blocked {
 		verdict = "blocked"
@@ -29,7 +29,7 @@ func (r *BlockedResult) WriteText(w io.Writer) error {
 }
 
 // WriteTable renders the result as an ASCII table with Domain and Blocked columns.
-func (r *BlockedResult) WriteTable(w io.Writer) error {
+func (r *Result) WriteTable(w io.Writer) error {
 	blocked := "false"
 	if r.Blocked {
 		blocked = "true"
