@@ -1,4 +1,4 @@
-package asn_test
+package cymru_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tbckr/trident/internal/services"
-	"github.com/tbckr/trident/internal/services/asn"
+	"github.com/tbckr/trident/internal/services/cymru"
 	"github.com/tbckr/trident/internal/testutil"
 )
 
@@ -26,11 +26,11 @@ func TestRun_IPv4(t *testing.T) {
 		},
 	}
 
-	svc := asn.NewService(resolver, testutil.NopLogger())
+	svc := cymru.NewService(resolver, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "8.8.8.8")
 	require.NoError(t, err)
 
-	result, ok := raw.(*asn.Result)
+	result, ok := raw.(*cymru.Result)
 	require.True(t, ok)
 
 	assert.Equal(t, "8.8.8.8", result.Input)
@@ -51,11 +51,11 @@ func TestRun_ASN(t *testing.T) {
 		},
 	}
 
-	svc := asn.NewService(resolver, testutil.NopLogger())
+	svc := cymru.NewService(resolver, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "AS15169")
 	require.NoError(t, err)
 
-	result, ok := raw.(*asn.Result)
+	result, ok := raw.(*cymru.Result)
 	require.True(t, ok)
 
 	assert.Equal(t, "AS15169", result.Input)
@@ -73,16 +73,16 @@ func TestRun_ASN_LowercaseInput(t *testing.T) {
 		},
 	}
 
-	svc := asn.NewService(resolver, testutil.NopLogger())
+	svc := cymru.NewService(resolver, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "as15169")
 	require.NoError(t, err)
-	result, ok := raw.(*asn.Result)
-	require.True(t, ok, "expected *asn.Result")
+	result, ok := raw.(*cymru.Result)
+	require.True(t, ok, "expected *cymru.Result")
 	assert.Equal(t, "AS15169", result.ASN)
 }
 
 func TestRun_InvalidInput(t *testing.T) {
-	svc := asn.NewService(&testutil.MockResolver{}, testutil.NopLogger())
+	svc := cymru.NewService(&testutil.MockResolver{}, testutil.NopLogger())
 	for _, bad := range []string{"", "notanip", "AS", "AS_BAD", "example.com"} {
 		_, err := svc.Run(context.Background(), bad)
 		require.Error(t, err, "input %q should be invalid", bad)
@@ -97,11 +97,11 @@ func TestRun_LookupFailure(t *testing.T) {
 		},
 	}
 
-	svc := asn.NewService(resolver, testutil.NopLogger())
+	svc := cymru.NewService(resolver, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "8.8.8.8")
 	require.NoError(t, err)
-	result, ok := raw.(*asn.Result)
-	require.True(t, ok, "expected *asn.Result")
+	result, ok := raw.(*cymru.Result)
+	require.True(t, ok, "expected *cymru.Result")
 	assert.Equal(t, "8.8.8.8", result.Input)
 	assert.Empty(t, result.ASN)
 	assert.True(t, result.IsEmpty())
@@ -117,11 +117,11 @@ func TestRun_ANSISanitization(t *testing.T) {
 		},
 	}
 
-	svc := asn.NewService(resolver, testutil.NopLogger())
+	svc := cymru.NewService(resolver, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "AS15169")
 	require.NoError(t, err)
-	result, ok := raw.(*asn.Result)
-	require.True(t, ok, "expected *asn.Result")
+	result, ok := raw.(*cymru.Result)
+	require.True(t, ok, "expected *cymru.Result")
 	assert.Equal(t, "GOOGLE, US", result.Description)
 }
 
@@ -141,11 +141,11 @@ func TestRun_IPv6(t *testing.T) {
 		},
 	}
 
-	svc := asn.NewService(resolver, testutil.NopLogger())
+	svc := cymru.NewService(resolver, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "2001:4860:4860::8888")
 	require.NoError(t, err)
 
-	result, ok := raw.(*asn.Result)
+	result, ok := raw.(*cymru.Result)
 	require.True(t, ok)
 
 	assert.Equal(t, "AS15169", result.ASN)
@@ -153,6 +153,6 @@ func TestRun_IPv6(t *testing.T) {
 }
 
 func TestService_PAP(t *testing.T) {
-	svc := asn.NewService(&testutil.MockResolver{}, testutil.NopLogger())
+	svc := cymru.NewService(&testutil.MockResolver{}, testutil.NopLogger())
 	assert.Equal(t, "amber", svc.PAP().String())
 }

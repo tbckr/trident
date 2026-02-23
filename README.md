@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/tbckr/trident)](https://goreportcard.com/report/github.com/tbckr/trident)
 [![License: GPL-3.0](https://img.shields.io/github/license/tbckr/trident)](LICENSE)
 
-**Fast, keyless OSINT in a single binary.** DNS lookups, ASN info, certificate transparency, threat intelligence, and PGP key search — no API keys, no registration, no configuration required.
+**Fast, keyless OSINT in a single binary.** DNS lookups, Cymru ASN info, certificate transparency, threat intelligence, and PGP key search — no API keys, no registration, no configuration required.
 
 trident is a Go port and evolution of the Python [Harpoon](https://github.com/Te-k/harpoon) tool, built for analysts and security researchers who live in the terminal.
 
@@ -75,8 +75,8 @@ trident dns example.com
 trident dns 8.8.8.8
 
 # ASN info — IP address or ASN number (IPv4 and IPv6)
-trident asn 8.8.8.8
-trident asn AS15169
+trident cymru 8.8.8.8
+trident cymru AS15169
 
 # Subdomains from certificate transparency logs
 trident crtsh example.com
@@ -120,7 +120,7 @@ trident identify --cname abc.cloudfront.net --mx aspmx.l.google.com
 | Command | Description | PAP | Data Source |
 |---------|-------------|-----|-------------|
 | `dns` | A, AAAA, MX, NS, TXT records; reverse PTR | GREEN | Direct DNS resolver |
-| `asn` | ASN info for IPs and ASN numbers (IPv4 + IPv6) | AMBER | Team Cymru DNS |
+| `cymru` | ASN info for IPs and ASN numbers (IPv4 + IPv6) | AMBER | Team Cymru DNS |
 | `crtsh` | Subdomain enumeration via certificate transparency | AMBER | [crt.sh](https://crt.sh) |
 | `threatminer` | Threat intel for domains, IPs, and file hashes | AMBER | [ThreatMiner](https://www.threatminer.org) |
 | `pgp` | PGP key search by email, name, or fingerprint | AMBER | [keys.openpgp.org](https://keys.openpgp.org) |
@@ -136,7 +136,7 @@ trident identify --cname abc.cloudfront.net --mx aspmx.l.google.com
 
 ```bash
 trident dns example.com
-trident asn AS15169 -o table
+trident cymru AS15169 -o table
 ```
 
 **JSON** — structured output for scripting and integration:
@@ -167,10 +167,10 @@ trident dns example.com google.com cloudflare.com
 cat targets.txt | trident crtsh
 
 # Combine with other tools
-cat /etc/hosts | awk '{print $1}' | trident asn
+cat /etc/hosts | awk '{print $1}' | trident cymru
 
 # Control concurrency for large lists
-cat ips.txt | trident asn --concurrency=20
+cat ips.txt | trident cymru --concurrency=20
 ```
 
 ---
@@ -183,7 +183,7 @@ to prevent accidental active interaction with targets:
 | Level | Meaning | Permitted Services |
 |-------|---------|-------------------|
 | `red` | Offline/local only — non-detectable | none |
-| `amber` | Limited 3rd-party APIs — no direct target contact | ASN, crt.sh, ThreatMiner, PGP |
+| `amber` | Limited 3rd-party APIs — no direct target contact | Cymru, crt.sh, ThreatMiner, PGP |
 | `green` | Direct target interaction permitted | DNS + all AMBER |
 | `white` | Unrestricted **(default)** | all |
 
@@ -194,7 +194,7 @@ Set `--pap-limit` to block services above that level:
 trident --pap-limit=amber crtsh example.com
 
 # This will error — AMBER exceeds RED limit
-trident --pap-limit=red asn 8.8.8.8
+trident --pap-limit=red cymru 8.8.8.8
 ```
 
 At AMBER and below, URLs and IPs in output are automatically defanged (e.g. `hxxp://`) unless
@@ -222,7 +222,7 @@ concurrency: 20
 proxy: socks5://127.0.0.1:9050
 alias:
   ct: crtsh
-  myasn: "asn --pap-limit=amber"
+  myasn: "cymru --pap-limit=amber"
 ```
 
 > **Note:** The `alias` block is config-file only — it has no corresponding flag or environment
@@ -276,15 +276,15 @@ trident dns 8.8.8.8
 trident dns 2001:4860:4860::8888
 ```
 
-### `asn` — ASN Lookup
+### `cymru` — ASN Lookup
 
 Looks up ASN information for an IP address or ASN number via the Team Cymru DNS service. Supports
 both IPv4 and IPv6 (PAP: AMBER).
 
 ```bash
-trident asn 8.8.8.8
-trident asn AS15169
-trident asn 2001:4860:4860::8888
+trident cymru 8.8.8.8
+trident cymru AS15169
+trident cymru 2001:4860:4860::8888
 ```
 
 ### `crtsh` — Certificate Transparency
@@ -429,7 +429,7 @@ trident alias delete ct
 - No shell features — environment variable substitution, pipes, globs, and quoting within
   the expansion string are not interpreted.
 - Aliases do not expand recursively; an alias expansion cannot reference another alias.
-- Alias names cannot shadow built-in commands (`dns`, `asn`, `crtsh`, `threatminer`, `pgp`).
+- Alias names cannot shadow built-in commands (`dns`, `cymru`, `crtsh`, `threatminer`, `pgp`).
 - Alias names must not start with `-` or contain whitespace.
 - Changes take effect on the next invocation.
 
@@ -475,7 +475,7 @@ internal/
   worker/           # Bounded goroutine pool for bulk input
   services/         # One package per OSINT service
     dns/            # DNS record lookups (net package, PAP: GREEN)
-    asn/            # ASN lookups via Team Cymru DNS (PAP: AMBER)
+    cymru/          # ASN lookups via Team Cymru DNS (PAP: AMBER)
     crtsh/          # Certificate transparency via crt.sh (PAP: AMBER)
     threatminer/    # Threat intel via ThreatMiner API (PAP: AMBER)
     pgp/            # PGP key search via keys.openpgp.org (PAP: AMBER)

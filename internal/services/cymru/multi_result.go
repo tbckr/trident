@@ -1,4 +1,4 @@
-package asn
+package cymru
 
 import (
 	"io"

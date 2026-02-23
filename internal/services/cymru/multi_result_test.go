@@ -1,4 +1,4 @@
-package asn_test
+package cymru_test
 
 import (
 	"bytes"
@@ -9,18 +9,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tbckr/trident/internal/services/asn"
+	"github.com/tbckr/trident/internal/services/cymru"
 )
 
 func TestMultiResult_IsEmpty(t *testing.T) {
 	t.Run("empty when no results", func(t *testing.T) {
-		m := &asn.MultiResult{}
+		m := &cymru.MultiResult{}
 		assert.True(t, m.IsEmpty())
 	})
 
 	t.Run("empty when all results empty", func(t *testing.T) {
-		m := &asn.MultiResult{}
-		m.Results = []*asn.Result{
+		m := &cymru.MultiResult{}
+		m.Results = []*cymru.Result{
 			{Input: "8.8.8.8"},
 			{Input: "1.1.1.1"},
 		}
@@ -28,8 +28,8 @@ func TestMultiResult_IsEmpty(t *testing.T) {
 	})
 
 	t.Run("not empty when one result has data", func(t *testing.T) {
-		m := &asn.MultiResult{}
-		m.Results = []*asn.Result{
+		m := &cymru.MultiResult{}
+		m.Results = []*cymru.Result{
 			{Input: "8.8.8.8"},
 			{Input: "1.1.1.1", ASN: "AS15169", Description: "GOOGLE, US"},
 		}
@@ -38,8 +38,8 @@ func TestMultiResult_IsEmpty(t *testing.T) {
 }
 
 func TestMultiResult_WriteTable(t *testing.T) {
-	m := &asn.MultiResult{}
-	m.Results = []*asn.Result{
+	m := &cymru.MultiResult{}
+	m.Results = []*cymru.Result{
 		{
 			Input:       "8.8.8.8",
 			ASN:         "AS15169",
@@ -80,8 +80,8 @@ func TestMultiResult_WriteTable(t *testing.T) {
 }
 
 func TestMultiResult_WriteText(t *testing.T) {
-	m := &asn.MultiResult{}
-	m.Results = []*asn.Result{
+	m := &cymru.MultiResult{}
+	m.Results = []*cymru.Result{
 		{
 			Input:       "8.8.8.8",
 			ASN:         "AS15169",
@@ -112,8 +112,8 @@ func TestMultiResult_WriteText(t *testing.T) {
 }
 
 func TestMultiResult_MarshalJSON(t *testing.T) {
-	m := &asn.MultiResult{}
-	m.Results = []*asn.Result{
+	m := &cymru.MultiResult{}
+	m.Results = []*cymru.Result{
 		{Input: "8.8.8.8", ASN: "AS15169"},
 		{Input: "1.1.1.1", ASN: "AS13335"},
 	}

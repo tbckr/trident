@@ -10,8 +10,8 @@ import (
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
 	apexsvc "github.com/tbckr/trident/internal/services/apex"
-	asnsvc "github.com/tbckr/trident/internal/services/asn"
 	crtshsvc "github.com/tbckr/trident/internal/services/crtsh"
+	cymrusvc "github.com/tbckr/trident/internal/services/cymru"
 	detectsvc "github.com/tbckr/trident/internal/services/detect"
 	dnssvc "github.com/tbckr/trident/internal/services/dns"
 	identifysvc "github.com/tbckr/trident/internal/services/identify"
@@ -45,7 +45,7 @@ func allServices() []serviceEntry {
 	}
 	items := []item{
 		// services group — alphabetical
-		{asnsvc.NewService(nil, nil), "services"},
+		{cymrusvc.NewService(nil, nil), "services"},
 		{crtshsvc.NewService(nil, nil), "services"},
 		{detectsvc.NewService(nil, nil), "services"},
 		{dnssvc.NewService(nil, nil), "services"},

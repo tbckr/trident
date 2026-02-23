@@ -1,4 +1,4 @@
-package asn
+package cymru
 
 import (
 	"context"
@@ -28,18 +28,18 @@ type Service struct {
 	logger   *slog.Logger
 }
 
-// NewService creates a new ASN service.
+// NewService creates a new Cymru service.
 func NewService(resolver services.DNSResolverInterface, logger *slog.Logger) *Service {
 	return &Service{resolver: resolver, logger: logger}
 }
 
 // Name returns the service identifier.
-func (s *Service) Name() string { return "asn" }
+func (s *Service) Name() string { return "cymru" }
 
-// PAP returns the PAP activity level for the ASN service (semi-active DNS query to external).
+// PAP returns the PAP activity level for the Cymru service (semi-active DNS query to external).
 func (s *Service) PAP() pap.Level { return pap.AMBER }
 
-// AggregateResults combines multiple ASN results into a MultiResult.
+// AggregateResults combines multiple Cymru results into a MultiResult.
 func (s *Service) AggregateResults(results []services.Result) services.Result {
 	mr := &MultiResult{}
 	for _, r := range results {

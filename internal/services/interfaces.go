@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-// DNSResolverInterface abstracts net.Resolver for DNS and ASN lookups.
+// DNSResolverInterface abstracts net.Resolver for DNS and Cymru ASN lookups.
 // *net.Resolver satisfies this interface directly.
 // NOTE: No HTTP interface — *req.Client is a hard dependency for crt.sh, not abstracted.
 type DNSResolverInterface interface {

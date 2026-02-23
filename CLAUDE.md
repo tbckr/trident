@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Seven services are implemented: DNS, ASN, crt.sh, ThreatMiner, PGP, Quad9, and detect.
+**trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Seven services are implemented: DNS, Cymru, crt.sh, ThreatMiner, PGP, Quad9, and detect.
 
 **Naming:** The project name is always lowercase `trident` — never `Trident`. This applies in docs, comments, CLI help text, and release metadata.
 
@@ -38,7 +38,7 @@ go mod tidy
 
 # Run the CLI
 go run ./cmd/trident/main.go dns example.com
-go run ./cmd/trident/main.go asn AS15169
+go run ./cmd/trident/main.go cymru AS15169
 go run ./cmd/trident/main.go crtsh example.com
 ```
 
@@ -57,7 +57,7 @@ internal/
   doh/              # Shared DNS-over-HTTPS client (RFC 8484, Quad9 endpoint); exports MakeDoHRequest, DefaultRPS, DefaultBurst, Response, Answer
   resolver/         # *net.Resolver factory with SOCKS5 DNS-leak prevention
   worker/           # Bounded goroutine pool (pool.go only)
-  services/         # One package per service (dns/, asn/, crtsh/, threatminer/, pgp/, detect/, identify/); IsDomain() lives here
+  services/         # One package per service (dns/, cymru/, crtsh/, threatminer/, pgp/, detect/, identify/); IsDomain() lives here
   detect/           # Provider detection from DNS data: CDN (CNAME), EmailProvider (MX), DNSHost (NS); pure-function, no I/O
   output/           # Text (tablewriter), JSON, text formatters + defang helpers
 ```
@@ -124,7 +124,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **gosec G115 (`uintptr→int`)** — any `int(f.Fd())` call (e.g. `term.GetSize`, `term.IsTerminal`) always triggers G115. Suppress with `//nolint:gosec // uintptr→int is safe for file descriptors; they fit in int on all supported platforms`.
 
-**`internal/testutil`** — `MockResolver` (implements `DNSResolverInterface` with optional `*Fn` fields) + `NopLogger()`. Import in `_test` files for DNS/ASN service tests.
+**`internal/testutil`** — `MockResolver` (implements `DNSResolverInterface` with optional `*Fn` fields) + `NopLogger()`. Import in `_test` files for DNS/Cymru service tests.
 
 **crtsh URL:** Use `"%%.%s"` (double `%%`) in the constant so `fmt.Sprintf` emits a literal `%.` before the domain. `"%.%s"` silently causes an arg-count mismatch.
 
@@ -132,7 +132,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **crtsh test fixture:** `testdata/crtsh_response.json` contains `example.com` (root domain) as a deliberate filtered-case entry — assert `NotContains(t, result.Subdomains, "example.com")`, never `Contains`.
 
-**`DNSResolverInterface`** — DNS, ASN, and detect services use this interface (for `*net.Resolver` mocking). Defined in `internal/services/interfaces.go`.
+**`DNSResolverInterface`** — DNS, Cymru, and detect services use this interface (for `*net.Resolver` mocking). Defined in `internal/services/interfaces.go`.
 
 **`run` function pattern:** `main()` delegates to `run(ctx context.Context)` which accepts all dependencies and returns an error — enables testability.
 
@@ -228,7 +228,7 @@ type Service interface {
 | Command | Implementation | PAP |
 |---------|---------------|-----|
 | `dns` | Go `net` package — A, AAAA, MX, NS, TXT records; canonical `WriteTable` order: NS → A → AAAA → MX → TXT → PTR | GREEN (direct target interaction) |
-| `asn` | Team Cymru DNS: IPv4 → `<reversed>.origin.asn.cymru.com`; IPv6 → 32-nibble reversal + `.origin6.asn.cymru.com`; ASN → `AS<n>.asn.cymru.com` | AMBER (3rd-party API) |
+| `cymru` | Team Cymru DNS: IPv4 → `<reversed>.origin.asn.cymru.com`; IPv6 → 32-nibble reversal + `.origin6.asn.cymru.com`; ASN → `AS<n>.asn.cymru.com` | AMBER (3rd-party API) |
 | `crtsh` | HTTP GET `https://crt.sh/?q=%.<domain>&output=json` via `imroc/req` | AMBER (3rd-party API) |
 | `threatminer` | `https://api.threatminer.org/v2/{domain,host,sample}.php` — auto-detects domain/IP/hash input; status_code "404" → empty result (not error) | AMBER (3rd-party API) |
 | `pgp` | `https://keys.openpgp.org/pks/lookup?op=index&options=mr` — HKP MRINDEX format; HTTP 404 → empty result (not error); accepts any HKP query: email, name, or `0x`-prefixed key fingerprint/ID — no format validation beyond non-empty | AMBER (3rd-party API) |

@@ -6,12 +6,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tbckr/trident/internal/resolver"
-	asnsvc "github.com/tbckr/trident/internal/services/asn"
+	cymrusvc "github.com/tbckr/trident/internal/services/cymru"
 )
 
-func newASNCmd(d *deps) *cobra.Command {
+func newCymruCmd(d *deps) *cobra.Command {
 	return &cobra.Command{
-		Use:     "asn [ip|ASN...]",
+		Use:     "cymru [ip|ASN...]",
 		Short:   "Look up ASN information for an IP address or ASN (e.g. AS15169)",
 		GroupID: "services",
 		Long: `Look up ASN (Autonomous System Number) information for an IP address or ASN.
@@ -25,19 +25,19 @@ PAP level: AMBER (queries Team Cymru's third-party DNS service).
 Multiple inputs can be supplied as arguments or piped via stdin (one per line).
 Bulk stdin input is processed concurrently (see --concurrency).`,
 		Example: `  # IP address to ASN
-  trident asn 8.8.8.8
+  trident cymru 8.8.8.8
 
   # IPv6 address
-  trident asn 2001:4860:4860::8888
+  trident cymru 2001:4860:4860::8888
 
   # ASN details by number
-  trident asn AS15169
+  trident cymru AS15169
 
   # Bulk input from stdin
-  echo -e "8.8.8.8\n1.1.1.1" | trident asn
+  echo -e "8.8.8.8\n1.1.1.1" | trident cymru
 
   # JSON output
-  trident asn --output json 8.8.8.8`,
+  trident cymru --output json 8.8.8.8`,
 		Args: cobra.ArbitraryArgs,
 		ValidArgsFunction: func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -47,7 +47,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			if err != nil {
 				return fmt.Errorf("creating DNS resolver: %w", err)
 			}
-			svc := asnsvc.NewService(r, d.logger)
+			svc := cymrusvc.NewService(r, d.logger)
 			return runServiceCmd(cmd, d, svc, args)
 		},
 	}

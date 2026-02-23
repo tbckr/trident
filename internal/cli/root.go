@@ -34,9 +34,9 @@ func newRootCmd(aliases map[string]string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "trident",
 		Short: "trident — keyless OSINT reconnaissance tool",
-		Long: `trident is a fast OSINT CLI for DNS, ASN, certificate transparency, ThreatMiner, and PGP lookups.
+		Long: `trident is a fast OSINT CLI for DNS, Cymru ASN, certificate transparency, ThreatMiner, and PGP lookups.
 
-No API keys required for any service (dns, asn, crtsh, threatminer, pgp).
+No API keys required for any service (dns, cymru, crtsh, threatminer, pgp).
 PAP levels (least to most active intrusion): white < green < amber < red.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -85,7 +85,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 
 	cmd.AddCommand(
 		newDNSCmd(&d),
-		newASNCmd(&d),
+		newCymruCmd(&d),
 		newCrtshCmd(&d),
 		newThreatMinerCmd(&d),
 		newPGPCmd(&d),

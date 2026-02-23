@@ -1,4 +1,4 @@
-package asn_test
+package cymru_test
 
 import (
 	"bytes"
@@ -7,16 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tbckr/trident/internal/services/asn"
+	"github.com/tbckr/trident/internal/services/cymru"
 )
 
 func TestResult_IsEmpty(t *testing.T) {
-	assert.True(t, (&asn.Result{}).IsEmpty())
-	assert.False(t, (&asn.Result{ASN: "AS15169"}).IsEmpty())
+	assert.True(t, (&cymru.Result{}).IsEmpty())
+	assert.False(t, (&cymru.Result{ASN: "AS15169"}).IsEmpty())
 }
 
 func TestResult_WriteTable(t *testing.T) {
-	result := &asn.Result{
+	result := &cymru.Result{
 		Input:       "8.8.8.8",
 		ASN:         "AS15169",
 		Prefix:      "8.8.8.0/24",
@@ -33,7 +33,7 @@ func TestResult_WriteTable(t *testing.T) {
 }
 
 func TestResult_WriteText(t *testing.T) {
-	result := &asn.Result{
+	result := &cymru.Result{
 		Input:       "8.8.8.8",
 		ASN:         "AS15169",
 		Prefix:      "8.8.8.0/24",
