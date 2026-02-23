@@ -54,7 +54,7 @@ func (s *ResolveService) resolveCNAMEChain(ctx context.Context, domain string) (
 	current := domain
 	var chain []string
 	for range maxCNAMEHops {
-		resp, err := makeDoHRequest(ctx, s.client, current, dns.TypeCNAME)
+		resp, err := MakeDoHRequest(ctx, s.client, current, dns.TypeCNAME)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return chain, nil
@@ -118,7 +118,7 @@ func (s *ResolveService) Run(ctx context.Context, domain string) (services.Resul
 	}
 
 	for _, rt := range recordTypes {
-		resp, err := makeDoHRequest(ctx, s.client, domain, rt.typeCode)
+		resp, err := MakeDoHRequest(ctx, s.client, domain, rt.typeCode)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				s.logger.Debug("quad9 resolve: context cancelled", "domain", domain, "type", rt.name)

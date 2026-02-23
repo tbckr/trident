@@ -94,6 +94,9 @@ trident quad9 resolve example.com
 
 # Check whether Quad9 has blocked a domain as malicious
 trident quad9 blocked malicious.example.com
+
+# Aggregate DNS recon for an apex domain
+trident apex example.com
 ```
 
 ---
@@ -123,6 +126,7 @@ trident quad9 blocked malicious.example.com
 | `pgp` | PGP key search by email, name, or fingerprint | AMBER | [keys.openpgp.org](https://keys.openpgp.org) |
 | `quad9 resolve` | DNS record lookups (A, AAAA, NS, MX, TXT) via Quad9 DoH | AMBER | [dns.quad9.net](https://www.quad9.net) |
 | `quad9 blocked` | Detect whether Quad9 has flagged a domain as malicious | AMBER | [dns.quad9.net](https://www.quad9.net) |
+| `apex` | Aggregate DNS recon (NS, SOA, A, AAAA, MX, TXT, CNAME, CDN) for an apex domain | AMBER | [dns.quad9.net](https://www.quad9.net) |
 
 ---
 
@@ -339,6 +343,20 @@ trident quad9 blocked example.com malicious.example.com
 cat domains.txt | trident quad9 blocked
 ```
 
+### `apex` — Aggregate DNS Recon
+
+Performs parallel DNS reconnaissance for an apex domain via the [Quad9](https://www.quad9.net)
+DNS-over-HTTPS resolver (PAP: AMBER). Fans out queries across the apex domain and well-known
+derived hostnames (`www`, `mail`, `autodiscover`, `_dmarc`, `_mta-sts`, DKIM selectors, BIMI),
+follows CNAME chains, and detects CDN providers from CNAME targets.
+
+```bash
+trident apex example.com
+trident apex example.com example.org
+cat domains.txt | trident apex
+trident apex --output json example.com
+```
+
 ### `config` — Configuration Management
 
 Read and write config file values without opening the file by hand.
@@ -459,6 +477,7 @@ internal/
     threatminer/    # Threat intel via ThreatMiner API (PAP: AMBER)
     pgp/            # PGP key search via keys.openpgp.org (PAP: AMBER)
     quad9/          # DNS-over-HTTPS resolve + blocked check via Quad9 (PAP: AMBER)
+    apex/           # Aggregate DNS recon via Quad9 DoH (PAP: AMBER)
   output/           # Text (tablewriter), JSON, text formatters + defang
   testutil/         # Shared test helpers (mock resolver, nop logger)
 ```

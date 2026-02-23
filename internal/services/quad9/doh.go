@@ -23,15 +23,15 @@ const (
 	DefaultBurst = 10
 )
 
-// dohResponse holds the parsed DNS wire-format response.
-type dohResponse struct {
+// DoHResponse holds the parsed DNS wire-format response.
+type DoHResponse struct {
 	Status       uint16
 	HasAuthority bool
-	Answer       []dohAnswer
+	Answer       []DoHAnswer
 }
 
-// dohAnswer holds a single DNS resource record from a DoH response.
-type dohAnswer struct {
+// DoHAnswer holds a single DNS resource record from a DoH response.
+type DoHAnswer struct {
 	Name string
 	Type uint16
 	TTL  int
@@ -50,19 +50,19 @@ func buildDNSQuery(domain string, recordType uint16) ([]byte, error) {
 	return m.Data, nil
 }
 
-// parseDNSResponse decodes a DNS wire-format response into a dohResponse.
-func parseDNSResponse(data []byte) (*dohResponse, error) {
+// parseDNSResponse decodes a DNS wire-format response into a DoHResponse.
+func parseDNSResponse(data []byte) (*DoHResponse, error) {
 	m := new(dns.Msg)
 	m.Data = data
 	if err := m.Unpack(); err != nil {
 		return nil, fmt.Errorf("failed to parse DNS response: %w", err)
 	}
-	resp := &dohResponse{
+	resp := &DoHResponse{
 		Status:       m.Rcode,
 		HasAuthority: len(m.Ns) > 0,
 	}
 	for _, rr := range m.Answer {
-		ans := dohAnswer{
+		ans := DoHAnswer{
 			Name: rr.Header().Name,
 			TTL:  int(rr.Header().TTL),
 		}
@@ -111,9 +111,9 @@ func parseDNSResponse(data []byte) (*dohResponse, error) {
 	return resp, nil
 }
 
-// makeDoHRequest performs a DNS-over-HTTPS query using RFC 8484 wire format.
+// MakeDoHRequest performs a DNS-over-HTTPS query using RFC 8484 wire format.
 // It encodes the DNS query as base64url and sends it as the "dns" query parameter.
-func makeDoHRequest(ctx context.Context, client *req.Client, domain string, recordType uint16) (*dohResponse, error) {
+func MakeDoHRequest(ctx context.Context, client *req.Client, domain string, recordType uint16) (*DoHResponse, error) {
 	query, err := buildDNSQuery(domain, recordType)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to build DNS query for %q type %d: %w", services.ErrRequestFailed, domain, recordType, err)

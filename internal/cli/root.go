@@ -62,6 +62,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 	cmd.SetVersionTemplate("trident {{.Version}}\n")
 
 	cmd.AddGroup(&cobra.Group{ID: "osint", Title: "OSINT Services:"})
+	cmd.AddGroup(&cobra.Group{ID: "aggregate", Title: "Aggregate Commands:"})
 
 	if len(aliases) > 0 {
 		cmd.AddGroup(&cobra.Group{ID: "aliases", Title: "Aliases:"})
@@ -89,6 +90,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 		newThreatMinerCmd(&d),
 		newPGPCmd(&d),
 		newQuad9Cmd(&d),
+		newApexCmd(&d),
 		newCompletionCmd(),
 		newVersionCmd(&d),
 		newConfigCmd(&d),

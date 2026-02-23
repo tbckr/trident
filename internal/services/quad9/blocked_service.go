@@ -53,7 +53,7 @@ func (s *BlockedService) Run(ctx context.Context, domain string) (services.Resul
 
 	result := &BlockedResult{Input: domain}
 
-	resp, err := makeDoHRequest(ctx, s.client, domain, dns.TypeA)
+	resp, err := MakeDoHRequest(ctx, s.client, domain, dns.TypeA)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			s.logger.Debug("quad9 blocked: context cancelled", "domain", domain)
