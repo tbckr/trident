@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Six keyless OSINT services are implemented: DNS, ASN, crt.sh, ThreatMiner, PGP, and Quad9.
+**trident** is a Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Seven services are implemented: DNS, ASN, crt.sh, ThreatMiner, PGP, Quad9, and detect.
 
 **Naming:** The project name is always lowercase `trident` — never `Trident`. This applies in docs, comments, CLI help text, and release metadata.
 
@@ -57,7 +57,7 @@ internal/
   doh/              # Shared DNS-over-HTTPS client (RFC 8484, Quad9 endpoint); exports MakeDoHRequest, DefaultRPS, DefaultBurst, Response, Answer
   resolver/         # *net.Resolver factory with SOCKS5 DNS-leak prevention
   worker/           # Bounded goroutine pool (pool.go only)
-  services/         # One package per service (dns/, asn/, crtsh/, threatminer/, pgp/); IsDomain() lives here
+  services/         # One package per service (dns/, asn/, crtsh/, threatminer/, pgp/, detect/); IsDomain() lives here
   detect/           # Provider detection from DNS data: CDN (CNAME), EmailProvider (MX), DNSHost (NS); pure-function, no I/O
   output/           # Text (tablewriter), JSON, text formatters + defang helpers
 ```
@@ -67,7 +67,7 @@ internal/
 internal/services/<name>/
 ├── doc.go           # // Package <name> ... comment only
 ├── service.go       # Service struct, constructor, Name, PAP, Run, helpers
-├── result.go        # Result struct + IsEmpty, WritePlain, WriteTable methods
+├── result.go        # Result struct + IsEmpty, WriteText, WriteTable methods
 └── multi_result.go  # MultiResult struct + WriteTable (embeds MultiResultBase)
 ```
 
@@ -128,7 +128,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **crtsh test fixture:** `testdata/crtsh_response.json` contains `example.com` (root domain) as a deliberate filtered-case entry — assert `NotContains(t, result.Subdomains, "example.com")`, never `Contains`.
 
-**`DNSResolverInterface`** — only DNS/ASN use an interface (for `*net.Resolver` mocking). Defined in `internal/services/interfaces.go`.
+**`DNSResolverInterface`** — DNS, ASN, and detect services use this interface (for `*net.Resolver` mocking). Defined in `internal/services/interfaces.go`.
 
 **`run` function pattern:** `main()` delegates to `run(ctx context.Context)` which accepts all dependencies and returns an error — enables testability.
 
@@ -168,9 +168,9 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`services.Result` interface** — defined in `internal/services/service.go`; requires `IsEmpty() bool`. Every service's `*Result` and `*MultiResult` satisfy it. Used by `runServiceCmd` to skip table rendering and log at INFO level.
 
-**`MultiResult` pattern** — each service's `multi_result.go` embeds `services.MultiResultBase[Result, *Result]` (provides `IsEmpty`, `MarshalJSON`, `WritePlain`) and adds only `WriteTable`. ThreatMiner overrides `WritePlain` (prefixes each record with `r.Input`). After embedding, init via assignment: `m := &dns.MultiResult{}; m.Results = [...]` — composite literal with promoted fields is a compile error.
+**`MultiResult` pattern** — each service's `multi_result.go` embeds `services.MultiResultBase[Result, *Result]` (provides `IsEmpty`, `MarshalJSON`, `WriteText`) and adds only `WriteTable`. ThreatMiner overrides `WritePlain` (prefixes each record with `r.Input`). After embedding, init via assignment: `m := &dns.MultiResult{}; m.Results = [...]` — composite literal with promoted fields is a compile error.
 
-**`services.MultiResultBase[T, PT]`** — generic base in `internal/services/multi.go`; `PT multiItem[T]` constrains the element type (`*T` + `IsEmpty() bool` + `WritePlain(io.Writer) error`). Provides `IsEmpty`, `MarshalJSON`, `WritePlain`; embed it and add `WriteTable` to complete a service's `MultiResult`.
+**`services.MultiResultBase[T, PT]`** — generic base in `internal/services/multi.go`; `PT multiItem[T]` constrains the element type (`*T` + `IsEmpty() bool` + `WriteText(io.Writer) error`). Provides `IsEmpty`, `MarshalJSON`, `WriteText`; embed it and add `WriteTable` to complete a service's `MultiResult`.
 
 **`runServiceCmd`** — shared `RunE` body in `internal/cli/root.go`; handles PAP check, input resolution, single-result and bulk paths (calls `svc.AggregateResults(valid)` for 2+ valid results). Each subcommand's `RunE` just instantiates the service and calls `runServiceCmd(cmd, d, svc, args)`.
 
@@ -230,6 +230,7 @@ type Service interface {
 | `pgp` | `https://keys.openpgp.org/pks/lookup?op=index&options=mr` — HKP MRINDEX format; HTTP 404 → empty result (not error); accepts any HKP query: email, name, or `0x`-prefixed key fingerprint/ID — no format validation beyond non-empty | AMBER (3rd-party API) |
 | `quad9 resolve` | Quad9 DoH `https://dns.quad9.net/dns-query` — RFC 8484 wire format (GET `?dns=<base64url>` + `Accept: application/dns-message`); HTTP/2 required; A, AAAA, NS, MX, TXT; partial result returned on context cancellation | AMBER (3rd-party API) |
 | `quad9 blocked` | Same endpoint — A query only; RFC 8484 wire format + HTTP/2; blocked = `Rcode==3 (NXDOMAIN) && empty authority section (HasAuthority==false)`; genuine NXDOMAIN includes SOA in authority section; `IsEmpty()` returns false when Input is set (always renders) | AMBER (3rd-party API) |
+| `detect` | Go `net` package — CNAME (apex + www), MX, NS; matches against `internal/detect` provider patterns (CDN/email/DNS hosting); import as `providers "github.com/tbckr/trident/internal/detect"` inside the service package to avoid name collision | GREEN (direct target interaction) |
 
 ### Configuration
 
