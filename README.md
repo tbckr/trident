@@ -333,7 +333,7 @@ cat domains.txt | trident quad9
 
 Performs parallel DNS reconnaissance for an apex domain via the [Quad9](https://www.quad9.net)
 DNS-over-HTTPS resolver (PAP: AMBER). Fans out queries across the apex domain and well-known
-derived hostnames (`www`, `mail`, `autodiscover`, `_dmarc`, `_mta-sts`, DKIM selectors, BIMI),
+derived hostnames (`www`, `autodiscover`, `_dmarc`, `_mta-sts`, DKIM selectors, BIMI),
 follows CNAME chains, and detects CDN providers from CNAME targets.
 
 ```bash
