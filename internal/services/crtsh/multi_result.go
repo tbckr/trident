@@ -12,9 +12,9 @@ type MultiResult struct {
 	services.MultiResultBase[Result, *Result]
 }
 
-// WriteText renders all results in a single combined table grouped by domain.
+// WriteTable renders all results in a single combined table grouped by domain.
 // Columns: Domain / Subdomain. Domain cells are merged hierarchically.
-func (m *MultiResult) WriteText(w io.Writer) error {
+func (m *MultiResult) WriteTable(w io.Writer) error {
 	var rows [][]string
 	for _, r := range m.Results {
 		for _, sub := range r.Subdomains {

@@ -21,7 +21,7 @@ func TestResolveMultiResult_IsEmpty(t *testing.T) {
 	assert.False(t, mr.IsEmpty())
 }
 
-func TestResolveMultiResult_WriteText(t *testing.T) {
+func TestResolveMultiResult_WriteTable(t *testing.T) {
 	mr := &quad9.ResolveMultiResult{}
 	mr.Results = []*quad9.ResolveResult{
 		{Input: "a.com", NS: []string{"ns1.a.com."}, A: []string{"1.1.1.1"}},
@@ -29,7 +29,7 @@ func TestResolveMultiResult_WriteText(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := mr.WriteText(&buf)
+	err := mr.WriteTable(&buf)
 	require.NoError(t, err)
 
 	out := buf.String()

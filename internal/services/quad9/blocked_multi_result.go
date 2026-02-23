@@ -12,9 +12,9 @@ type BlockedMultiResult struct {
 	services.MultiResultBase[BlockedResult, *BlockedResult]
 }
 
-// WriteText renders all verdicts in a single combined table.
+// WriteTable renders all verdicts in a single combined table.
 // Columns: Domain / Blocked.
-func (m *BlockedMultiResult) WriteText(w io.Writer) error {
+func (m *BlockedMultiResult) WriteTable(w io.Writer) error {
 	var rows [][]string
 	for _, r := range m.Results {
 		blocked := "false"

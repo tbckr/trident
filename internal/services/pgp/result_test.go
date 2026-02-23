@@ -16,7 +16,7 @@ func TestResult_IsEmpty(t *testing.T) {
 	assert.False(t, (&pgp.Result{Keys: []pgp.Key{{KeyID: "0xABCD"}}}).IsEmpty())
 }
 
-func TestResult_WriteText(t *testing.T) {
+func TestResult_WriteTable(t *testing.T) {
 	result := &pgp.Result{
 		Input: "alice@example.com",
 		Keys: []pgp.Key{
@@ -30,7 +30,7 @@ func TestResult_WriteText(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	err := result.WriteText(&buf)
+	err := result.WriteTable(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 	assert.Contains(t, out, "0x1234")

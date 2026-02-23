@@ -13,7 +13,7 @@ type multiItem[T any] interface {
 }
 
 // MultiResultBase provides the three identical MultiResult methods shared by every
-// service. Embed it and add WriteText to complete the output interfaces.
+// service. Embed it and add WriteTable to complete the output interfaces.
 type MultiResultBase[T any, PT multiItem[T]] struct {
 	Results []PT
 }

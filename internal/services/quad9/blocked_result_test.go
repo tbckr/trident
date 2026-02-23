@@ -37,10 +37,10 @@ func TestBlockedResult_WritePlain_NotBlocked(t *testing.T) {
 	assert.Equal(t, "not blocked\n", buf.String())
 }
 
-func TestBlockedResult_WriteText(t *testing.T) {
+func TestBlockedResult_WriteTable(t *testing.T) {
 	r := &quad9.BlockedResult{Input: "example.com", Blocked: true}
 	var buf bytes.Buffer
-	err := r.WriteText(&buf)
+	err := r.WriteTable(&buf)
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -50,10 +50,10 @@ func TestBlockedResult_WriteText(t *testing.T) {
 	assert.Contains(t, out, "true")
 }
 
-func TestBlockedResult_WriteText_NotBlocked(t *testing.T) {
+func TestBlockedResult_WriteTable_NotBlocked(t *testing.T) {
 	r := &quad9.BlockedResult{Input: "example.com", Blocked: false}
 	var buf bytes.Buffer
-	err := r.WriteText(&buf)
+	err := r.WriteTable(&buf)
 	require.NoError(t, err)
 
 	out := buf.String()

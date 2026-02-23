@@ -30,7 +30,7 @@ func TestLoad_DefaultsWithTempDir(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, cfgFile, cfg.ConfigFile)
 	assert.False(t, cfg.Verbose)
-	assert.Equal(t, "text", cfg.Output)
+	assert.Equal(t, "table", cfg.Output)
 	assert.Equal(t, "white", cfg.PAPLimit)
 	assert.Equal(t, 10, cfg.Concurrency)
 	assert.False(t, cfg.Defang)
@@ -141,7 +141,7 @@ func TestParseValue(t *testing.T) {
 		{key: "concurrency", value: "abc", wantErr: true},
 		// enum string — output
 		{key: "output", value: "json", want: "json"},
-		{key: "output", value: "text", want: "text"},
+		{key: "output", value: "table", want: "table"},
 		{key: "output", value: "plain", want: "plain"},
 		{key: "output", value: "xml", wantErr: true},
 		// enum string — pap_limit (hyphenated key)

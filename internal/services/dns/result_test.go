@@ -18,7 +18,7 @@ func TestResult_IsEmpty(t *testing.T) {
 	assert.False(t, (&dns.Result{SRV: []string{"10 20 443 web.example.com."}}).IsEmpty())
 }
 
-func TestResult_WriteText(t *testing.T) {
+func TestResult_WriteTable(t *testing.T) {
 	result := &dns.Result{
 		Input: "example.com",
 		NS:    []string{"ns1.example.com."},
@@ -30,7 +30,7 @@ func TestResult_WriteText(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := result.WriteText(&buf)
+	err := result.WriteTable(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 	assert.Contains(t, out, "1.2.3.4")
@@ -50,14 +50,14 @@ func TestResult_WriteText(t *testing.T) {
 	assert.Less(t, mxIdx, srvIdx, "MX should appear before SRV")
 }
 
-func TestResult_WriteText_PTR(t *testing.T) {
+func TestResult_WriteTable_PTR(t *testing.T) {
 	result := &dns.Result{
 		Input: "8.8.8.8",
 		PTR:   []string{"dns.google."},
 	}
 
 	var buf bytes.Buffer
-	err := result.WriteText(&buf)
+	err := result.WriteTable(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 	assert.Contains(t, out, "PTR")

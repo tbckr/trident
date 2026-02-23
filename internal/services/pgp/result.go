@@ -30,9 +30,9 @@ func (r *Result) IsEmpty() bool {
 	return len(r.Keys) == 0
 }
 
-// WriteText writes a human-readable table to w.
+// WriteTable writes a human-readable table to w.
 // Each key is rendered with its UIDs on separate rows.
-func (r *Result) WriteText(w io.Writer) error {
+func (r *Result) WriteTable(w io.Writer) error {
 	tbl := output.NewWrappingTable(w, 20, 30)
 	tbl.Header([]string{"Key ID", "UID", "Algorithm", "Bits", "Created", "Expires"})
 	rows := make([][]string, 0, len(r.Keys))

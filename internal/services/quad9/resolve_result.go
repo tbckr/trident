@@ -99,9 +99,9 @@ func (r *ResolveResult) WritePlain(w io.Writer) error {
 	return nil
 }
 
-// WriteText renders the result as an ASCII table, grouped by record type.
+// WriteTable renders the result as an ASCII table, grouped by record type.
 // Canonical order: NS → SOA → CNAME → A → AAAA → MX → SRV → TXT → CAA → DNSKEY → HTTPS → SSHFP.
-func (r *ResolveResult) WriteText(w io.Writer) error {
+func (r *ResolveResult) WriteTable(w io.Writer) error {
 	var rows [][]string
 	for _, v := range r.NS {
 		rows = append(rows, []string{"NS", v})

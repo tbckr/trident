@@ -12,10 +12,10 @@ type ResolveMultiResult struct {
 	services.MultiResultBase[ResolveResult, *ResolveResult]
 }
 
-// WriteText renders all results in a single combined table grouped by domain.
+// WriteTable renders all results in a single combined table grouped by domain.
 // Columns: Domain / Type / Value. Domain and Type cells are merged hierarchically.
 // Canonical type order per domain: NS → SOA → CNAME → A → AAAA → MX → SRV → TXT → CAA → DNSKEY → HTTPS → SSHFP.
-func (m *ResolveMultiResult) WriteText(w io.Writer) error {
+func (m *ResolveMultiResult) WriteTable(w io.Writer) error {
 	var rows [][]string
 	for _, r := range m.Results {
 		for _, v := range r.NS {

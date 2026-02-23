@@ -90,7 +90,7 @@ func TestResolveResult_WritePlain(t *testing.T) {
 	assert.Equal(t, "SSHFP 4 2 abc123", lines[11])
 }
 
-func TestResolveResult_WriteText(t *testing.T) {
+func TestResolveResult_WriteTable(t *testing.T) {
 	r := &quad9.ResolveResult{
 		Input:  "example.com",
 		NS:     []string{"ns1.example.com."},
@@ -105,7 +105,7 @@ func TestResolveResult_WriteText(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := r.WriteText(&buf)
+	err := r.WriteTable(&buf)
 	require.NoError(t, err)
 
 	out := buf.String()

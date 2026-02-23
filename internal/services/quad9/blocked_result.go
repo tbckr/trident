@@ -28,8 +28,8 @@ func (r *BlockedResult) WritePlain(w io.Writer) error {
 	return err
 }
 
-// WriteText renders the result as an ASCII table with Domain and Blocked columns.
-func (r *BlockedResult) WriteText(w io.Writer) error {
+// WriteTable renders the result as an ASCII table with Domain and Blocked columns.
+func (r *BlockedResult) WriteTable(w io.Writer) error {
 	blocked := "false"
 	if r.Blocked {
 		blocked = "true"

@@ -102,7 +102,7 @@ func TestResolveDefang(t *testing.T) {
 		{
 			name:           "no-defang suppresses PAP trigger",
 			papLevel:       pap.AMBER,
-			format:         output.FormatText,
+			format:         output.FormatTable,
 			explicitDefang: false,
 			noDefang:       true,
 			want:           false,
@@ -110,7 +110,7 @@ func TestResolveDefang(t *testing.T) {
 		{
 			name:           "explicit defang, text",
 			papLevel:       pap.WHITE,
-			format:         output.FormatText,
+			format:         output.FormatTable,
 			explicitDefang: true,
 			noDefang:       false,
 			want:           true,
@@ -126,7 +126,7 @@ func TestResolveDefang(t *testing.T) {
 		{
 			name:           "PAP=amber, text, auto-trigger",
 			papLevel:       pap.AMBER,
-			format:         output.FormatText,
+			format:         output.FormatTable,
 			explicitDefang: false,
 			noDefang:       false,
 			want:           true,
@@ -150,7 +150,7 @@ func TestResolveDefang(t *testing.T) {
 		{
 			name:           "PAP=white default, text",
 			papLevel:       pap.WHITE,
-			format:         output.FormatText,
+			format:         output.FormatTable,
 			explicitDefang: false,
 			noDefang:       false,
 			want:           false,

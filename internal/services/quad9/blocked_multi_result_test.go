@@ -18,7 +18,7 @@ func TestBlockedMultiResult_IsEmpty(t *testing.T) {
 	assert.False(t, mr.IsEmpty(), "result with Input set is never empty")
 }
 
-func TestBlockedMultiResult_WriteText(t *testing.T) {
+func TestBlockedMultiResult_WriteTable(t *testing.T) {
 	mr := &quad9.BlockedMultiResult{}
 	mr.Results = []*quad9.BlockedResult{
 		{Input: "malicious.example", Blocked: true},
@@ -26,7 +26,7 @@ func TestBlockedMultiResult_WriteText(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := mr.WriteText(&buf)
+	err := mr.WriteTable(&buf)
 	require.NoError(t, err)
 
 	out := buf.String()

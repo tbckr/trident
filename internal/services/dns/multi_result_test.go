@@ -37,7 +37,7 @@ func TestMultiResult_IsEmpty(t *testing.T) {
 	})
 }
 
-func TestMultiResult_WriteText(t *testing.T) {
+func TestMultiResult_WriteTable(t *testing.T) {
 	m := &dns.MultiResult{}
 	m.Results = []*dns.Result{
 		{
@@ -55,7 +55,7 @@ func TestMultiResult_WriteText(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := m.WriteText(&buf)
+	err := m.WriteTable(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 

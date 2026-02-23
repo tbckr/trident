@@ -15,7 +15,7 @@ type fakeResult struct {
 	Name string `json:"name"`
 }
 
-func (f *fakeResult) WriteText(w io.Writer) error {
+func (f *fakeResult) WriteTable(w io.Writer) error {
 	_, err := w.Write([]byte("text:" + f.Name))
 	return err
 }
@@ -35,16 +35,16 @@ func TestWrite_JSON(t *testing.T) {
 
 func TestWrite_Text(t *testing.T) {
 	var buf bytes.Buffer
-	err := output.Write(&buf, output.FormatText, &fakeResult{Name: "hello"})
+	err := output.Write(&buf, output.FormatTable, &fakeResult{Name: "hello"})
 	require.NoError(t, err)
 	assert.Equal(t, "text:hello", buf.String())
 }
 
 func TestWrite_Text_NotFormattable(t *testing.T) {
 	var buf bytes.Buffer
-	err := output.Write(&buf, output.FormatText, struct{ X int }{X: 1})
+	err := output.Write(&buf, output.FormatTable, struct{ X int }{X: 1})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "does not support text output")
+	assert.Contains(t, err.Error(), "does not support table output")
 }
 
 func TestWrite_Plain(t *testing.T) {

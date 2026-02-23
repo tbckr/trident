@@ -40,8 +40,8 @@ func (r *Result) IsEmpty() bool {
 	return len(r.PassiveDNS) == 0 && len(r.Subdomains) == 0 && r.HashInfo == nil
 }
 
-// WriteText writes a human-readable table to w.
-func (r *Result) WriteText(w io.Writer) error {
+// WriteTable writes a human-readable table to w.
+func (r *Result) WriteTable(w io.Writer) error {
 	if r.InputType == string(inputHash) && r.HashInfo != nil {
 		h := r.HashInfo
 		tbl := output.NewWrappingTable(w, 20, 20)

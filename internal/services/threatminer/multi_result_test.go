@@ -39,7 +39,7 @@ func TestMultiResult_IsEmpty(t *testing.T) {
 	})
 }
 
-func TestMultiResult_WriteText_PassiveDNS(t *testing.T) {
+func TestMultiResult_WriteTable_PassiveDNS(t *testing.T) {
 	m := &threatminer.MultiResult{}
 	m.Results = []*threatminer.Result{
 		{
@@ -59,7 +59,7 @@ func TestMultiResult_WriteText_PassiveDNS(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := m.WriteText(&buf)
+	err := m.WriteTable(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 
@@ -79,7 +79,7 @@ func TestMultiResult_WriteText_PassiveDNS(t *testing.T) {
 	assert.Less(t, firstIdx, secondIdx)
 }
 
-func TestMultiResult_WriteText_Subdomains(t *testing.T) {
+func TestMultiResult_WriteTable_Subdomains(t *testing.T) {
 	m := &threatminer.MultiResult{}
 	m.Results = []*threatminer.Result{
 		{
@@ -95,7 +95,7 @@ func TestMultiResult_WriteText_Subdomains(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := m.WriteText(&buf)
+	err := m.WriteTable(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 
@@ -104,7 +104,7 @@ func TestMultiResult_WriteText_Subdomains(t *testing.T) {
 	assert.Contains(t, out, "api.example.org")
 }
 
-func TestMultiResult_WriteText_HashInfo(t *testing.T) {
+func TestMultiResult_WriteTable_HashInfo(t *testing.T) {
 	m := &threatminer.MultiResult{}
 	m.Results = []*threatminer.Result{
 		{
@@ -128,7 +128,7 @@ func TestMultiResult_WriteText_HashInfo(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := m.WriteText(&buf)
+	err := m.WriteTable(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 
@@ -142,7 +142,7 @@ func TestMultiResult_WriteText_HashInfo(t *testing.T) {
 	assert.Contains(t, out, "document.pdf")
 }
 
-func TestMultiResult_WriteText_SkipsEmptySubtables(t *testing.T) {
+func TestMultiResult_WriteTable_SkipsEmptySubtables(t *testing.T) {
 	// Only PassiveDNS — Subdomains and HashInfo tables should not appear
 	m := &threatminer.MultiResult{}
 	m.Results = []*threatminer.Result{
@@ -156,7 +156,7 @@ func TestMultiResult_WriteText_SkipsEmptySubtables(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := m.WriteText(&buf)
+	err := m.WriteTable(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 

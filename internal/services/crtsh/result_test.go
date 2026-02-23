@@ -16,13 +16,13 @@ func TestResult_IsEmpty(t *testing.T) {
 	assert.False(t, (&crtsh.Result{Subdomains: []string{"www.example.com"}}).IsEmpty())
 }
 
-func TestResult_WriteText(t *testing.T) {
+func TestResult_WriteTable(t *testing.T) {
 	result := &crtsh.Result{
 		Input:      "example.com",
 		Subdomains: []string{"example.com", "www.example.com"},
 	}
 	var buf bytes.Buffer
-	err := result.WriteText(&buf)
+	err := result.WriteTable(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 	assert.Contains(t, out, "example.com")

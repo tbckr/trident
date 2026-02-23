@@ -31,8 +31,8 @@ func (r *Result) WritePlain(w io.Writer) error {
 	return err
 }
 
-// WriteText renders the result as an ASCII table.
-func (r *Result) WriteText(w io.Writer) error {
+// WriteTable renders the result as an ASCII table.
+func (r *Result) WriteTable(w io.Writer) error {
 	rows := [][]string{
 		{"ASN", r.ASN},
 		{"Prefix", r.Prefix},

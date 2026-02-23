@@ -47,10 +47,10 @@ func (m *MultiResult) WritePlain(w io.Writer) error {
 	return nil
 }
 
-// WriteText renders all results in combined sub-tables grouped by input.
+// WriteTable renders all results in combined sub-tables grouped by input.
 // Each sub-table (PassiveDNS, Subdomains, HashInfo) is rendered only when
 // at least one result contains data for that sub-table.
-func (m *MultiResult) WriteText(w io.Writer) error {
+func (m *MultiResult) WriteTable(w io.Writer) error {
 	if err := m.writePassiveDNS(w); err != nil {
 		return err
 	}

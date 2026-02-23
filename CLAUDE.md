@@ -65,8 +65,8 @@ internal/
 internal/services/<name>/
 ├── doc.go           # // Package <name> ... comment only
 ├── service.go       # Service struct, constructor, Name, PAP, Run, helpers
-├── result.go        # Result struct + IsEmpty, WritePlain, WriteText methods
-└── multi_result.go  # MultiResult struct + WriteText (embeds MultiResultBase)
+├── result.go        # Result struct + IsEmpty, WritePlain, WriteTable methods
+└── multi_result.go  # MultiResult struct + WriteTable (embeds MultiResultBase)
 ```
 
 **Per-service test file layout** — 3 test files mirror the 4 source files:
@@ -158,9 +158,9 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`services.Result` interface** — defined in `internal/services/service.go`; requires `IsEmpty() bool`. Every service's `*Result` and `*MultiResult` satisfy it. Used by `runServiceCmd` to skip table rendering and log at INFO level.
 
-**`MultiResult` pattern** — each service's `multi_result.go` embeds `services.MultiResultBase[Result, *Result]` (provides `IsEmpty`, `MarshalJSON`, `WritePlain`) and adds only `WriteText`. ThreatMiner overrides `WritePlain` (prefixes each record with `r.Input`). After embedding, init via assignment: `m := &dns.MultiResult{}; m.Results = [...]` — composite literal with promoted fields is a compile error.
+**`MultiResult` pattern** — each service's `multi_result.go` embeds `services.MultiResultBase[Result, *Result]` (provides `IsEmpty`, `MarshalJSON`, `WritePlain`) and adds only `WriteTable`. ThreatMiner overrides `WritePlain` (prefixes each record with `r.Input`). After embedding, init via assignment: `m := &dns.MultiResult{}; m.Results = [...]` — composite literal with promoted fields is a compile error.
 
-**`services.MultiResultBase[T, PT]`** — generic base in `internal/services/multi.go`; `PT multiItem[T]` constrains the element type (`*T` + `IsEmpty() bool` + `WritePlain(io.Writer) error`). Provides `IsEmpty`, `MarshalJSON`, `WritePlain`; embed it and add `WriteText` to complete a service's `MultiResult`.
+**`services.MultiResultBase[T, PT]`** — generic base in `internal/services/multi.go`; `PT multiItem[T]` constrains the element type (`*T` + `IsEmpty() bool` + `WritePlain(io.Writer) error`). Provides `IsEmpty`, `MarshalJSON`, `WritePlain`; embed it and add `WriteTable` to complete a service's `MultiResult`.
 
 **`runServiceCmd`** — shared `RunE` body in `internal/cli/root.go`; handles PAP check, input resolution, single-result and bulk paths (calls `svc.AggregateResults(valid)` for 2+ valid results). Each subcommand's `RunE` just instantiates the service and calls `runServiceCmd(cmd, d, svc, args)`.
 
@@ -211,7 +211,7 @@ type Service interface {
 
 | Command | Implementation | PAP |
 |---------|---------------|-----|
-| `dns` | Go `net` package — A, AAAA, MX, NS, TXT records; canonical `WriteText` order: NS → A → AAAA → MX → TXT → PTR | GREEN (direct target interaction) |
+| `dns` | Go `net` package — A, AAAA, MX, NS, TXT records; canonical `WriteTable` order: NS → A → AAAA → MX → TXT → PTR | GREEN (direct target interaction) |
 | `asn` | Team Cymru DNS: IPv4 → `<reversed>.origin.asn.cymru.com`; IPv6 → 32-nibble reversal + `.origin6.asn.cymru.com`; ASN → `AS<n>.asn.cymru.com` | AMBER (3rd-party API) |
 | `crtsh` | HTTP GET `https://crt.sh/?q=%.<domain>&output=json` via `imroc/req` | AMBER (3rd-party API) |
 | `threatminer` | `https://api.threatminer.org/v2/{domain,host,sample}.php` — auto-detects domain/IP/hash input; status_code "404" → empty result (not error) | AMBER (3rd-party API) |
@@ -238,7 +238,7 @@ type Service interface {
 |------|---------|
 | `--config` | `~/.config/trident/config.yaml` |
 | `--verbose` / `-v` | Info level logging |
-| `--output` / `-o` | `text` (also: `json`, `plain`) |
+| `--output` / `-o` | `table` (also: `json`, `plain`) |
 | `--concurrency` / `-c` | `10` |
 | `--proxy` | — (supports `http://`, `https://`, `socks5://`) |
 | `--user-agent` | rotating browser UAs |

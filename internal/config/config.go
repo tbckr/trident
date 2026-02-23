@@ -34,7 +34,7 @@ type configKeyMeta struct {
 // Keys use the viper/mapstructure naming convention (underscores, not hyphens).
 var configKeys = map[string]configKeyMeta{
 	"verbose":     {typ: keyTypeBool},
-	"output":      {typ: keyTypeString, allowed: []string{"text", "json", "plain"}},
+	"output":      {typ: keyTypeString, allowed: []string{"table", "json", "plain"}},
 	"proxy":       {typ: keyTypeString},
 	"user_agent":  {typ: keyTypeString},
 	"pap_limit":   {typ: keyTypeString, allowed: []string{"red", "amber", "green", "white"}},
@@ -122,7 +122,7 @@ func normalizeKey(key string) string {
 type Config struct {
 	ConfigFile  string            // set after Unmarshal — no mapstructure tag
 	Verbose     bool              `mapstructure:"verbose"`
-	Output      string            `mapstructure:"output"`      // text | json | plain
+	Output      string            `mapstructure:"output"`      // table | json | plain
 	Proxy       string            `mapstructure:"proxy"`       // http://, https://, socks5://
 	UserAgent   string            `mapstructure:"user_agent"`  // override or empty (→ rotation)
 	PAPLimit    string            `mapstructure:"pap_limit"`   // "white" (default)
@@ -137,7 +137,7 @@ type Config struct {
 func RegisterFlags(flags *pflag.FlagSet) {
 	flags.String("config", "", "config file (default: $XDG_CONFIG_HOME/trident/config.yaml)")
 	flags.BoolP("verbose", "v", false, "enable verbose (debug) logging")
-	flags.StringP("output", "o", "text", "output format: text, json, or plain")
+	flags.StringP("output", "o", "table", "output format: table, json, or plain")
 	flags.String("proxy", "", "proxy URL (http://, https://, or socks5://)")
 	flags.String("user-agent", "", "HTTP User-Agent (empty = random rotation)")
 	flags.String("pap-limit", "white", "PAP limit: white, green, amber, or red")
@@ -156,7 +156,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	v := viper.New()
 
 	// Defaults — only used when nothing else provides the value.
-	v.SetDefault("output", "text")
+	v.SetDefault("output", "table")
 	v.SetDefault("pap_limit", "white")
 	v.SetDefault("concurrency", 10)
 

@@ -74,8 +74,8 @@ func (r *Result) WritePlain(w io.Writer) error {
 	return nil
 }
 
-// WriteText renders the result as an ASCII table, sorted and grouped by record type.
-func (r *Result) WriteText(w io.Writer) error {
+// WriteTable renders the result as an ASCII table, sorted and grouped by record type.
+func (r *Result) WriteTable(w io.Writer) error {
 	var rows [][]string
 	for _, v := range r.NS {
 		rows = append(rows, []string{"NS", v})

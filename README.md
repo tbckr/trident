@@ -102,7 +102,7 @@ trident quad9 blocked malicious.example.com
 
 - **No API keys** — all current services are keyless; install and run immediately
 - **Bulk input** — pipe a target list via stdin or pass multiple arguments
-- **Three output formats** — `text` (tables), `json`, and `plain` (one result per line for piping)
+- **Three output formats** — `table` (tables), `json`, and `plain` (one result per line for piping)
 - **PAP system** — Permissible Actions Protocol (RED/AMBER/GREEN/WHITE) prevents accidental active interaction
 - **Proxy support** — HTTP, HTTPS, and SOCKS5 proxies; honours `HTTP_PROXY`/`HTTPS_PROXY` env vars automatically
 - **Auto-defanging** — URLs and IPs are defanged at strict PAP levels
@@ -128,11 +128,11 @@ trident quad9 blocked malicious.example.com
 
 ## Output Formats
 
-**Text (default)** — formatted ASCII tables for human reading:
+**Table (default)** — formatted ASCII tables for human reading:
 
 ```bash
 trident dns example.com
-trident asn AS15169 -o text
+trident asn AS15169 -o table
 ```
 
 **JSON** — structured output for scripting and integration:
@@ -249,7 +249,7 @@ When `--proxy` / `TRIDENT_PROXY` is not set, trident honours the standard `HTTP_
 |------|---------|-------------|
 | `--config` | platform config dir | Config file path |
 | `--verbose`, `-v` | `false` | Enable debug logging |
-| `--output`, `-o` | `text` | Output format: `text`, `json`, `plain` |
+| `--output`, `-o` | `table` | Output format: `table`, `json`, `plain` |
 | `--concurrency`, `-c` | `10` | Worker pool size for bulk input |
 | `--proxy` | — | Proxy URL (`http://`, `https://`, `socks5://`) |
 | `--user-agent` | `trident/<version> (+https://github.com/tbckr/trident)` | Override HTTP User-Agent |

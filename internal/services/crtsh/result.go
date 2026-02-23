@@ -28,8 +28,8 @@ func (r *Result) WritePlain(w io.Writer) error {
 	return nil
 }
 
-// WriteText renders the result as an ASCII table.
-func (r *Result) WriteText(w io.Writer) error {
+// WriteTable renders the result as an ASCII table.
+func (r *Result) WriteTable(w io.Writer) error {
 	var rows [][]string
 	for _, sub := range r.Subdomains {
 		rows = append(rows, []string{sub})
