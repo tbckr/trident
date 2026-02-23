@@ -102,7 +102,7 @@ trident quad9 blocked malicious.example.com
 
 - **No API keys** — all current services are keyless; install and run immediately
 - **Bulk input** — pipe a target list via stdin or pass multiple arguments
-- **Three output formats** — `table` (tables), `json`, and `plain` (one result per line for piping)
+- **Three output formats** — `table` (tables), `json`, and `text` (one result per line for piping)
 - **PAP system** — Permissible Actions Protocol (RED/AMBER/GREEN/WHITE) prevents accidental active interaction
 - **Proxy support** — HTTP, HTTPS, and SOCKS5 proxies; honours `HTTP_PROXY`/`HTTPS_PROXY` env vars automatically
 - **Auto-defanging** — URLs and IPs are defanged at strict PAP levels
@@ -142,11 +142,11 @@ trident dns example.com -o json
 trident crtsh example.com -o json | jq '.subdomains | length'
 ```
 
-**Plain** — one result per line, ideal for piping:
+**Text** — one result per line, ideal for piping:
 
 ```bash
-trident crtsh example.com -o plain | sort -u > subdomains.txt
-trident dns example.com -o plain | grep "^A "
+trident crtsh example.com -o text | sort -u > subdomains.txt
+trident dns example.com -o text | grep "^A "
 ```
 
 ---
@@ -249,7 +249,7 @@ When `--proxy` / `TRIDENT_PROXY` is not set, trident honours the standard `HTTP_
 |------|---------|-------------|
 | `--config` | platform config dir | Config file path |
 | `--verbose`, `-v` | `false` | Enable debug logging |
-| `--output`, `-o` | `table` | Output format: `table`, `json`, `plain` |
+| `--output`, `-o` | `table` | Output format: `table`, `json`, `text` |
 | `--concurrency`, `-c` | `10` | Worker pool size for bulk input |
 | `--proxy` | — | Proxy URL (`http://`, `https://`, `socks5://`) |
 | `--user-agent` | `trident/<version> (+https://github.com/tbckr/trident)` | Override HTTP User-Agent |
@@ -459,7 +459,7 @@ internal/
     threatminer/    # Threat intel via ThreatMiner API (PAP: AMBER)
     pgp/            # PGP key search via keys.openpgp.org (PAP: AMBER)
     quad9/          # DNS-over-HTTPS resolve + blocked check via Quad9 (PAP: AMBER)
-  output/           # Text (tablewriter), JSON, plain formatters + defang
+  output/           # Text (tablewriter), JSON, text formatters + defang
   testutil/         # Shared test helpers (mock resolver, nop logger)
 ```
 

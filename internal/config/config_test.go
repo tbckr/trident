@@ -142,7 +142,7 @@ func TestParseValue(t *testing.T) {
 		// enum string — output
 		{key: "output", value: "json", want: "json"},
 		{key: "output", value: "table", want: "table"},
-		{key: "output", value: "plain", want: "plain"},
+		{key: "output", value: "text", want: "text"},
 		{key: "output", value: "xml", wantErr: true},
 		// enum string — pap_limit (hyphenated key)
 		{key: "pap-limit", value: "amber", want: "amber"},

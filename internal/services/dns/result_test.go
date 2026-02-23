@@ -64,7 +64,7 @@ func TestResult_WriteTable_PTR(t *testing.T) {
 	assert.Contains(t, out, "dns.google.")
 }
 
-func TestResult_WritePlain(t *testing.T) {
+func TestResult_WriteText(t *testing.T) {
 	result := &dns.Result{
 		Input: "example.com",
 		NS:    []string{"ns1.example.com."},
@@ -78,7 +78,7 @@ func TestResult_WritePlain(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := result.WritePlain(&buf)
+	err := result.WriteText(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 

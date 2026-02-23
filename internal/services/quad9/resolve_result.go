@@ -32,10 +32,10 @@ func (r *ResolveResult) IsEmpty() bool {
 		len(r.HTTPS) == 0 && len(r.SSHFP) == 0
 }
 
-// WritePlain renders the result as plain text with one record per line.
+// WriteText renders the result as plain text with one record per line.
 // Each line has the format: "TYPE value" (e.g. "NS ns1.example.com").
 // Canonical order: NS → SOA → CNAME → A → AAAA → MX → SRV → TXT → CAA → DNSKEY → HTTPS → SSHFP.
-func (r *ResolveResult) WritePlain(w io.Writer) error {
+func (r *ResolveResult) WriteText(w io.Writer) error {
 	for _, v := range r.NS {
 		if _, err := fmt.Fprintf(w, "NS %s\n", v); err != nil {
 			return err

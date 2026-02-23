@@ -13,8 +13,8 @@ type MultiResult struct {
 	services.MultiResultBase[Result, *Result]
 }
 
-// WritePlain overrides the base: prefixes each record with the originating input.
-func (m *MultiResult) WritePlain(w io.Writer) error {
+// WriteText overrides the base: prefixes each record with the originating input.
+func (m *MultiResult) WriteText(w io.Writer) error {
 	for _, r := range m.Results {
 		if r.InputType == string(inputHash) && r.HashInfo != nil {
 			h := r.HashInfo

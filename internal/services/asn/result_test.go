@@ -32,7 +32,7 @@ func TestResult_WriteTable(t *testing.T) {
 	assert.Contains(t, out, "GOOGLE, US")
 }
 
-func TestResult_WritePlain(t *testing.T) {
+func TestResult_WriteText(t *testing.T) {
 	result := &asn.Result{
 		Input:       "8.8.8.8",
 		ASN:         "AS15169",
@@ -42,7 +42,7 @@ func TestResult_WritePlain(t *testing.T) {
 		Description: "GOOGLE, US",
 	}
 	var buf bytes.Buffer
-	err := result.WritePlain(&buf)
+	err := result.WriteText(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 	assert.Contains(t, out, "AS15169")

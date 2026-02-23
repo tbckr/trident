@@ -77,7 +77,7 @@ func TestMultiResult_WriteTable(t *testing.T) {
 	assert.Less(t, comIdx, orgIdx)
 }
 
-func TestMultiResult_WritePlain(t *testing.T) {
+func TestMultiResult_WriteText(t *testing.T) {
 	m := &dns.MultiResult{}
 	m.Results = []*dns.Result{
 		{
@@ -92,7 +92,7 @@ func TestMultiResult_WritePlain(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := m.WritePlain(&buf)
+	err := m.WriteText(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 

@@ -104,7 +104,7 @@ func newConfigShowCmd(d *deps) *cobra.Command {
 				enc := json.NewEncoder(w)
 				enc.SetIndent("", "  ")
 				return enc.Encode(m)
-			case output.FormatPlain:
+			case output.FormatText:
 				for _, r := range rows {
 					if _, err := fmt.Fprintf(w, "%s=%s\n", r.key, r.value); err != nil {
 						return err

@@ -93,12 +93,12 @@ func (r *Result) WriteTable(w io.Writer) error {
 	return nil
 }
 
-// WritePlain writes one record per line to w.
+// WriteText writes one record per line to w.
 //
 // For passive DNS: "<ip> <domain>" per entry.
 // For subdomains: one subdomain per line.
 // For hashes: "<field>: <value>" per field.
-func (r *Result) WritePlain(w io.Writer) error {
+func (r *Result) WriteText(w io.Writer) error {
 	if r.InputType == string(inputHash) && r.HashInfo != nil {
 		h := r.HashInfo
 		fields := [][2]string{

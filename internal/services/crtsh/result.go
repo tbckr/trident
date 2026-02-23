@@ -18,8 +18,8 @@ func (r *Result) IsEmpty() bool {
 	return len(r.Subdomains) == 0
 }
 
-// WritePlain renders the result as plain text with one subdomain per line.
-func (r *Result) WritePlain(w io.Writer) error {
+// WriteText renders the result as plain text with one subdomain per line.
+func (r *Result) WriteText(w io.Writer) error {
 	for _, sub := range r.Subdomains {
 		if _, err := fmt.Fprintln(w, sub); err != nil {
 			return err

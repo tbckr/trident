@@ -21,18 +21,18 @@ func TestBlockedResult_IsEmpty(t *testing.T) {
 	assert.False(t, blocked.IsEmpty())
 }
 
-func TestBlockedResult_WritePlain_Blocked(t *testing.T) {
+func TestBlockedResult_WriteText_Blocked(t *testing.T) {
 	r := &quad9.BlockedResult{Input: "malicious.example", Blocked: true}
 	var buf bytes.Buffer
-	err := r.WritePlain(&buf)
+	err := r.WriteText(&buf)
 	require.NoError(t, err)
 	assert.Equal(t, "blocked\n", buf.String())
 }
 
-func TestBlockedResult_WritePlain_NotBlocked(t *testing.T) {
+func TestBlockedResult_WriteText_NotBlocked(t *testing.T) {
 	r := &quad9.BlockedResult{Input: "example.com", Blocked: false}
 	var buf bytes.Buffer
-	err := r.WritePlain(&buf)
+	err := r.WriteText(&buf)
 	require.NoError(t, err)
 	assert.Equal(t, "not blocked\n", buf.String())
 }

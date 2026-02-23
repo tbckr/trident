@@ -9,7 +9,7 @@ import (
 type multiItem[T any] interface {
 	*T
 	IsEmpty() bool
-	WritePlain(w io.Writer) error
+	WriteText(w io.Writer) error
 }
 
 // MultiResultBase provides the three identical MultiResult methods shared by every
@@ -33,10 +33,10 @@ func (m *MultiResultBase[T, PT]) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m.Results)
 }
 
-// WritePlain writes all results as plain text (one record per line).
-func (m *MultiResultBase[T, PT]) WritePlain(w io.Writer) error {
+// WriteText writes all results as plain text (one record per line).
+func (m *MultiResultBase[T, PT]) WriteText(w io.Writer) error {
 	for _, r := range m.Results {
-		if err := r.WritePlain(w); err != nil {
+		if err := r.WriteText(w); err != nil {
 			return err
 		}
 	}

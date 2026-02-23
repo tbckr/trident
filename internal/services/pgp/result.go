@@ -46,8 +46,8 @@ func (r *Result) WriteTable(w io.Writer) error {
 	return tbl.Render()
 }
 
-// WritePlain writes one line per key: "<keyid> <first_uid>" to w.
-func (r *Result) WritePlain(w io.Writer) error {
+// WriteText writes one line per key: "<keyid> <first_uid>" to w.
+func (r *Result) WriteText(w io.Writer) error {
 	for _, k := range r.Keys {
 		uid := ""
 		if len(k.UIDs) > 0 {

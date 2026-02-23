@@ -165,7 +165,7 @@ func TestMultiResult_WriteTable_SkipsEmptySubtables(t *testing.T) {
 	assert.NotContains(t, out, "SUBDOMAIN")
 }
 
-func TestMultiResult_WritePlain(t *testing.T) {
+func TestMultiResult_WriteText(t *testing.T) {
 	m := &threatminer.MultiResult{}
 	m.Results = []*threatminer.Result{
 		{
@@ -187,7 +187,7 @@ func TestMultiResult_WritePlain(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := m.WritePlain(&buf)
+	err := m.WriteText(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 

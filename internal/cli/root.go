@@ -52,7 +52,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 
 	config.RegisterFlags(cmd.PersistentFlags())
 	_ = cmd.RegisterFlagCompletionFunc("output", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-		return []string{"table", "json", "plain"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"table", "json", "text"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	_ = cmd.RegisterFlagCompletionFunc("pap-limit", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 		return []string{"red", "amber", "green", "white"}, cobra.ShellCompDirectiveNoFileComp
@@ -184,9 +184,9 @@ func buildDeps(cmd *cobra.Command, stderr io.Writer) (*deps, error) {
 
 	format := output.Format(cfg.Output)
 	switch format {
-	case output.FormatTable, output.FormatJSON, output.FormatPlain:
+	case output.FormatTable, output.FormatJSON, output.FormatText:
 	default:
-		return nil, fmt.Errorf("invalid output format %q: must be \"table\", \"json\", or \"plain\"", cfg.Output)
+		return nil, fmt.Errorf("invalid output format %q: must be \"table\", \"json\", or \"text\"", cfg.Output)
 	}
 
 	papLevel, err := pap.Parse(cfg.PAPLimit)

@@ -57,7 +57,7 @@ internal/
   resolver/         # *net.Resolver factory with SOCKS5 DNS-leak prevention
   worker/           # Bounded goroutine pool (pool.go only)
   services/         # One package per service (dns/, asn/, crtsh/, threatminer/, pgp/); IsDomain() lives here
-  output/           # Text (tablewriter), JSON, plain formatters + defang helpers
+  output/           # Text (tablewriter), JSON, text formatters + defang helpers
 ```
 
 **Per-service file layout** — every service package must follow this 4-file structure:
@@ -238,7 +238,7 @@ type Service interface {
 |------|---------|
 | `--config` | `~/.config/trident/config.yaml` |
 | `--verbose` / `-v` | Info level logging |
-| `--output` / `-o` | `table` (also: `json`, `plain`) |
+| `--output` / `-o` | `table` (also: `json`, `text`) |
 | `--concurrency` / `-c` | `10` |
 | `--proxy` | — (supports `http://`, `https://`, `socks5://`) |
 | `--user-agent` | rotating browser UAs |

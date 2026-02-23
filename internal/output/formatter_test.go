@@ -20,8 +20,8 @@ func (f *fakeResult) WriteTable(w io.Writer) error {
 	return err
 }
 
-func (f *fakeResult) WritePlain(w io.Writer) error {
-	_, err := w.Write([]byte("plain:" + f.Name))
+func (f *fakeResult) WriteText(w io.Writer) error {
+	_, err := w.Write([]byte("text:" + f.Name))
 	return err
 }
 
@@ -33,32 +33,32 @@ func TestWrite_JSON(t *testing.T) {
 	assert.Contains(t, buf.String(), `"test"`)
 }
 
-func TestWrite_Text(t *testing.T) {
+func TestWrite_Table(t *testing.T) {
 	var buf bytes.Buffer
 	err := output.Write(&buf, output.FormatTable, &fakeResult{Name: "hello"})
 	require.NoError(t, err)
 	assert.Equal(t, "text:hello", buf.String())
 }
 
-func TestWrite_Text_NotFormattable(t *testing.T) {
+func TestWrite_Table_NotFormattable(t *testing.T) {
 	var buf bytes.Buffer
 	err := output.Write(&buf, output.FormatTable, struct{ X int }{X: 1})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not support table output")
 }
 
-func TestWrite_Plain(t *testing.T) {
+func TestWrite_Text(t *testing.T) {
 	var buf bytes.Buffer
-	err := output.Write(&buf, output.FormatPlain, &fakeResult{Name: "hello"})
+	err := output.Write(&buf, output.FormatText, &fakeResult{Name: "hello"})
 	require.NoError(t, err)
-	assert.Equal(t, "plain:hello", buf.String())
+	assert.Equal(t, "text:hello", buf.String())
 }
 
-func TestWrite_Plain_NotFormattable(t *testing.T) {
+func TestWrite_Text_NotFormattable(t *testing.T) {
 	var buf bytes.Buffer
-	err := output.Write(&buf, output.FormatPlain, struct{ X int }{X: 1})
+	err := output.Write(&buf, output.FormatText, struct{ X int }{X: 1})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "does not support plain output")
+	assert.Contains(t, err.Error(), "does not support text output")
 }
 
 func TestWrite_UnknownFormat(t *testing.T) {

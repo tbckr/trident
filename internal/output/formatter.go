@@ -13,7 +13,7 @@ type Format string
 const (
 	FormatTable Format = "table"
 	FormatJSON  Format = "json"
-	FormatPlain Format = "plain"
+	FormatText  Format = "text"
 )
 
 // TableFormattable results know how to render themselves as an ASCII table.
@@ -21,15 +21,15 @@ type TableFormattable interface {
 	WriteTable(w io.Writer) error
 }
 
-// PlainFormattable results know how to render themselves as plain text (one record per line).
+// TextFormattable results know how to render themselves as plain text (one record per line).
 // Used for piping output to other tools.
-type PlainFormattable interface {
-	WritePlain(w io.Writer) error
+type TextFormattable interface {
+	WriteText(w io.Writer) error
 }
 
 // Write dispatches a service result to the appropriate formatter.
 // JSON uses json.Encoder with indentation. Table requires the result to implement TableFormattable.
-// Plain requires the result to implement PlainFormattable.
+// Text requires the result to implement TextFormattable.
 func Write(w io.Writer, format Format, result any) error {
 	switch format {
 	case FormatJSON:
@@ -42,12 +42,12 @@ func Write(w io.Writer, format Format, result any) error {
 			return fmt.Errorf("result type %T does not support table output", result)
 		}
 		return tf.WriteTable(w)
-	case FormatPlain:
-		pf, ok := result.(PlainFormattable)
+	case FormatText:
+		pf, ok := result.(TextFormattable)
 		if !ok {
-			return fmt.Errorf("result type %T does not support plain output", result)
+			return fmt.Errorf("result type %T does not support text output", result)
 		}
-		return pf.WritePlain(w)
+		return pf.WriteText(w)
 	default:
 		return fmt.Errorf("unsupported output format: %q", format)
 	}

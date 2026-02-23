@@ -23,9 +23,9 @@ func (r *Result) IsEmpty() bool {
 		r.Registry == "" && r.Description == ""
 }
 
-// WritePlain renders the result as a single pipe-delimited line.
+// WriteText renders the result as a single pipe-delimited line.
 // Format: "ASN / Prefix / Country / Registry / Description"
-func (r *Result) WritePlain(w io.Writer) error {
+func (r *Result) WriteText(w io.Writer) error {
 	_, err := fmt.Fprintf(w, "%s / %s / %s / %s / %s\n",
 		r.ASN, r.Prefix, r.Country, r.Registry, r.Description)
 	return err

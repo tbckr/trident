@@ -18,8 +18,8 @@ func (r *BlockedResult) IsEmpty() bool {
 	return r.Input == ""
 }
 
-// WritePlain renders the verdict as a single line: "blocked" or "not blocked".
-func (r *BlockedResult) WritePlain(w io.Writer) error {
+// WriteText renders the verdict as a single line: "blocked" or "not blocked".
+func (r *BlockedResult) WriteText(w io.Writer) error {
 	verdict := "not blocked"
 	if r.Blocked {
 		verdict = "blocked"

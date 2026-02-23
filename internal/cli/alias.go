@@ -101,7 +101,7 @@ func newAliasListCmd(d *deps) *cobra.Command {
 				enc := json.NewEncoder(w)
 				enc.SetIndent("", "  ")
 				return enc.Encode(d.cfg.Aliases)
-			case output.FormatPlain:
+			case output.FormatText:
 				for _, name := range names {
 					if _, err := fmt.Fprintf(w, "%s=%s\n", name, d.cfg.Aliases[name]); err != nil {
 						return err

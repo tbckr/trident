@@ -28,9 +28,9 @@ func (r *Result) IsEmpty() bool {
 		len(r.TXT) == 0 && len(r.PTR) == 0
 }
 
-// WritePlain renders the result as plain text with one record per line.
+// WriteText renders the result as plain text with one record per line.
 // Each line has the format: "TYPE value" (e.g. "NS ns1.example.com").
-func (r *Result) WritePlain(w io.Writer) error {
+func (r *Result) WriteText(w io.Writer) error {
 	for _, v := range r.NS {
 		if _, err := fmt.Fprintf(w, "NS %s\n", v); err != nil {
 			return err

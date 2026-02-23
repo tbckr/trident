@@ -132,9 +132,9 @@ func TestResolveDefang(t *testing.T) {
 			want:           true,
 		},
 		{
-			name:           "PAP=red, plain, auto-trigger",
+			name:           "PAP=red, text, auto-trigger",
 			papLevel:       pap.RED,
-			format:         output.FormatPlain,
+			format:         output.FormatText,
 			explicitDefang: false,
 			noDefang:       false,
 			want:           true,

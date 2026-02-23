@@ -37,7 +37,7 @@ func TestResult_WriteTable(t *testing.T) {
 	assert.Contains(t, out, "alice@example.com")
 }
 
-func TestResult_WritePlain(t *testing.T) {
+func TestResult_WriteText(t *testing.T) {
 	result := &pgp.Result{
 		Input: "alice@example.com",
 		Keys: []pgp.Key{
@@ -46,7 +46,7 @@ func TestResult_WritePlain(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	err := result.WritePlain(&buf)
+	err := result.WriteText(&buf)
 	require.NoError(t, err)
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 	assert.Len(t, lines, 2)

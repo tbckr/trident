@@ -49,7 +49,7 @@ func TestResult_WriteTable_Hash(t *testing.T) {
 	assert.Contains(t, out, "PE32")
 }
 
-func TestResult_WritePlain_Domain(t *testing.T) {
+func TestResult_WriteText_Domain(t *testing.T) {
 	result := &threatminer.Result{
 		Input:     "example.com",
 		InputType: "domain",
@@ -59,14 +59,14 @@ func TestResult_WritePlain_Domain(t *testing.T) {
 		Subdomains: []string{"www.example.com"},
 	}
 	var buf bytes.Buffer
-	err := result.WritePlain(&buf)
+	err := result.WriteText(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 	assert.Contains(t, out, "1.2.3.4 example.com")
 	assert.Contains(t, out, "www.example.com")
 }
 
-func TestResult_WritePlain_Hash(t *testing.T) {
+func TestResult_WriteText_Hash(t *testing.T) {
 	result := &threatminer.Result{
 		Input:     "d41d8cd98f00b204e9800998ecf8427e",
 		InputType: "hash",
@@ -76,7 +76,7 @@ func TestResult_WritePlain_Hash(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	err := result.WritePlain(&buf)
+	err := result.WriteText(&buf)
 	require.NoError(t, err)
 	out := buf.String()
 	assert.Contains(t, out, "MD5: d41d8cd98f00b204e9800998ecf8427e")

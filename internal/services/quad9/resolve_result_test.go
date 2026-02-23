@@ -52,7 +52,7 @@ func TestResolveResult_IsEmpty(t *testing.T) {
 	assert.False(t, withSSHFP.IsEmpty())
 }
 
-func TestResolveResult_WritePlain(t *testing.T) {
+func TestResolveResult_WriteText(t *testing.T) {
 	r := &quad9.ResolveResult{
 		Input:  "example.com",
 		NS:     []string{"ns1.example.com."},
@@ -70,7 +70,7 @@ func TestResolveResult_WritePlain(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := r.WritePlain(&buf)
+	err := r.WriteText(&buf)
 	require.NoError(t, err)
 
 	out := buf.String()

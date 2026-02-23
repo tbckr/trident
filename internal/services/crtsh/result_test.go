@@ -29,13 +29,13 @@ func TestResult_WriteTable(t *testing.T) {
 	assert.Contains(t, out, "www.example.com")
 }
 
-func TestResult_WritePlain(t *testing.T) {
+func TestResult_WriteText(t *testing.T) {
 	result := &crtsh.Result{
 		Input:      "example.com",
 		Subdomains: []string{"api.example.com", "www.example.com"},
 	}
 	var buf bytes.Buffer
-	err := result.WritePlain(&buf)
+	err := result.WriteText(&buf)
 	require.NoError(t, err)
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 	assert.Equal(t, []string{"api.example.com", "www.example.com"}, lines)
