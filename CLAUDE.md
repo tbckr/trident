@@ -300,7 +300,7 @@ type=$(gh api repos/ORG/REPO/git/ref/tags/vX --jq '.object.type')
 sha=$(gh api repos/ORG/REPO/git/tags/$sha --jq '.object.sha')
 ```
 
-**`geomys/sandboxed-step`** — runs steps in a gVisor sandbox. Requires `persist-credentials: false` on the preceding `actions/checkout` step. Workspace changes don't persist unless `persist-workspace-changes: true` is set.
+**`geomys/sandboxed-step`** — runs steps in a gVisor sandbox. Requires `persist-credentials: false` on the preceding `actions/checkout` step. Workspace changes don't persist unless `persist-workspace-changes: true` is set. GitHub Actions special env vars (`GITHUB_STEP_SUMMARY`, `GITHUB_OUTPUT`, etc.) are **not** available inside the sandbox — write output to stdout instead.
 
 **Go module dependency policy** — Dependabot is intentionally NOT configured for the `gomod` ecosystem. `govulncheck` (call-graph reachability) and `latest-deps.yml` (freshness) replace Dependabot's noisy, reachability-unaware Go module PRs.
 
