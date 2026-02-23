@@ -13,7 +13,7 @@ func newDNSCmd(d *deps) *cobra.Command {
 	return &cobra.Command{
 		Use:     "dns [domain|ip...]",
 		Short:   "Perform DNS lookups for a domain or reverse lookup for an IP",
-		GroupID: "osint",
+		GroupID: "services",
 		Long: `Perform DNS lookups for one or more domains or IP addresses.
 
 Queries A, AAAA, MX, NS, TXT records for domains. For IP addresses, performs a

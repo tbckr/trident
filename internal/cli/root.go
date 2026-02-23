@@ -61,7 +61,7 @@ PAP levels (least to most active intrusion): white < green < amber < red.`,
 	cmd.Version = version.Version
 	cmd.SetVersionTemplate("trident {{.Version}}\n")
 
-	cmd.AddGroup(&cobra.Group{ID: "osint", Title: "OSINT Services:"})
+	cmd.AddGroup(&cobra.Group{ID: "services", Title: "Services:"})
 	cmd.AddGroup(&cobra.Group{ID: "aggregate", Title: "Aggregate Commands:"})
 
 	if len(aliases) > 0 {

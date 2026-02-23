@@ -14,7 +14,7 @@ func newPGPCmd(d *deps) *cobra.Command {
 	return &cobra.Command{
 		Use:     "pgp [query...]",
 		Short:   "Search keys.openpgp.org for PGP keys by email, name, or fingerprint",
-		GroupID: "osint",
+		GroupID: "services",
 		Long: `Search keys.openpgp.org for PGP public keys by email address, name, or key fingerprint/ID.
 
 Queries the HKP (HTTP Keyserver Protocol) machine-readable index at

@@ -15,7 +15,7 @@ func newQuad9Cmd(d *deps) *cobra.Command {
 	return &cobra.Command{
 		Use:     "quad9 [domain...]",
 		Short:   "Check whether Quad9 has blocked a domain as malicious",
-		GroupID: "osint",
+		GroupID: "services",
 		Long: `Check whether Quad9 has flagged a domain as malicious using threat intelligence
 from 19+ security partners.
 

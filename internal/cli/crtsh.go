@@ -14,7 +14,7 @@ func newCrtshCmd(d *deps) *cobra.Command {
 	return &cobra.Command{
 		Use:     "crtsh [domain...]",
 		Short:   "Search crt.sh certificate transparency logs for subdomains",
-		GroupID: "osint",
+		GroupID: "services",
 		Long: `Search crt.sh certificate transparency logs for subdomains of a domain.
 
 Queries the crt.sh API for all TLS certificates that contain the target domain

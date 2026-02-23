@@ -13,7 +13,7 @@ func newASNCmd(d *deps) *cobra.Command {
 	return &cobra.Command{
 		Use:     "asn [ip|ASN...]",
 		Short:   "Look up ASN information for an IP address or ASN (e.g. AS15169)",
-		GroupID: "osint",
+		GroupID: "services",
 		Long: `Look up ASN (Autonomous System Number) information for an IP address or ASN.
 
 For IP addresses, resolves the originating ASN via Team Cymru's DNS-based

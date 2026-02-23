@@ -14,7 +14,7 @@ func newThreatMinerCmd(d *deps) *cobra.Command {
 	return &cobra.Command{
 		Use:     "threatminer [domain|ip|hash...]",
 		Short:   "Query ThreatMiner for passive DNS, subdomains, or file hash metadata",
-		GroupID: "osint",
+		GroupID: "services",
 		Long: `Query the ThreatMiner API for threat intelligence data.
 
 Automatically detects the input type and queries the appropriate endpoint:
