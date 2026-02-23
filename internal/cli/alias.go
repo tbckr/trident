@@ -83,7 +83,7 @@ func newAliasListCmd(d *deps) *cobra.Command {
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List all aliases",
-		Args:  cobra.NoArgs,
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(d.cfg.Aliases) == 0 {
 				return nil
@@ -130,7 +130,7 @@ func newAliasDeleteCmd(d *deps) *cobra.Command {
 		Use:     "delete <name>",
 		Aliases: []string{"rm"},
 		Short:   "Delete an alias",
-		Args:  cobra.ExactArgs(1),
+		Args:    cobra.ExactArgs(1),
 		ValidArgsFunction: func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
 				names := make([]string, 0, len(d.cfg.Aliases))

@@ -92,7 +92,7 @@ func newConfigShowCmd(d *deps) *cobra.Command {
 		Use:     "show",
 		Aliases: []string{"cat"},
 		Short:   "Display all effective config settings",
-		Args:  cobra.NoArgs,
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			w := cmd.OutOrStdout()
 			rows := buildConfigRows(d)
