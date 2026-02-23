@@ -24,6 +24,23 @@ jobs:
       - uses: geomys/sandboxed-step@7d75eb49d17fdeeb3656b3a57d35932d205bcfb9  # v1.2.1
         with:
           run: |
-            go get -u $(grep -E '^\s+\S+ v[0-9]' go.mod | grep -v '// indirect' | awk '{print $1}')
+            DIRECT=$(grep -E '^\s+\S+ v[0-9]' go.mod | grep -v '// indirect' | awk '{print $1}')
+            UPGRADES=$(go get $(echo "$DIRECT" | awk '{print $1 "@latest"}') 2>&1 \
+              | grep -E "^go: (upgraded|added)" \
+              | while IFS= read -r line; do
+                  pkg=$(echo "$line" | awk '{print $3}')
+                  if echo "$DIRECT" | grep -qxF "$pkg"; then echo "$line"; fi
+                done || true)
             go mod tidy
+            {
+              echo "### Direct Dependency Updates"
+              echo ""
+              if [ -z "$UPGRADES" ]; then
+                echo "All direct dependencies are already at their latest versions."
+              else
+                echo "\`\`\`"
+                echo "$UPGRADES"
+                echo "\`\`\`"
+              fi
+            } | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
             go test ./...
