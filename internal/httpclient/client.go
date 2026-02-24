@@ -10,10 +10,10 @@ import (
 	"github.com/tbckr/trident/internal/version"
 )
 
-// defaultUserAgent is the User-Agent sent when no explicit value is configured.
+// DefaultUserAgent is the User-Agent sent when no explicit value is configured.
 // It identifies trident honestly so server operators can recognise its traffic.
 // var (not const) because version.Version is a link-time variable, not a compile-time constant.
-var defaultUserAgent = "trident/" + version.Version + " (+https://github.com/tbckr/trident)"
+var DefaultUserAgent = "trident/" + version.Version + " (+https://github.com/tbckr/trident)"
 
 // New builds a *req.Client with optional proxy and user-agent configuration.
 // If userAgent is empty, defaultUserAgent is used.
@@ -26,7 +26,7 @@ var defaultUserAgent = "trident/" + version.Version + " (+https://github.com/tbc
 func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client, error) {
 	ua := userAgent
 	if ua == "" {
-		ua = defaultUserAgent
+		ua = DefaultUserAgent
 	}
 
 	client := req.NewClient().SetUserAgent(ua)

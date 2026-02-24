@@ -11,6 +11,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/tbckr/trident/internal/config"
+	providers "github.com/tbckr/trident/internal/detect"
+	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/output"
 )
 
@@ -71,9 +73,9 @@ func effectiveValue(d *deps, key string) string {
 	case "output":
 		return d.cfg.Output
 	case "proxy":
-		return d.cfg.Proxy
+		return resolveProxy(d)
 	case "user_agent":
-		return d.cfg.UserAgent
+		return resolveUserAgent(d)
 	case "pap_limit":
 		return d.cfg.PAPLimit
 	case "defang":
@@ -85,10 +87,58 @@ func effectiveValue(d *deps, key string) string {
 	case "detect_patterns.url":
 		return d.cfg.DetectPatterns.URL
 	case "detect_patterns.file":
-		return d.cfg.DetectPatterns.File
+		return resolveDetectPatternsFile(d)
 	default:
 		return ""
 	}
+}
+
+// resolveUserAgent returns the user-agent that will actually be sent.
+// If user_agent is explicitly configured, it is returned as-is.
+// Otherwise DefaultUserAgent from the httpclient package is returned.
+func resolveUserAgent(d *deps) string {
+	if d.cfg.UserAgent != "" {
+		return d.cfg.UserAgent
+	}
+	return httpclient.DefaultUserAgent
+}
+
+// resolveProxy returns the proxy configuration that will actually be used.
+// If proxy is explicitly configured, it is returned as-is.
+// Otherwise the standard proxy env vars are checked
+// (HTTPS_PROXY, HTTP_PROXY, ALL_PROXY and their lowercase variants);
+// if any are set "<from environment>" is returned.
+// If none are set, an empty string is returned.
+func resolveProxy(d *deps) string {
+	if d.cfg.Proxy != "" {
+		return d.cfg.Proxy
+	}
+	for _, env := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"} {
+		if os.Getenv(env) != "" {
+			return "<from environment>"
+		}
+	}
+	return ""
+}
+
+// resolveDetectPatternsFile returns the patterns file that will actually be used.
+// If detect_patterns.file is explicitly set, it is returned as-is.
+// Otherwise, DefaultPatternPaths() is searched in order; the first existing file
+// is returned. If none exist, "<embedded>" is returned.
+func resolveDetectPatternsFile(d *deps) string {
+	if d.cfg.DetectPatterns.File != "" {
+		return d.cfg.DetectPatterns.File
+	}
+	paths, err := providers.DefaultPatternPaths()
+	if err != nil {
+		return "<embedded>"
+	}
+	for _, p := range paths {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return "<embedded>"
 }
 
 func newConfigShowCmd(d *deps) *cobra.Command {
@@ -101,12 +151,22 @@ func newConfigShowCmd(d *deps) *cobra.Command {
 Values reflect the fully resolved configuration — defaults, config file, environment
 variables, and flags are all merged before display.
 
-detect_patterns.file: when this value is empty, trident searches for a patterns file
-in the following order and uses the first one found:
+user_agent: shows the resolved User-Agent header that will actually be sent.
+If not explicitly configured, the built-in default is used:
+  trident/<version> (+https://github.com/tbckr/trident)
+
+proxy: shows the resolved proxy configuration that will actually be used.
+If not explicitly configured, standard environment variables are honoured:
+  HTTP client  — HTTP_PROXY / HTTPS_PROXY / NO_PROXY
+  DNS resolver — ALL_PROXY / all_proxy (SOCKS5 only)
+If any of these variables are set, "<from environment>" is displayed.
+
+detect_patterns.file: shows the resolved patterns file that will actually be used.
+If not explicitly configured, trident searches in order:
 
   1. <config-dir>/detect.yaml          (user-maintained override)
   2. <config-dir>/detect-downloaded.yaml  (downloaded via 'trident download detect')
-  3. built-in embedded patterns          (always available as the final fallback)
+  3. built-in embedded patterns          (displayed as "<embedded>")
 
 Use 'trident config path' to find <config-dir> on this system.`,
 		Args: cobra.NoArgs,
