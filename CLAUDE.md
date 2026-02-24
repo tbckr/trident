@@ -178,6 +178,8 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`runServiceCmd`** — shared `RunE` body in `internal/cli/root.go`; handles PAP check, input resolution, single-result and bulk paths (calls `svc.AggregateResults(valid)` for 2+ valid results). Each subcommand's `RunE` just instantiates the service and calls `runServiceCmd(cmd, d, svc, args)`.
 
+**`allServices()` in `internal/cli/services.go`** — instantiates every service with nil args (for `Name()`/`PAP()` only); must be updated whenever any service constructor signature changes. Easy to miss since it's not near the service package or its CLI command.
+
 **Subcommand service pattern** — when a service needs multiple operations (e.g. `quad9 resolve`/`quad9 blocked`), use a parent `*cobra.Command` with `GroupID: "services"` and no `RunE`; add child subcommands via `cmd.AddCommand(...)`. Children inherit root's `PersistentPreRunE` automatically. `GroupID` is set only on the parent, not on children. See `internal/cli/quad9.go`.
 
 **`"aggregate"` cobra group** — commands that orchestrate multiple services (not wrapping a single external API) use `GroupID: "aggregate"`. Register with `cmd.AddGroup(&cobra.Group{ID: "aggregate", Title: "Aggregate Commands:"})` after `"services"` and before `"utility"` in `newRootCmd`. Always registered (not conditional like `"aliases"`). See `internal/cli/apex.go`.

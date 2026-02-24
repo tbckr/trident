@@ -54,7 +54,7 @@ func allServices() []serviceEntry {
 		{quad9svc.NewService(nil, nil), "services"},
 		{threatsvc.NewService(nil, nil), "services"},
 		// aggregate group — alphabetical
-		{apexsvc.NewService(nil, nil), "aggregate"},
+		{apexsvc.NewService(nil, nil, nil), "aggregate"},
 	}
 	entries := make([]serviceEntry, len(items))
 	for i, it := range items {

@@ -37,8 +37,8 @@ func (r *Result) WriteText(w io.Writer) error {
 }
 
 // sortRecordsForDisplay returns a sorted copy of records for display purposes.
-// The apex input domain is sorted first (prefix "0:"), sentinel rows (cdn, email, dns)
-// last (prefix "2:"), and all other hosts alphabetically in between (prefix "1:").
+// The apex input domain is sorted first (prefix "0:"), other hosts alphabetically (prefix "1:"),
+// sentinel detected rows (CDN/Email/DNS) next (prefix "2:"), and ASN rows last (prefix "3:").
 // The original slice is not mutated.
 func sortRecordsForDisplay(input string, records []Record) []Record {
 	sorted := make([]Record, len(records))
@@ -50,10 +50,12 @@ func sortRecordsForDisplay(input string, records []Record) []Record {
 }
 
 func recSortKey(input string, rec Record) string {
-	switch rec.Host {
-	case input:
+	switch {
+	case rec.Host == input:
 		return "0:" + rec.Type + ":" + rec.Value
-	case "detected":
+	case rec.Type == "ASN":
+		return "3:" + rec.Type + ":" + rec.Value
+	case rec.Host == "detected":
 		return "2:" + rec.Host + ":" + rec.Type + ":" + rec.Value
 	default:
 		return "1:" + rec.Host + ":" + rec.Type + ":" + rec.Value

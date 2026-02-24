@@ -71,7 +71,7 @@ func TestResult_WriteTable(t *testing.T) {
 
 func TestResult_WriteTable_SortOrder(t *testing.T) {
 	// Records are intentionally out of natural order to verify sorting:
-	// apex domain first, other hosts alphabetically, sentinel rows (detected) last.
+	// apex domain first, other hosts alphabetically, sentinel rows (detected) next, ASN rows last.
 	r := &apex.Result{
 		Input: "example.com",
 		Records: []apex.Record{
@@ -82,6 +82,7 @@ func TestResult_WriteTable_SortOrder(t *testing.T) {
 			{Host: "example.com", Type: "TXT", Value: "v=spf1"},
 			{Host: "autodiscover.example.com", Type: "A", Value: "5.6.7.8"},
 			{Host: "example.com", Type: "A", Value: "1.2.3.4"},
+			{Host: "detected", Type: "ASN", Value: "15169 / 1.2.0.0/16 / US / arin / GOOGLE"},
 		},
 	}
 
@@ -106,4 +107,7 @@ func TestResult_WriteTable_SortOrder(t *testing.T) {
 	// dns appears after all non-sentinel hosts.
 	assert.Greater(t, strings.Index(out, "Cloudflare DNS"), strings.Index(out, "9.9.9.9"),
 		"dns row should appear after all other hosts")
+	// ASN rows appear after detected rows.
+	assert.Greater(t, strings.Index(out, "GOOGLE"), strings.Index(out, "CloudFront"),
+		"ASN rows should appear after detected rows")
 }

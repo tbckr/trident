@@ -68,12 +68,12 @@ func apexWireResponder(t *testing.T, handler func(qname string, qtype uint16) []
 }
 
 func TestApexService_Name(t *testing.T) {
-	svc := apex.NewService(req.NewClient(), testutil.NopLogger())
+	svc := apex.NewService(req.NewClient(), &testutil.MockResolver{}, testutil.NopLogger())
 	assert.Equal(t, "apex", svc.Name())
 }
 
 func TestApexService_PAP(t *testing.T) {
-	svc := apex.NewService(req.NewClient(), testutil.NopLogger())
+	svc := apex.NewService(req.NewClient(), &testutil.MockResolver{}, testutil.NopLogger())
 	assert.Equal(t, "amber", svc.PAP().String())
 }
 
@@ -98,7 +98,7 @@ func TestApexService_Run_ValidDomain(t *testing.T) {
 			return buildWireResponse(t, 0, nil, nil)
 		}))
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
 
@@ -144,7 +144,7 @@ func TestApexService_Run_CDNDetection(t *testing.T) {
 			return buildWireResponse(t, 0, nil, nil)
 		}))
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
 
@@ -178,7 +178,7 @@ func TestApexService_Run_EmailProviderDetection(t *testing.T) {
 			return buildWireResponse(t, 0, nil, nil)
 		}))
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
 
@@ -212,7 +212,7 @@ func TestApexService_Run_DNSHostDetection(t *testing.T) {
 			return buildWireResponse(t, 0, nil, nil)
 		}))
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
 
@@ -232,7 +232,7 @@ func TestApexService_Run_DNSHostDetection(t *testing.T) {
 
 func TestApexService_Run_InvalidInput(t *testing.T) {
 	client := newTestClient(t)
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 
 	for _, bad := range []string{"", "not_a_domain", "has space.com", "$(injection)"} {
 		_, err := svc.Run(context.Background(), bad)
@@ -252,7 +252,7 @@ func TestApexService_Run_ContextCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	raw, err := svc.Run(ctx, "example.com")
 	// Context cancelled — partial result returned, no error
 	require.NoError(t, err)
@@ -267,7 +267,7 @@ func TestApexService_Run_HTTPError(t *testing.T) {
 	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
 		httpmock.NewStringResponder(http.StatusInternalServerError, ""))
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	// HTTP errors are logged and skipped — service still returns a result (possibly empty)
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
@@ -282,7 +282,7 @@ func TestApexService_Run_NetworkError(t *testing.T) {
 	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
 		httpmock.NewErrorResponder(fmt.Errorf("connection refused")))
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	// Network errors are logged and skipped — service still returns a result (possibly empty)
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
@@ -307,7 +307,7 @@ func TestApexService_Run_DNSKEY(t *testing.T) {
 			return buildWireResponse(t, 0, nil, nil)
 		}))
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
 
@@ -340,7 +340,7 @@ func TestApexService_Run_SRVServices(t *testing.T) {
 			return buildWireResponse(t, 0, nil, nil)
 		}))
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
 
@@ -373,7 +373,7 @@ func TestApexService_Run_EmailCNAME(t *testing.T) {
 			return buildWireResponse(t, 0, nil, nil)
 		}))
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
 
@@ -410,7 +410,7 @@ func TestApexService_Run_OutputOrder(t *testing.T) {
 			return buildWireResponse(t, 0, nil, nil)
 		}))
 
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
 
@@ -434,7 +434,7 @@ func TestApexService_Run_OutputOrder(t *testing.T) {
 
 func TestApexService_AggregateResults(t *testing.T) {
 	client := req.NewClient()
-	svc := apex.NewService(client, testutil.NopLogger())
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
 
 	r1 := &apex.Result{
 		Input:   "a.com",
@@ -451,4 +451,58 @@ func TestApexService_AggregateResults(t *testing.T) {
 	assert.Len(t, mr.Results, 2)
 	assert.Equal(t, "a.com", mr.Results[0].Input)
 	assert.Equal(t, "b.com", mr.Results[1].Input)
+}
+
+func TestApexService_Run_ASNLookup(t *testing.T) {
+	client := newTestClient(t)
+
+	aRR1 := &dns.A{Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300}}
+	aRR1.Addr = netip.MustParseAddr("93.184.216.34")
+
+	aRR2 := &dns.A{Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300}}
+	aRR2.Addr = netip.MustParseAddr("93.184.216.35")
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "example.com" && qtype == dns.TypeA {
+				return buildWireResponse(t, 0, []dns.RR{aRR1, aRR2}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	// MockResolver returns Team Cymru TXT responses for the reversed IPs and ASN enrichment.
+	// Both IPs are in the same /24, so they share an identical ASN string — tests deduplication.
+	mockRes := &testutil.MockResolver{
+		LookupTXTFn: func(_ context.Context, name string) ([]string, error) {
+			switch name {
+			case "34.216.184.93.origin.asn.cymru.com":
+				return []string{"15133 | 93.184.216.0/24 | US | arin | 2002-07-10"}, nil
+			case "35.216.184.93.origin.asn.cymru.com":
+				return []string{"15133 | 93.184.216.0/24 | US | arin | 2002-07-10"}, nil
+			case "AS15133.asn.cymru.com":
+				return []string{"15133 | US | arin | 2007-03-19 | EDGECAST, US"}, nil
+			}
+			return nil, nil
+		},
+	}
+
+	svc := apex.NewService(client, mockRes, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	var asnRecords []apex.Record
+	for _, rec := range result.Records {
+		if rec.Type == "ASN" {
+			asnRecords = append(asnRecords, rec)
+		}
+	}
+	// Two IPs in the same /24 produce identical ASN strings — expect exactly one deduplicated record.
+	require.Len(t, asnRecords, 1, "duplicate ASN values should be deduplicated")
+	assert.Equal(t, "detected", asnRecords[0].Host)
+	assert.Contains(t, asnRecords[0].Value, "AS15133")
+	assert.Contains(t, asnRecords[0].Value, "93.184.216.0/24")
+	assert.Contains(t, asnRecords[0].Value, "EDGECAST")
 }

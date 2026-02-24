@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 
@@ -16,17 +17,19 @@ import (
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
+	cymrusvc "github.com/tbckr/trident/internal/services/cymru"
 )
 
 // Service aggregates DNS reconnaissance for an apex domain via Quad9 DoH.
 type Service struct {
-	client *req.Client
-	logger *slog.Logger
+	client   *req.Client
+	resolver services.DNSResolverInterface
+	logger   *slog.Logger
 }
 
-// NewService creates a new Service with the given HTTP client and logger.
-func NewService(client *req.Client, logger *slog.Logger) *Service {
-	return &Service{client: client, logger: logger}
+// NewService creates a new Service with the given HTTP client, DNS resolver, and logger.
+func NewService(client *req.Client, resolver services.DNSResolverInterface, logger *slog.Logger) *Service {
+	return &Service{client: client, resolver: resolver, logger: logger}
 }
 
 // Name returns the service identifier.
@@ -252,6 +255,54 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 				Host:  "detected",
 				Type:  string(d.Type),
 				Value: d.Provider + " (ns: " + d.Evidence + ")",
+			})
+		}
+	}
+
+	// ASN lookup for all unique IPs discovered via A and AAAA records.
+	ipSet := map[string]bool{}
+	for _, rec := range result.Records {
+		if rec.Type == "A" || rec.Type == "AAAA" {
+			ipSet[rec.Value] = true
+		}
+	}
+	if len(ipSet) > 0 {
+		ips := make([]string, 0, len(ipSet))
+		for ip := range ipSet {
+			ips = append(ips, ip)
+		}
+		sort.Strings(ips)
+		cymruSvc := cymrusvc.NewService(s.resolver, s.logger)
+		asnResults := make([]*cymrusvc.Result, len(ips))
+		var asnWg sync.WaitGroup
+		for i, ip := range ips {
+			asnWg.Go(func() {
+				raw, err := cymruSvc.Run(ctx, ip)
+				if err != nil {
+					s.logger.Debug("apex: ASN lookup failed", "ip", ip, "error", err)
+					return
+				}
+				if cr, ok := raw.(*cymrusvc.Result); ok && !cr.IsEmpty() {
+					asnResults[i] = cr
+				}
+			})
+		}
+		asnWg.Wait()
+		seenASN := map[string]bool{}
+		for _, cr := range asnResults {
+			if cr == nil {
+				continue
+			}
+			value := fmt.Sprintf("%s / %s / %s / %s / %s",
+				cr.ASN, cr.Prefix, cr.Country, cr.Registry, cr.Description)
+			if seenASN[value] {
+				continue
+			}
+			seenASN[value] = true
+			result.Records = append(result.Records, Record{
+				Host:  "detected",
+				Type:  "ASN",
+				Value: value,
 			})
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/tbckr/trident/internal/doh"
 	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/ratelimit"
+	"github.com/tbckr/trident/internal/resolver"
 	apexsvc "github.com/tbckr/trident/internal/services/apex"
 )
 
@@ -58,7 +59,11 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			}
 			client.EnableForceHTTP2()
 			httpclient.AttachRateLimit(client, ratelimit.New(doh.DefaultRPS, doh.DefaultBurst))
-			svc := apexsvc.NewService(client, d.logger)
+			r, err := resolver.NewResolver(d.cfg.Proxy)
+			if err != nil {
+				return fmt.Errorf("creating DNS resolver: %w", err)
+			}
+			svc := apexsvc.NewService(client, r, d.logger)
 			return runServiceCmd(cmd, d, svc, args)
 		},
 	}
