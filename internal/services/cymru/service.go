@@ -22,6 +22,13 @@ const cymruIPv6Template = "%s.origin6.asn.cymru.com"
 // Format: AS<number>.asn.cymru.com
 const cymruASNTemplate = "%s.asn.cymru.com"
 
+const (
+	// Name is the service identifier.
+	Name = "cymru"
+	// PAP is the PAP activity level for the Cymru service.
+	PAP = pap.AMBER
+)
+
 // Service performs ASN lookups via the Team Cymru DNS service.
 type Service struct {
 	resolver services.DNSResolverInterface
@@ -34,10 +41,10 @@ func NewService(resolver services.DNSResolverInterface, logger *slog.Logger) *Se
 }
 
 // Name returns the service identifier.
-func (s *Service) Name() string { return "cymru" }
+func (s *Service) Name() string { return Name }
 
 // PAP returns the PAP activity level for the Cymru service (semi-active DNS query to external).
-func (s *Service) PAP() pap.Level { return pap.AMBER }
+func (s *Service) PAP() pap.Level { return PAP }
 
 // AggregateResults combines multiple Cymru results into a MultiResult.
 func (s *Service) AggregateResults(results []services.Result) services.Result {

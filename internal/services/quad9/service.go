@@ -15,6 +15,13 @@ import (
 	"github.com/tbckr/trident/internal/services"
 )
 
+const (
+	// Name is the service identifier.
+	Name = "quad9"
+	// PAP is the PAP activity level for the Quad9 service.
+	PAP = pap.AMBER
+)
+
 // Service queries Quad9 DNS-over-HTTPS to detect whether a domain is blocked.
 // Quad9 returns NXDOMAIN (Status=3) with a "blocked" comment for known-malicious domains.
 type Service struct {
@@ -28,10 +35,10 @@ func NewService(client *req.Client, logger *slog.Logger) *Service {
 }
 
 // Name returns the service identifier.
-func (s *Service) Name() string { return "quad9" }
+func (s *Service) Name() string { return Name }
 
 // PAP returns the PAP activity level for the Quad9 blocked service (external API query).
-func (s *Service) PAP() pap.Level { return pap.AMBER }
+func (s *Service) PAP() pap.Level { return PAP }
 
 // AggregateResults combines multiple Quad9 blocked results into a MultiResult.
 func (s *Service) AggregateResults(results []services.Result) services.Result {

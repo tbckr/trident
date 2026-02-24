@@ -20,6 +20,13 @@ import (
 	cymrusvc "github.com/tbckr/trident/internal/services/cymru"
 )
 
+const (
+	// Name is the service identifier.
+	Name = "apex"
+	// PAP is the PAP activity level for the apex service.
+	PAP = pap.AMBER
+)
+
 // Service aggregates DNS reconnaissance for an apex domain via Quad9 DoH.
 type Service struct {
 	client   *req.Client
@@ -33,10 +40,10 @@ func NewService(client *req.Client, resolver services.DNSResolverInterface, logg
 }
 
 // Name returns the service identifier.
-func (s *Service) Name() string { return "apex" }
+func (s *Service) Name() string { return Name }
 
 // PAP returns the PAP activity level for the apex service (Quad9 third-party API).
-func (s *Service) PAP() pap.Level { return pap.AMBER }
+func (s *Service) PAP() pap.Level { return PAP }
 
 // AggregateResults combines multiple apex results into an MultiResult.
 func (s *Service) AggregateResults(results []services.Result) services.Result {

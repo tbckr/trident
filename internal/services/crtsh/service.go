@@ -24,6 +24,11 @@ const (
 	DefaultRPS float64 = 1.0
 	// DefaultBurst is the burst capacity above DefaultRPS.
 	DefaultBurst = 2
+
+	// Name is the service identifier.
+	Name = "crtsh"
+	// PAP is the PAP activity level for the crt.sh service.
+	PAP = pap.AMBER
 )
 
 // crtshEntry represents a single record returned by the crt.sh JSON API.
@@ -44,10 +49,10 @@ func NewService(client *req.Client, logger *slog.Logger) *Service {
 }
 
 // Name returns the service identifier.
-func (s *Service) Name() string { return "crtsh" }
+func (s *Service) Name() string { return Name }
 
 // PAP returns the PAP activity level for the crt.sh service (external API query).
-func (s *Service) PAP() pap.Level { return pap.AMBER }
+func (s *Service) PAP() pap.Level { return PAP }
 
 // AggregateResults combines multiple crt.sh results into a MultiResult.
 func (s *Service) AggregateResults(results []services.Result) services.Result {

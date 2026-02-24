@@ -20,14 +20,6 @@ import (
 	threatsvc "github.com/tbckr/trident/internal/services/threatminer"
 )
 
-// namer is the minimal interface needed to list a service.
-// It is satisfied by both services.Service implementors and identify.Service
-// (which has a custom Run signature).
-type namer interface {
-	Name() string
-	PAP() pap.Level
-}
-
 type serviceEntry struct {
 	Name  string `json:"name"`
 	Group string `json:"group"`
@@ -36,32 +28,31 @@ type serviceEntry struct {
 
 // allServices returns a fixed-order list of every service and aggregate command.
 // Services are ordered alphabetically within each group; "services" precedes "aggregate".
-// Constructors receive nil for clients/resolvers: Name() and PAP() are pure
-// receivers that never dereference those fields.
 func allServices() []serviceEntry {
-	type item struct {
-		svc   namer
+	type meta struct {
+		name  string
+		pap   pap.Level
 		group string
 	}
-	items := []item{
+	metas := []meta{
 		// services group — alphabetical
-		{cymrusvc.NewService(nil, nil), "services"},
-		{crtshsvc.NewService(nil, nil), "services"},
-		{detectsvc.NewService(nil, nil), "services"},
-		{dnssvc.NewService(nil, nil), "services"},
-		{identifysvc.NewService(nil), "services"},
-		{pgpsvc.NewService(nil, nil), "services"},
-		{quad9svc.NewService(nil, nil), "services"},
-		{threatsvc.NewService(nil, nil), "services"},
+		{cymrusvc.Name, cymrusvc.PAP, "services"},
+		{crtshsvc.Name, crtshsvc.PAP, "services"},
+		{detectsvc.Name, detectsvc.PAP, "services"},
+		{dnssvc.Name, dnssvc.PAP, "services"},
+		{identifysvc.Name, identifysvc.PAP, "services"},
+		{pgpsvc.Name, pgpsvc.PAP, "services"},
+		{quad9svc.Name, quad9svc.PAP, "services"},
+		{threatsvc.Name, threatsvc.PAP, "services"},
 		// aggregate group — alphabetical
-		{apexsvc.NewService(nil, nil, nil), "aggregate"},
+		{apexsvc.Name, apexsvc.PAP, "aggregate"},
 	}
-	entries := make([]serviceEntry, len(items))
-	for i, it := range items {
+	entries := make([]serviceEntry, len(metas))
+	for i, m := range metas {
 		entries[i] = serviceEntry{
-			Name:  it.svc.Name(),
-			Group: it.group,
-			PAP:   it.svc.PAP().String(),
+			Name:  m.name,
+			Group: m.group,
+			PAP:   m.pap.String(),
 		}
 	}
 	return entries

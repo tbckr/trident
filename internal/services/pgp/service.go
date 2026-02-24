@@ -24,6 +24,11 @@ const (
 	DefaultRPS float64 = 2.0
 	// DefaultBurst is the burst capacity above DefaultRPS.
 	DefaultBurst = 3
+
+	// Name is the service identifier.
+	Name = "pgp"
+	// PAP is the PAP activity level for the PGP keyserver service.
+	PAP = pap.AMBER
 )
 
 // Service queries a HKP keyserver for PGP keys.
@@ -38,10 +43,10 @@ func NewService(client *req.Client, logger *slog.Logger) *Service {
 }
 
 // Name returns the service identifier.
-func (s *Service) Name() string { return "pgp" }
+func (s *Service) Name() string { return Name }
 
 // PAP returns the PAP classification for this service.
-func (s *Service) PAP() pap.Level { return pap.AMBER }
+func (s *Service) PAP() pap.Level { return PAP }
 
 // AggregateResults combines multiple PGP results into a MultiResult.
 func (s *Service) AggregateResults(results []services.Result) services.Result {

@@ -26,6 +26,11 @@ const (
 	DefaultRPS float64 = 1.0
 	// DefaultBurst is the burst capacity above DefaultRPS.
 	DefaultBurst = 1
+
+	// Name is the service identifier.
+	Name = "threatminer"
+	// PAP is the PAP activity level for the ThreatMiner service.
+	PAP = pap.AMBER
 )
 
 // inputType classifies the kind of input accepted by the service.
@@ -56,10 +61,10 @@ func NewService(client *req.Client, logger *slog.Logger) *Service {
 }
 
 // Name returns the service identifier.
-func (s *Service) Name() string { return "threatminer" }
+func (s *Service) Name() string { return Name }
 
 // PAP returns the PAP classification for this service.
-func (s *Service) PAP() pap.Level { return pap.AMBER }
+func (s *Service) PAP() pap.Level { return PAP }
 
 // AggregateResults combines multiple ThreatMiner results into a MultiResult.
 func (s *Service) AggregateResults(results []services.Result) services.Result {

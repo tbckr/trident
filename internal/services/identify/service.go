@@ -7,6 +7,13 @@ import (
 	"github.com/tbckr/trident/internal/pap"
 )
 
+const (
+	// Name is the service identifier.
+	Name = "identify"
+	// PAP is the PAP activity level for the identify service.
+	PAP = pap.RED
+)
+
 // Service performs provider detection from known DNS record values without
 // making any network calls.
 type Service struct {
@@ -19,10 +26,10 @@ func NewService(logger *slog.Logger) *Service {
 }
 
 // Name returns the service identifier.
-func (s *Service) Name() string { return "identify" }
+func (s *Service) Name() string { return Name }
 
 // PAP returns the PAP activity level for the identify service.
-func (s *Service) PAP() pap.Level { return pap.RED }
+func (s *Service) PAP() pap.Level { return PAP }
 
 // Run matches CNAME, MX, and NS record values against known provider patterns.
 // No network calls are made — this is pure local computation.

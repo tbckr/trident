@@ -12,6 +12,13 @@ import (
 	"github.com/tbckr/trident/internal/services"
 )
 
+const (
+	// Name is the service identifier.
+	Name = "detect"
+	// PAP is the PAP activity level for the detect service.
+	PAP = pap.GREEN
+)
+
 // Service detects CDN, email, and DNS hosting providers from DNS records.
 type Service struct {
 	resolver services.DNSResolverInterface
@@ -24,10 +31,10 @@ func NewService(resolver services.DNSResolverInterface, logger *slog.Logger) *Se
 }
 
 // Name returns the service identifier.
-func (s *Service) Name() string { return "detect" }
+func (s *Service) Name() string { return Name }
 
 // PAP returns the PAP activity level for the detect service.
-func (s *Service) PAP() pap.Level { return pap.GREEN }
+func (s *Service) PAP() pap.Level { return PAP }
 
 // AggregateResults combines multiple detect results into a MultiResult.
 func (s *Service) AggregateResults(results []services.Result) services.Result {
