@@ -16,8 +16,6 @@ import (
 	"github.com/tbckr/trident/internal/services"
 )
 
-const detectPatternsURL = "https://raw.githubusercontent.com/tbckr/trident/refs/heads/main/internal/detect/patterns.yaml"
-
 func newDownloadCmd(d *deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "download",
@@ -59,11 +57,8 @@ PAP level: AMBER (makes an outbound HTTPS request).`,
 					services.ErrPAPBlocked, "download detect", pap.AMBER, pap.MustParse(d.cfg.PAPLimit))
 			}
 
-			// Resolve download URL: flag > config/env > built-in const.
-			downloadURL := detectPatternsURL
-			if d.cfg.DetectPatterns.URL != "" {
-				downloadURL = d.cfg.DetectPatterns.URL
-			}
+			// Resolve download URL: flag > config/env/default (via viper).
+			downloadURL := d.cfg.DetectPatterns.URL // always set; viper default = providers.DefaultPatternsURL
 			if flagURL != "" {
 				downloadURL = flagURL
 			}

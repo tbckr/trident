@@ -236,6 +236,15 @@ alias:
 > variable. Use `trident alias set` / `trident alias delete` to manage aliases, or edit the
 > file directly.
 
+> **Note:** When `detect_patterns.file` is not set, trident resolves patterns using the
+> following lookup order and uses the first file found:
+>
+> 1. `<config-dir>/detect.yaml` — user-maintained override
+> 2. `<config-dir>/detect-downloaded.yaml` — downloaded via `trident download detect`
+> 3. Built-in embedded patterns — always available as the final fallback
+>
+> Run `trident config path` to find `<config-dir>` on your system.
+
 Environment variables override config file values using the `TRIDENT_` prefix:
 
 | Variable | Corresponding Flag / Key |
@@ -402,7 +411,11 @@ trident identify --patterns-file /path/to/patterns.yaml --cname abc.cloudfront.n
 ### `download detect` — Update Provider Patterns
 
 Downloads the latest provider detection patterns from a URL and saves them locally. The downloaded
-file overrides the embedded patterns for `detect`, `apex`, and `identify` (PAP: AMBER).
+file is stored as `detect-downloaded.yaml` in the config directory and is automatically picked up
+by `detect`, `apex`, and `identify` on the next run (PAP: AMBER). A user-maintained
+`detect.yaml` in the same directory takes priority over the downloaded file; the built-in embedded
+patterns serve as the final fallback when neither file exists. See the
+[Configuration](#configuration) section for the full lookup order.
 
 ```bash
 # Download from the default URL (trident GitHub repository)

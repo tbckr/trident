@@ -82,6 +82,10 @@ func effectiveValue(d *deps, key string) string {
 		return fmt.Sprintf("%v", d.cfg.NoDefang)
 	case "concurrency":
 		return fmt.Sprintf("%d", d.cfg.Concurrency)
+	case "detect_patterns.url":
+		return d.cfg.DetectPatterns.URL
+	case "detect_patterns.file":
+		return d.cfg.DetectPatterns.File
 	default:
 		return ""
 	}
@@ -92,7 +96,20 @@ func newConfigShowCmd(d *deps) *cobra.Command {
 		Use:     "show",
 		Aliases: []string{"cat"},
 		Short:   "Display all effective config settings",
-		Args:    cobra.NoArgs,
+		Long: `Display all effective config settings.
+
+Values reflect the fully resolved configuration — defaults, config file, environment
+variables, and flags are all merged before display.
+
+detect_patterns.file: when this value is empty, trident searches for a patterns file
+in the following order and uses the first one found:
+
+  1. <config-dir>/detect.yaml          (user-maintained override)
+  2. <config-dir>/detect-downloaded.yaml  (downloaded via 'trident download detect')
+  3. built-in embedded patterns          (always available as the final fallback)
+
+Use 'trident config path' to find <config-dir> on this system.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			w := cmd.OutOrStdout()
 			rows := buildConfigRows(d)

@@ -11,6 +11,10 @@ import (
 	"github.com/tbckr/trident/internal/appdir"
 )
 
+// DefaultPatternsURL is the built-in URL used by `download detect` when no
+// custom URL is configured.
+const DefaultPatternsURL = "https://raw.githubusercontent.com/tbckr/trident/refs/heads/main/internal/detect/patterns.yaml"
+
 //go:embed patterns.yaml
 var embeddedPatterns []byte
 

@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/tbckr/trident/internal/appdir"
+	"github.com/tbckr/trident/internal/detect"
 )
 
 // ErrUnknownKey is returned when a config key is not recognised.
@@ -171,6 +172,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	v.SetDefault("output", "table")
 	v.SetDefault("pap_limit", "white")
 	v.SetDefault("concurrency", 10)
+	v.SetDefault("detect_patterns.url", detect.DefaultPatternsURL)
 
 	// Env vars: TRIDENT_VERBOSE, TRIDENT_OUTPUT, TRIDENT_USER_AGENT, etc.
 	v.SetEnvPrefix("TRIDENT")
