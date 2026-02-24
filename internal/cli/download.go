@@ -39,7 +39,7 @@ func newDownloadDetectCmd(d *deps) *cobra.Command {
 		Short: "Download latest detect patterns from GitHub",
 		Long: `Download the latest provider detection patterns from a URL.
 
-The patterns are saved to ~/.config/trident/detect-downloaded.yaml by default
+The patterns are saved to <config-dir>/detect-downloaded.yaml by default
 and are used by the detect, apex, and identify commands as an override over
 the embedded patterns.
 

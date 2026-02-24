@@ -17,7 +17,7 @@ func newDetectCmd(d *deps) *cobra.Command {
 		GroupID: "services",
 		Long: `Detect CDN, email, and DNS hosting providers for one or more domains.
 
-Queries CNAME (apex and www), MX, and NS records and matches them against
+Queries CNAME (apex and www), MX, NS, and TXT records and matches them against
 known provider patterns to identify cloud services in use.
 
 PAP level: GREEN (direct interaction with the target's DNS servers).

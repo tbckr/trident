@@ -508,7 +508,7 @@ trident alias delete asn
 - No shell features — environment variable substitution, pipes, globs, and quoting within
   the expansion string are not interpreted.
 - Aliases do not expand recursively; an alias expansion cannot reference another alias.
-- Alias names cannot shadow built-in commands (`dns`, `cymru`, `crtsh`, `threatminer`, `pgp`, `quad9`, `detect`, `identify`, `apex`, `services`, `config`, `alias`).
+- Alias names cannot shadow built-in commands (`dns`, `cymru`, `crtsh`, `threatminer`, `pgp`, `quad9`, `detect`, `identify`, `apex`, `services`, `config`, `alias`, `download`, `version`, `completion`).
 - Alias names must not start with `-` or contain whitespace.
 - Changes take effect on the next invocation.
 
