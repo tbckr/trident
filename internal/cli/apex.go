@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	providers "github.com/tbckr/trident/internal/detect"
 	"github.com/tbckr/trident/internal/doh"
 	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/ratelimit"
@@ -63,7 +64,15 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			if err != nil {
 				return fmt.Errorf("creating DNS resolver: %w", err)
 			}
-			svc := apexsvc.NewService(client, r, d.logger)
+			paths, err := providers.DefaultPatternPaths()
+			if err != nil {
+				return fmt.Errorf("resolving pattern paths: %w", err)
+			}
+			patterns, err := providers.LoadPatterns(paths...)
+			if err != nil {
+				return fmt.Errorf("loading detect patterns: %w", err)
+			}
+			svc := apexsvc.NewService(client, r, d.logger, patterns)
 			return runAggregateCmd(cmd, d, svc, args)
 		},
 	}

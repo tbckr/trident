@@ -43,11 +43,17 @@ type Service struct {
 	client   *req.Client
 	resolver services.DNSResolverInterface
 	logger   *slog.Logger
+	detector *detect.Detector
 }
 
-// NewService creates a new Service with the given HTTP client, DNS resolver, and logger.
-func NewService(client *req.Client, resolver services.DNSResolverInterface, logger *slog.Logger) *Service {
-	return &Service{client: client, resolver: resolver, logger: logger}
+// NewService creates a new Service with the given HTTP client, DNS resolver, logger, and patterns.
+func NewService(client *req.Client, resolver services.DNSResolverInterface, logger *slog.Logger, patterns detect.Patterns) *Service {
+	return &Service{
+		client:   client,
+		resolver: resolver,
+		logger:   logger,
+		detector: detect.NewDetector(patterns),
+	}
 }
 
 // Name returns the service identifier.
@@ -240,7 +246,7 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		}
 	}
 	if len(allCNAMEs) > 0 {
-		for _, d := range detect.CDN(allCNAMEs) {
+		for _, d := range s.detector.CDN(allCNAMEs) {
 			result.Records = append(result.Records, Record{
 				Host:  "detected",
 				Type:  string(d.Type),
@@ -261,7 +267,7 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		}
 	}
 	if len(mxHosts) > 0 {
-		for _, d := range detect.EmailProvider(mxHosts) {
+		for _, d := range s.detector.EmailProvider(mxHosts) {
 			result.Records = append(result.Records, Record{
 				Host:  "detected",
 				Type:  string(d.Type),
@@ -278,7 +284,7 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		}
 	}
 	if len(nsHosts) > 0 {
-		for _, d := range detect.DNSHost(nsHosts) {
+		for _, d := range s.detector.DNSHost(nsHosts) {
 			result.Records = append(result.Records, Record{
 				Host:  "detected",
 				Type:  string(d.Type),
@@ -295,7 +301,7 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		}
 	}
 	if len(allTXTs) > 0 {
-		for _, d := range detect.TXTRecord(allTXTs) {
+		for _, d := range s.detector.TXTRecord(allTXTs) {
 			result.Records = append(result.Records, Record{
 				Host:  "detected",
 				Type:  string(d.Type),

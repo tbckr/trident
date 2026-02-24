@@ -9,6 +9,31 @@ import (
 	"github.com/tbckr/trident/internal/detect"
 )
 
+// allTXTPatterns is the full set of TXT patterns used across TXT tests.
+var allTXTPatterns = []detect.TXTPattern{
+	{Substring: "include:_spf.google.com", Provider: "Google Workspace", Type: detect.TypeEmail},
+	{Substring: "include:spf.protection.outlook.com", Provider: "Microsoft 365", Type: detect.TypeEmail},
+	{Substring: "include:_spf.salesforce.com", Provider: "Salesforce", Type: detect.TypeEmail},
+	{Substring: "include:spf.pphosted.com", Provider: "Proofpoint", Type: detect.TypeEmail},
+	{Substring: "include:spf.mimecast.com", Provider: "Mimecast", Type: detect.TypeEmail},
+	{Substring: "include:sendgrid.net", Provider: "SendGrid", Type: detect.TypeEmail},
+	{Substring: "include:servers.mcsv.net", Provider: "Mailchimp", Type: detect.TypeEmail},
+	{Substring: "google-site-verification=", Provider: "Google", Type: detect.TypeVerification},
+	{Substring: "MS=ms", Provider: "Microsoft", Type: detect.TypeVerification},
+	{Substring: "facebook-domain-verification=", Provider: "Facebook", Type: detect.TypeVerification},
+	{Substring: "hs-site-verification=", Provider: "HubSpot", Type: detect.TypeVerification},
+	{Substring: "atlassian-domain-verification=", Provider: "Atlassian", Type: detect.TypeVerification},
+	{Substring: "docusign=", Provider: "DocuSign", Type: detect.TypeVerification},
+	{Substring: "adobe-idp-site-verification=", Provider: "Adobe", Type: detect.TypeVerification},
+	{Substring: "zoom-domain-verification=", Provider: "Zoom", Type: detect.TypeVerification},
+	{Substring: "stripe-verification=", Provider: "Stripe", Type: detect.TypeVerification},
+	{Substring: "apple-domain-verification=", Provider: "Apple", Type: detect.TypeVerification},
+}
+
+func newTXTDetector() *detect.Detector {
+	return detect.NewDetector(detect.Patterns{TXT: allTXTPatterns})
+}
+
 func TestTXTRecord_SPFEmail(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -23,9 +48,10 @@ func TestTXTRecord_SPFEmail(t *testing.T) {
 		{"sendgrid", "v=spf1 include:sendgrid.net ~all", "SendGrid"},
 		{"mailchimp", "v=spf1 include:servers.mcsv.net ~all", "Mailchimp"},
 	}
+	d := newTXTDetector()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			detections := detect.TXTRecord([]string{tt.txt})
+			detections := d.TXTRecord([]string{tt.txt})
 			require.Len(t, detections, 1)
 			assert.Equal(t, detect.TypeEmail, detections[0].Type)
 			assert.Equal(t, tt.provider, detections[0].Provider)
@@ -52,9 +78,10 @@ func TestTXTRecord_Verification(t *testing.T) {
 		{"stripe", "stripe-verification=abc", "Stripe"},
 		{"apple", "apple-domain-verification=abc123", "Apple"},
 	}
+	d := newTXTDetector()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			detections := detect.TXTRecord([]string{tt.txt})
+			detections := d.TXTRecord([]string{tt.txt})
 			require.Len(t, detections, 1)
 			assert.Equal(t, detect.TypeVerification, detections[0].Type)
 			assert.Equal(t, tt.provider, detections[0].Provider)
@@ -65,7 +92,7 @@ func TestTXTRecord_Verification(t *testing.T) {
 }
 
 func TestTXTRecord_NoMatch(t *testing.T) {
-	detections := detect.TXTRecord([]string{
+	detections := newTXTDetector().TXTRecord([]string{
 		"v=spf1 ip4:192.0.2.0/24 ~all",
 		"some-other-token=irrelevant",
 	})
@@ -73,14 +100,15 @@ func TestTXTRecord_NoMatch(t *testing.T) {
 }
 
 func TestTXTRecord_Empty(t *testing.T) {
-	assert.Empty(t, detect.TXTRecord(nil))
-	assert.Empty(t, detect.TXTRecord([]string{}))
+	d := newTXTDetector()
+	assert.Empty(t, d.TXTRecord(nil))
+	assert.Empty(t, d.TXTRecord([]string{}))
 }
 
 func TestTXTRecord_Deduplication(t *testing.T) {
 	// Same TXT value passed twice — should produce only one detection.
 	txt := "google-site-verification=abc123"
-	detections := detect.TXTRecord([]string{txt, txt})
+	detections := newTXTDetector().TXTRecord([]string{txt, txt})
 	require.Len(t, detections, 1)
 	assert.Equal(t, "Google", detections[0].Provider)
 }
@@ -91,6 +119,6 @@ func TestTXTRecord_Multiple(t *testing.T) {
 		"google-site-verification=abc123",
 		"MS=ms12345678",
 	}
-	detections := detect.TXTRecord(txts)
+	detections := newTXTDetector().TXTRecord(txts)
 	require.Len(t, detections, 3)
 }

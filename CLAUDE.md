@@ -32,7 +32,8 @@ internal/
   resolver/         # *net.Resolver factory (SOCKS5 leak prevention)
   worker/           # Bounded goroutine pool
   services/         # One package per service; IsDomain() here
-  detect/           # Provider detection: CDN/Email/DNS/TXT (pure, no I/O)
+  appdir/           # OS config-dir helpers: ConfigDir(), EnsureFile()
+  detect/           # Provider detection: CDN/Email/DNS/TXT (pure, no I/O); patterns.yaml embedded
   output/           # Table/JSON/text formatters + defang helpers
 ```
 
@@ -112,12 +113,16 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 
 **`detect.Detection.Source`** — `"cname"` (CDN), `"mx"` (EmailProvider), `"ns"` (DNSHost), `"txt"` (TXTRecord). `TXTRecord` produces both `TypeEmail` and `TypeVerification`, both with `Source: "txt"`.
 
+**`internal/detect` API** — detection methods are on `*Detector`, not package-level. Always `detect.NewDetector(patterns)` first. Patterns: `LoadPatterns(DefaultPatternPaths()...)` in CLI; `LoadPatterns()` (no args = embedded) in tests. User override: `~/.config/trident/detect.yaml`; reserved download path: `detect-downloaded.yaml`.
+
+**detect/identify/apex `NewService` signature** — all three accept `patterns detect.Patterns` as final arg. Test helper: `func embeddedPatterns(t *testing.T) providers.Patterns { p, _ := providers.LoadPatterns(); return p }`. Use a `t.Helper()` wrapper; avoid `var`-init (panics on embed failure are invisible).
+
 **`internal/detect` TXT matching** — `TXTRecord()` uses `strings.Contains` (substring), not suffix match.
 
 ### Lint
 **golangci-lint v2 config keys** — `linters-settings` → `linters.settings`; `formatters-settings` → `formatters.settings`; `issues.exclude-rules` → `linters.exclusions.rules`. `gosimple` is merged into `staticcheck` — do not list separately.
 
-**gosec G304** — fires on `os.Open`/`os.OpenFile` with variable paths, NOT on `os.ReadFile`. Prefer `linters.exclusions.rules` or `//nolint:gosec` over `gosec.excludes` in config (unreliable). Remove unused nolint directives.
+**gosec G304** — fires on `os.Open`/`os.OpenFile` with variable paths sourced from user input, NOT on `os.ReadFile` and NOT on internal/trusted path parameters. Add `//nolint:gosec` only if the linter actually fires — unused directives are caught by `nolintlint`.
 
 **gosec G115** — `int(f.Fd())` always triggers; suppress with `//nolint:gosec // uintptr→int is safe for fd`.
 
@@ -145,6 +150,8 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 **PAP level ordering** — `RED(0) < AMBER(1) < GREEN(2) < WHITE(3)`. Service is blocked when its level exceeds the user's limit. Default `--pap-limit=white` permits everything.
 
 **`runAggregateCmd`** — use for `AggregateService` implementations (enforces `MinPAP` gate). `runServiceCmd` enforces `PAP` gate. Both error: `%q requires PAP %s but limit is %s`.
+
+**detect API refactor scope** — when renaming package-level detect functions to methods, search ALL packages for callers (`grep -r "detect\."` or `grep -r "providers\."`) — not just the planned files. `apex` and `identify` both used `detect.CDN()` etc. and were missed in the plan's files summary.
 
 ## Configuration
 

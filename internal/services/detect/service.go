@@ -23,11 +23,16 @@ const (
 type Service struct {
 	resolver services.DNSResolverInterface
 	logger   *slog.Logger
+	detector *providers.Detector
 }
 
-// NewService creates a new detect service with the given resolver and logger.
-func NewService(resolver services.DNSResolverInterface, logger *slog.Logger) *Service {
-	return &Service{resolver: resolver, logger: logger}
+// NewService creates a new detect service with the given resolver, logger, and patterns.
+func NewService(resolver services.DNSResolverInterface, logger *slog.Logger, patterns providers.Patterns) *Service {
+	return &Service{
+		resolver: resolver,
+		logger:   logger,
+		detector: providers.NewDetector(patterns),
+	}
 }
 
 // Name returns the service identifier.
@@ -99,7 +104,7 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 	}
 
 	// Run detections.
-	for _, d := range providers.CDN(cnames) {
+	for _, d := range s.detector.CDN(cnames) {
 		result.Detections = append(result.Detections, Detection{
 			Type:     string(d.Type),
 			Provider: d.Provider,
@@ -107,7 +112,7 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 			Source:   d.Source,
 		})
 	}
-	for _, d := range providers.EmailProvider(mxHosts) {
+	for _, d := range s.detector.EmailProvider(mxHosts) {
 		result.Detections = append(result.Detections, Detection{
 			Type:     string(d.Type),
 			Provider: d.Provider,
@@ -115,7 +120,7 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 			Source:   d.Source,
 		})
 	}
-	for _, d := range providers.DNSHost(nsHosts) {
+	for _, d := range s.detector.DNSHost(nsHosts) {
 		result.Detections = append(result.Detections, Detection{
 			Type:     string(d.Type),
 			Provider: d.Provider,
@@ -123,7 +128,7 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 			Source:   d.Source,
 		})
 	}
-	for _, d := range providers.TXTRecord(txtRecords) {
+	for _, d := range s.detector.TXTRecord(txtRecords) {
 		result.Detections = append(result.Detections, Detection{
 			Type:     string(d.Type),
 			Provider: d.Provider,

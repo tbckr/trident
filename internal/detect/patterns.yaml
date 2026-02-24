@@ -1,0 +1,158 @@
+cdn:
+  - suffix: cloudfront.net
+    provider: AWS CloudFront
+  - suffix: akamaiedge.net
+    provider: Akamai
+  - suffix: edgekey.net
+    provider: Akamai
+  - suffix: edgesuite.net
+    provider: Akamai
+  - suffix: fastly.net
+    provider: Fastly
+  - suffix: cloudflare.net
+    provider: Cloudflare
+  - suffix: azureedge.net
+    provider: Azure CDN
+  - suffix: azurefd.net
+    provider: Azure Front Door
+  - suffix: googleplex.com
+    provider: Google Cloud CDN
+  - suffix: l.google.com
+    provider: Google Cloud CDN
+  - suffix: b-cdn.net
+    provider: Bunny CDN
+  - suffix: incapdns.net
+    provider: Imperva
+  - suffix: sucuri.net
+    provider: Sucuri
+  - suffix: stackpathcdn.com
+    provider: StackPath
+  - suffix: netdna-cdn.com
+    provider: StackPath
+  - suffix: llnwd.net
+    provider: Edgio
+  - suffix: edgio.net
+    provider: Edgio
+  - suffix: cdn77.org
+    provider: CDN77
+  - suffix: kxcdn.com
+    provider: KeyCDN
+  - suffix: edgecastcdn.net
+    provider: Verizon EdgeCast
+  - suffix: cachefly.net
+    provider: CacheFly
+  - suffix: gcdn.co
+    provider: G-Core
+  - suffix: alikunlun.com
+    provider: Alibaba Cloud CDN
+
+email:
+  - suffix: google.com
+    provider: Google Workspace
+  - suffix: googlemail.com
+    provider: Google Workspace
+  - suffix: mail.protection.outlook.com
+    provider: Microsoft 365
+  - suffix: eo.outlook.com
+    provider: Microsoft 365
+  - suffix: pphosted.com
+    provider: Proofpoint
+  - suffix: mimecast.com
+    provider: Mimecast
+  - suffix: barracudanetworks.com
+    provider: Barracuda
+  - suffix: sendgrid.net
+    provider: SendGrid
+  - suffix: mailgun.org
+    provider: Mailgun
+  - suffix: zoho.com
+    provider: ZOHO Mail
+  - suffix: emailsrvr.com
+    provider: Rackspace Email
+  - suffix: messagelabs.com
+    provider: Broadcom Email Security
+
+dns:
+  - suffix: ns.cloudflare.com
+    provider: Cloudflare DNS
+  - contains: awsdns
+    provider: AWS Route 53
+  - suffix: azure-dns.com
+    provider: Azure DNS
+  - suffix: azure-dns.net
+    provider: Azure DNS
+  - suffix: azure-dns.org
+    provider: Azure DNS
+  - suffix: azure-dns.info
+    provider: Azure DNS
+  - suffix: googledomains.com
+    provider: Google Cloud DNS
+  - suffix: nsone.net
+    provider: NS1
+  - suffix: dnsimple.com
+    provider: DNSimple
+  - suffix: ultradns.net
+    provider: UltraDNS
+  - suffix: ultradns.com
+    provider: UltraDNS
+  - suffix: dnsmadeeasy.com
+    provider: DNS Made Easy
+  - suffix: cloudns.net
+    provider: ClouDNS
+  - suffix: domaincontrol.com
+    provider: GoDaddy
+  - suffix: registrar-servers.com
+    provider: Namecheap
+
+txt:
+  - substring: "include:_spf.google.com"
+    provider: Google Workspace
+    type: Email
+  - substring: "include:spf.protection.outlook.com"
+    provider: Microsoft 365
+    type: Email
+  - substring: "include:_spf.salesforce.com"
+    provider: Salesforce
+    type: Email
+  - substring: "include:spf.pphosted.com"
+    provider: Proofpoint
+    type: Email
+  - substring: "include:spf.mimecast.com"
+    provider: Mimecast
+    type: Email
+  - substring: "include:sendgrid.net"
+    provider: SendGrid
+    type: Email
+  - substring: "include:servers.mcsv.net"
+    provider: Mailchimp
+    type: Email
+  - substring: "google-site-verification="
+    provider: Google
+    type: Verification
+  - substring: "MS=ms"
+    provider: Microsoft
+    type: Verification
+  - substring: "facebook-domain-verification="
+    provider: Facebook
+    type: Verification
+  - substring: "hs-site-verification="
+    provider: HubSpot
+    type: Verification
+  - substring: "atlassian-domain-verification="
+    provider: Atlassian
+    type: Verification
+  - substring: "docusign="
+    provider: DocuSign
+    type: Verification
+  - substring: "adobe-idp-site-verification="
+    provider: Adobe
+    type: Verification
+  - substring: "zoom-domain-verification="
+    provider: Zoom
+    type: Verification
+  - substring: "stripe-verification="
+    provider: Stripe
+    type: Verification
+  - substring: "apple-domain-verification="
+    provider: Apple
+    type: Verification

@@ -10,6 +10,8 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/tbckr/trident/internal/appdir"
 )
 
 // ErrUnknownKey is returned when a config key is not recognised.
@@ -181,7 +183,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 		resolvedPath = configFile
 		v.SetConfigFile(configFile)
 	} else {
-		dir, err := configDir()
+		dir, err := appdir.ConfigDir()
 		if err != nil {
 			return nil, fmt.Errorf("resolving config dir: %w", err)
 		}
@@ -191,7 +193,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 		v.AddConfigPath(dir)
 	}
 
-	if err := ensureConfigFile(resolvedPath); err != nil {
+	if err := appdir.EnsureFile(resolvedPath); err != nil {
 		return nil, fmt.Errorf("ensuring config file: %w", err)
 	}
 
@@ -211,21 +213,10 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	return &cfg, nil
 }
 
-// configDir returns the OS-appropriate config directory for trident.
-// Uses os.UserConfigDir() which returns XDG_CONFIG_HOME on Linux,
-// ~/Library/Application Support on macOS, and %AppData% on Windows.
-func configDir() (string, error) {
-	base, err := os.UserConfigDir()
-	if err != nil {
-		return "", fmt.Errorf("getting user config dir: %w", err)
-	}
-	return filepath.Join(base, "trident"), nil
-}
-
 // DefaultConfigPath returns the default config file path for trident.
 // On Linux this is $XDG_CONFIG_HOME/trident/config.yaml.
 func DefaultConfigPath() (string, error) {
-	dir, err := configDir()
+	dir, err := appdir.ConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("resolving config dir: %w", err)
 	}
@@ -245,22 +236,4 @@ func LoadAliases(path string) (map[string]string, error) {
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 	return v.GetStringMapString("alias"), nil
-}
-
-// ensureConfigFile creates the config file (and its parent directory) if they do
-// not already exist. The file is created with 0600 permissions (owner read/write only).
-func ensureConfigFile(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("creating config dir: %w", err)
-	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if err != nil {
-		if os.IsExist(err) {
-			return nil
-		}
-		return fmt.Errorf("creating config file: %w", err)
-	}
-	// Nothing is written; the file is a zero-byte placeholder whose presence
-	// confirms the path is initialised with the correct permissions (0600).
-	return f.Close()
 }

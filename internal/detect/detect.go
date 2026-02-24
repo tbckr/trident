@@ -21,11 +21,11 @@ type Detection struct {
 	Source   string // DNS record type: "cname", "mx", "ns", "txt"
 }
 
-// pattern maps a DNS suffix to a provider name.
-type pattern struct {
-	suffix   string
-	provider string
-}
+// Detector holds loaded patterns and provides detection methods.
+type Detector struct{ patterns Patterns }
+
+// NewDetector creates a Detector backed by the given pattern set.
+func NewDetector(p Patterns) *Detector { return &Detector{patterns: p} }
 
 // matchSuffix returns true when host == suffix or host ends with "."+suffix.
 func matchSuffix(host, suffix string) bool {

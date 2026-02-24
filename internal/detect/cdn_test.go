@@ -9,6 +9,37 @@ import (
 	"github.com/tbckr/trident/internal/detect"
 )
 
+// allCDNPatterns is the full set of CDN patterns used across CDN tests.
+var allCDNPatterns = []detect.CDNPattern{
+	{Suffix: "cloudfront.net", Provider: "AWS CloudFront"},
+	{Suffix: "akamaiedge.net", Provider: "Akamai"},
+	{Suffix: "edgekey.net", Provider: "Akamai"},
+	{Suffix: "edgesuite.net", Provider: "Akamai"},
+	{Suffix: "fastly.net", Provider: "Fastly"},
+	{Suffix: "cloudflare.net", Provider: "Cloudflare"},
+	{Suffix: "azureedge.net", Provider: "Azure CDN"},
+	{Suffix: "azurefd.net", Provider: "Azure Front Door"},
+	{Suffix: "googleplex.com", Provider: "Google Cloud CDN"},
+	{Suffix: "l.google.com", Provider: "Google Cloud CDN"},
+	{Suffix: "b-cdn.net", Provider: "Bunny CDN"},
+	{Suffix: "incapdns.net", Provider: "Imperva"},
+	{Suffix: "sucuri.net", Provider: "Sucuri"},
+	{Suffix: "stackpathcdn.com", Provider: "StackPath"},
+	{Suffix: "netdna-cdn.com", Provider: "StackPath"},
+	{Suffix: "llnwd.net", Provider: "Edgio"},
+	{Suffix: "edgio.net", Provider: "Edgio"},
+	{Suffix: "cdn77.org", Provider: "CDN77"},
+	{Suffix: "kxcdn.com", Provider: "KeyCDN"},
+	{Suffix: "edgecastcdn.net", Provider: "Verizon EdgeCast"},
+	{Suffix: "cachefly.net", Provider: "CacheFly"},
+	{Suffix: "gcdn.co", Provider: "G-Core"},
+	{Suffix: "alikunlun.com", Provider: "Alibaba Cloud CDN"},
+}
+
+func newCDNDetector() *detect.Detector {
+	return detect.NewDetector(detect.Patterns{CDN: allCDNPatterns})
+}
+
 func TestDetectCDN_KnownProviders(t *testing.T) {
 	tests := []struct {
 		cname    string
@@ -39,9 +70,10 @@ func TestDetectCDN_KnownProviders(t *testing.T) {
 		{"foo.gcdn.co.", "G-Core"},
 		{"foo.alikunlun.com.", "Alibaba Cloud CDN"},
 	}
+	d := newCDNDetector()
 	for _, tt := range tests {
 		t.Run(tt.cname, func(t *testing.T) {
-			detections := detect.CDN([]string{tt.cname})
+			detections := d.CDN([]string{tt.cname})
 			require.Len(t, detections, 1)
 			assert.Equal(t, detect.TypeCDN, detections[0].Type)
 			assert.Equal(t, tt.provider, detections[0].Provider)
@@ -52,25 +84,26 @@ func TestDetectCDN_KnownProviders(t *testing.T) {
 }
 
 func TestDetectCDN_UnknownSuffix(t *testing.T) {
-	detections := detect.CDN([]string{"foo.unknown-cdn.example.com."})
+	detections := newCDNDetector().CDN([]string{"foo.unknown-cdn.example.com."})
 	assert.Empty(t, detections)
 }
 
 func TestDetectCDN_EmptyInput(t *testing.T) {
-	assert.Empty(t, detect.CDN(nil))
-	assert.Empty(t, detect.CDN([]string{}))
+	d := newCDNDetector()
+	assert.Empty(t, d.CDN(nil))
+	assert.Empty(t, d.CDN([]string{}))
 }
 
 func TestDetectCDN_DuplicateSuppression(t *testing.T) {
 	// Same CNAME twice — should produce only one detection.
-	detections := detect.CDN([]string{"abc.cloudfront.net.", "abc.cloudfront.net."})
+	detections := newCDNDetector().CDN([]string{"abc.cloudfront.net.", "abc.cloudfront.net."})
 	require.Len(t, detections, 1)
 	assert.Equal(t, "AWS CloudFront", detections[0].Provider)
 }
 
 func TestDetectCDN_MultipleProviders(t *testing.T) {
 	cnames := []string{"abc.cloudfront.net.", "edge.akamaiedge.net."}
-	detections := detect.CDN(cnames)
+	detections := newCDNDetector().CDN(cnames)
 	require.Len(t, detections, 2)
 	providers := []string{detections[0].Provider, detections[1].Provider}
 	assert.Contains(t, providers, "AWS CloudFront")

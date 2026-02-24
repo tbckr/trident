@@ -6,12 +6,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	providers "github.com/tbckr/trident/internal/detect"
 	"github.com/tbckr/trident/internal/services/identify"
 	"github.com/tbckr/trident/internal/testutil"
 )
 
+// embeddedPatterns loads the embedded defaults for use in identify tests.
+func embeddedPatterns(t *testing.T) providers.Patterns {
+	t.Helper()
+	p, err := providers.LoadPatterns()
+	require.NoError(t, err)
+	return p
+}
+
 func TestRun_CDNDetected(t *testing.T) {
-	svc := identify.NewService(testutil.NopLogger())
+	svc := identify.NewService(testutil.NopLogger(), embeddedPatterns(t))
 	result, err := svc.Run([]string{"abc.cloudfront.net."}, nil, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, result.Detections, 1)
@@ -21,7 +30,7 @@ func TestRun_CDNDetected(t *testing.T) {
 }
 
 func TestRun_EmailDetected(t *testing.T) {
-	svc := identify.NewService(testutil.NopLogger())
+	svc := identify.NewService(testutil.NopLogger(), embeddedPatterns(t))
 	result, err := svc.Run(nil, []string{"aspmx.l.google.com."}, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, result.Detections, 1)
@@ -30,7 +39,7 @@ func TestRun_EmailDetected(t *testing.T) {
 }
 
 func TestRun_DNSDetected(t *testing.T) {
-	svc := identify.NewService(testutil.NopLogger())
+	svc := identify.NewService(testutil.NopLogger(), embeddedPatterns(t))
 	result, err := svc.Run(nil, nil, []string{"ns-123.awsdns-45.com."}, nil)
 	require.NoError(t, err)
 	require.Len(t, result.Detections, 1)
@@ -39,7 +48,7 @@ func TestRun_DNSDetected(t *testing.T) {
 }
 
 func TestRun_TXTEmailDetected(t *testing.T) {
-	svc := identify.NewService(testutil.NopLogger())
+	svc := identify.NewService(testutil.NopLogger(), embeddedPatterns(t))
 	result, err := svc.Run(nil, nil, nil, []string{"v=spf1 include:_spf.google.com ~all"})
 	require.NoError(t, err)
 	require.Len(t, result.Detections, 1)
@@ -48,7 +57,7 @@ func TestRun_TXTEmailDetected(t *testing.T) {
 }
 
 func TestRun_TXTVerificationDetected(t *testing.T) {
-	svc := identify.NewService(testutil.NopLogger())
+	svc := identify.NewService(testutil.NopLogger(), embeddedPatterns(t))
 	result, err := svc.Run(nil, nil, nil, []string{"google-site-verification=abc123"})
 	require.NoError(t, err)
 	require.Len(t, result.Detections, 1)
@@ -57,7 +66,7 @@ func TestRun_TXTVerificationDetected(t *testing.T) {
 }
 
 func TestRun_MultipleTypes(t *testing.T) {
-	svc := identify.NewService(testutil.NopLogger())
+	svc := identify.NewService(testutil.NopLogger(), embeddedPatterns(t))
 	result, err := svc.Run(
 		[]string{"abc.cloudfront.net."},
 		[]string{"aspmx.l.google.com."},
@@ -69,7 +78,7 @@ func TestRun_MultipleTypes(t *testing.T) {
 }
 
 func TestRun_NoDetections(t *testing.T) {
-	svc := identify.NewService(testutil.NopLogger())
+	svc := identify.NewService(testutil.NopLogger(), embeddedPatterns(t))
 	result, err := svc.Run(
 		[]string{"unknown.example.invalid."},
 		[]string{"mail.unknown.invalid."},
@@ -81,18 +90,18 @@ func TestRun_NoDetections(t *testing.T) {
 }
 
 func TestRun_EmptyInputs(t *testing.T) {
-	svc := identify.NewService(testutil.NopLogger())
+	svc := identify.NewService(testutil.NopLogger(), embeddedPatterns(t))
 	result, err := svc.Run(nil, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, result.IsEmpty())
 }
 
 func TestService_PAP(t *testing.T) {
-	svc := identify.NewService(testutil.NopLogger())
+	svc := identify.NewService(testutil.NopLogger(), embeddedPatterns(t))
 	assert.Equal(t, "red", svc.PAP().String())
 }
 
 func TestService_Name(t *testing.T) {
-	svc := identify.NewService(testutil.NopLogger())
+	svc := identify.NewService(testutil.NopLogger(), embeddedPatterns(t))
 	assert.Equal(t, "identify", svc.Name())
 }
