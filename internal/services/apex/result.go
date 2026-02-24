@@ -19,6 +19,7 @@ type Record struct {
 type Result struct {
 	Input   string   `json:"input"`
 	Records []Record `json:"records,omitempty"`
+	Skipped []string `json:"skipped,omitempty"`
 }
 
 // IsEmpty reports whether the result contains no records.
@@ -27,9 +28,15 @@ func (r *Result) IsEmpty() bool {
 }
 
 // WriteText renders each record as "HOST TYPE VALUE\n".
+// Any skipped sub-services are listed at the end as "[skipped: <name>]".
 func (r *Result) WriteText(w io.Writer) error {
 	for _, rec := range r.Records {
 		if _, err := fmt.Fprintf(w, "%s %s %s\n", rec.Host, rec.Type, rec.Value); err != nil {
+			return err
+		}
+	}
+	for _, name := range r.Skipped {
+		if _, err := fmt.Fprintf(w, "[skipped: %s]\n", name); err != nil {
 			return err
 		}
 	}
@@ -63,10 +70,14 @@ func recSortKey(input string, rec Record) string {
 }
 
 // WriteTable renders the result as a 3-column table grouped by HOST.
+// Skipped sub-services appear at the end with Host="skipped".
 func (r *Result) WriteTable(w io.Writer) error {
 	var rows [][]string
 	for _, rec := range sortRecordsForDisplay(r.Input, r.Records) {
 		rows = append(rows, []string{rec.Host, rec.Type, rec.Value})
+	}
+	for _, name := range r.Skipped {
+		rows = append(rows, []string{"skipped", name, ""})
 	}
 	table := output.NewGroupedWrappingTable(w, 20, 30)
 	table.Header([]string{"Host", "Type", "Value"})

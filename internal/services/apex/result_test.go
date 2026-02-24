@@ -69,6 +69,30 @@ func TestResult_WriteTable(t *testing.T) {
 	assert.Contains(t, out, "ns1.example.com.")
 }
 
+func TestResult_WriteText_Skipped(t *testing.T) {
+	r := &apex.Result{
+		Input:   "example.com",
+		Skipped: []string{"asn"},
+	}
+	var buf bytes.Buffer
+	err := r.WriteText(&buf)
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "[skipped: asn]")
+}
+
+func TestResult_WriteTable_Skipped(t *testing.T) {
+	r := &apex.Result{
+		Input:   "example.com",
+		Skipped: []string{"asn"},
+	}
+	var buf bytes.Buffer
+	err := r.WriteTable(&buf)
+	require.NoError(t, err)
+	out := buf.String()
+	assert.Contains(t, out, "skipped")
+	assert.Contains(t, out, "asn")
+}
+
 func TestResult_WriteTable_SortOrder(t *testing.T) {
 	// Records are intentionally out of natural order to verify sorting:
 	// apex domain first, other hosts alphabetically, sentinel rows (detected) next, ASN rows last.

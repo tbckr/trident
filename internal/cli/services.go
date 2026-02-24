@@ -66,17 +66,12 @@ func newServicesCmd(d *deps) *cobra.Command {
 		Use:     "services",
 		Short:   "List all implemented services and their PAP levels",
 		GroupID: "utility",
-		Long: `List every implemented service with its command group, minimum PAP level (MIN PAP),
-and maximum PAP level (MAX PAP).
+		Long: `List every implemented service with its command group and PAP level.
 
-For individual services MIN PAP and MAX PAP are always equal — the service either
-runs or is blocked by --pap-limit, with no partial behaviour.
-
-For aggregate commands (such as apex), the two values may differ: MIN PAP is the
-lowest PAP level required to produce any useful output; MAX PAP is the highest
-level required by any sub-service. When --pap-limit falls between the two, the
-aggregate command runs but silently skips the sub-services whose level exceeds
-the limit, returning whatever it can gather at that PAP level.`,
+When all services have identical PAP values a single PAP column is shown.
+For aggregate commands whose sub-services span different PAP levels, two columns
+(MIN PAP and MAX PAP) appear instead. If --pap-limit falls between these values
+the command runs at reduced scope and reports which sub-services were skipped.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			entries := allServices()
@@ -96,12 +91,34 @@ the limit, returning whatever it can gather at that PAP level.`,
 }
 
 func writeServicesTable(w io.Writer, entries []serviceEntry) error {
-	rows := make([][]string, len(entries))
-	for i, e := range entries {
-		rows[i] = []string{e.Group, e.Name, e.MinPAP, e.PAP}
+	splitCols := false
+	for _, e := range entries {
+		if e.MinPAP != e.PAP {
+			splitCols = true
+			break
+		}
 	}
-	table := output.NewGroupedWrappingTable(w, 20, 37)
-	table.Header([]string{"Group", "Command", "Min PAP", "Max PAP"})
+
+	var headers []string
+	rows := make([][]string, len(entries))
+	if splitCols {
+		headers = []string{"Group", "Command", "Min PAP", "Max PAP"}
+		for i, e := range entries {
+			rows[i] = []string{e.Group, e.Name, e.MinPAP, e.PAP}
+		}
+	} else {
+		headers = []string{"Group", "Command", "PAP"}
+		for i, e := range entries {
+			rows[i] = []string{e.Group, e.Name, e.MinPAP}
+		}
+	}
+
+	overhead := 37
+	if !splitCols {
+		overhead = 30
+	}
+	table := output.NewGroupedWrappingTable(w, 20, overhead)
+	table.Header(headers)
 	if err := table.Bulk(rows); err != nil {
 		return err
 	}
@@ -109,8 +126,21 @@ func writeServicesTable(w io.Writer, entries []serviceEntry) error {
 }
 
 func writeServicesText(w io.Writer, entries []serviceEntry) error {
+	splitCols := false
 	for _, e := range entries {
-		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.Group, e.Name, e.MinPAP, e.PAP); err != nil {
+		if e.MinPAP != e.PAP {
+			splitCols = true
+			break
+		}
+	}
+	for _, e := range entries {
+		var err error
+		if splitCols {
+			_, err = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.Group, e.Name, e.MinPAP, e.PAP)
+		} else {
+			_, err = fmt.Fprintf(w, "%s\t%s\t%s\n", e.Group, e.Name, e.MinPAP)
+		}
+		if err != nil {
 			return err
 		}
 	}

@@ -178,7 +178,7 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **`services.MultiResultBase[T, PT]`** — generic base in `internal/services/multi.go`; `PT multiItem[T]` constrains the element type (`*T` + `IsEmpty() bool` + `WriteText(io.Writer) error`). Provides `IsEmpty`, `MarshalJSON`, `WriteText`; embed it and add `WriteTable` to complete a service's `MultiResult`.
 
-**`runServiceCmd`** — shared `RunE` body in `internal/cli/root.go`; enforces the service PAP gate then delegates to `runCmdBody` (input resolution + single/bulk paths). Each regular subcommand's `RunE` calls `runServiceCmd(cmd, d, svc, args)`. **`runAggregateCmd`** — use instead of `runServiceCmd` for `AggregateService` implementations; enforces `MinPAP` gate (not `PAP`). **`runCmdBody`** — the shared post-gate execution body called by both.
+**`runServiceCmd`** — shared `RunE` body in `internal/cli/root.go`; enforces the service PAP gate then delegates to `runCmdBody` (input resolution + single/bulk paths). Each regular subcommand's `RunE` calls `runServiceCmd(cmd, d, svc, args)`. **`runAggregateCmd`** — use instead of `runServiceCmd` for `AggregateService` implementations; enforces `MinPAP` gate (not `PAP`). Both produce the same error format: `%q requires PAP %s but limit is %s`. **`runCmdBody`** — the shared post-gate execution body called by both.
 
 **`allServices()` in `internal/cli/services.go`** — reads package-level `Name`, `PAP`, and (for aggregate entries) `MinPAP` constants from each service package directly (no instantiation, no nil deps); must be updated when a new service is added. Regular services use `PAP` for both min and max: `{svc.Name, svc.PAP, svc.PAP, "services"}`. Aggregate entries use `{svc.Name, svc.MinPAP, svc.PAP, "aggregate"}`. Easy to miss since it's not near the service package or its CLI command.
 
@@ -187,6 +187,10 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 **`"aggregate"` cobra group** — commands that orchestrate multiple services (not wrapping a single external API) use `GroupID: "aggregate"`. Register with `cmd.AddGroup(&cobra.Group{ID: "aggregate", Title: "Aggregate Commands:"})` after `"services"` and before `"utility"` in `newRootCmd`. Always registered (not conditional like `"aliases"`). See `internal/cli/apex.go`.
 
 **`services.AggregateService` interface** — defined in `internal/services/service.go`; embeds `Service` and adds `MinPAP() pap.Level`. Aggregate service packages export both a `MinPAP` and a `PAP` package-level constant (regular services export only `PAP`). When `MinPAP == PAP` (all sub-services at the same level), no per-sub-service PAP guard inside `Run()` is needed — `runAggregateCmd`'s gate is sufficient. If a future sub-service at a higher PAP is added, raise `PAP` and add a per-sub-service guard stored in the struct.
+
+**Aggregate `Result.Skipped` field** — when a sub-service is not run due to PAP, populate `result.Skipped` with the sub-service name. `WriteText` renders each entry as `[skipped: <name>]\n`; `WriteTable` appends rows with `Host="skipped"` after `sortRecordsForDisplay` (not integrated into the sort key function). JSON tag: `"skipped,omitempty"`.
+
+**`writeServicesTable` adaptive columns** — in `internal/cli/services.go`; renders a single "PAP" column (using `MinPAP`) when all entries have `MinPAP == PAP`; splits to "Min PAP" / "Max PAP" columns only when any entry differs. Overhead: 30 for 3-col (equal), 37 for 4-col (split). JSON always includes both `min_pap` and `max_pap` fields for machine consumers.
 
 **CLI empty-result pattern** — after `svc.Run()` succeeds, each CLI command checks `IsEmpty()` and returns early without calling `writeResult()`:
 ```go

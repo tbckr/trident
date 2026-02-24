@@ -277,7 +277,7 @@ func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []str
 // are skipped at the service level.
 func runAggregateCmd(cmd *cobra.Command, d *deps, svc services.AggregateService, args []string) error {
 	if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.MinPAP()) {
-		return fmt.Errorf("%w: %q requires a minimum PAP of %s but limit is %s",
+		return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
 			services.ErrPAPBlocked, svc.Name(), svc.MinPAP(), pap.MustParse(d.cfg.PAPLimit))
 	}
 	return runCmdBody(cmd, d, svc, args)
