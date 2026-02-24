@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/tbckr/trident/internal/appdir"
+	providers "github.com/tbckr/trident/internal/detect"
 	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
@@ -63,6 +65,11 @@ PAP level: AMBER (makes an outbound HTTPS request to GitHub).`,
 				return fmt.Errorf("downloading detect patterns: unexpected status %d", resp.StatusCode)
 			}
 
+			var validated providers.Patterns
+			if err := yaml.Unmarshal(resp.Bytes(), &validated); err != nil {
+				return fmt.Errorf("validating downloaded patterns: %w", err)
+			}
+
 			dir, err := appdir.ConfigDir()
 			if err != nil {
 				return fmt.Errorf("getting config dir: %w", err)
@@ -72,11 +79,30 @@ PAP level: AMBER (makes an outbound HTTPS request to GitHub).`,
 			}
 
 			path := filepath.Join(dir, "detect-downloaded.yaml")
-			if err := os.WriteFile(path, resp.Bytes(), 0o600); err != nil {
-				return fmt.Errorf("writing detect patterns: %w", err)
+			verb := "saved to"
+			if _, err := os.Stat(path); err == nil {
+				verb = "updated at"
 			}
 
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Detect patterns saved to %s\n", path)
+			tmp, err := os.CreateTemp(dir, "detect-downloaded-*.yaml")
+			if err != nil {
+				return fmt.Errorf("creating temp file: %w", err)
+			}
+			tmpName := tmp.Name()
+			defer func() { _ = os.Remove(tmpName) }()
+
+			if _, err := tmp.Write(resp.Bytes()); err != nil {
+				_ = tmp.Close()
+				return fmt.Errorf("writing detect patterns: %w", err)
+			}
+			if err := tmp.Close(); err != nil {
+				return fmt.Errorf("closing temp file: %w", err)
+			}
+			if err := os.Rename(tmpName, path); err != nil { //nolint:gosec // tmpName is created by os.CreateTemp in the same controlled dir
+				return fmt.Errorf("installing detect patterns: %w", err)
+			}
+
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Detect patterns %s %s\n", verb, path)
 			return err
 		},
 	}

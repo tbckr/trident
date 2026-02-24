@@ -62,7 +62,7 @@ func LoadPatterns(paths ...string) (Patterns, error) {
 		}
 		var p Patterns
 		if err := yaml.Unmarshal(data, &p); err != nil {
-			return Patterns{}, fmt.Errorf("parsing patterns file %q: %w", path, err)
+			continue // corrupt file → try next path or embedded fallback
 		}
 		return p, nil
 	}
