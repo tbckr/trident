@@ -122,6 +122,8 @@ func NewCrtshService(client *req.Client, logger *slog.Logger) *CrtshService
 
 **apex sentinel Host value** — CDN, email, and DNS detection records all use `Host: "detected"` (not separate `"cdn"`, `"email"`, `"dns"` values). When renaming sentinel Host values in `service.go`, also update `service_test.go` detection test filters (search for `rec.Host ==`).
 
+**apex detection pipeline** — each detector receives all records of its type from `result.Records` after all queries are flattened: CDN gets all `Type=="CNAME"`, TXT gets all `Type=="TXT"`, MX gets all `Type=="MX"`, NS gets all `Type=="NS"`. Never filter by `Host==domain` before passing to a detector — that would silently drop subdomain records (e.g. `_dmarc`, `_mta-sts`).
+
 **Table render-order tests** — use `strings.Index(out, valueA) < strings.Index(out, valueB)` assertions to verify that sorted records appear in the correct order in rendered table output, without parsing table structure.
 
 **gosec G115 (`uintptr→int`)** — any `int(f.Fd())` call (e.g. `term.GetSize`, `term.IsTerminal`) always triggers G115. Suppress with `//nolint:gosec // uintptr→int is safe for file descriptors; they fit in int on all supported platforms`.

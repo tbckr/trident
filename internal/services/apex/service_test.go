@@ -398,6 +398,118 @@ func TestApexService_Run_SRVServices(t *testing.T) {
 	assert.Equal(t, "_sip._tls.example.com", found[0].Host)
 }
 
+func TestApexService_Run_SubdomainCNAMEDetection(t *testing.T) {
+	client := newTestClient(t)
+
+	// Simulates a DMARC management service (e.g. dmarcian) whose infrastructure
+	// runs on CloudFront: _dmarc CNAME abc.cloudfront.net.
+	cnameRR := &dns.CNAME{
+		Hdr:   dns.Header{Name: "_dmarc.example.com.", Class: dns.ClassINET, TTL: 300},
+		CNAME: rdata.CNAME{Target: "abc.cloudfront.net."},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "_dmarc.example.com" && qtype == dns.TypeCNAME {
+				return buildWireResponse(t, 0, []dns.RR{cnameRR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	var cdnRecords []apex.Record
+	for _, rec := range result.Records {
+		if rec.Type == "CDN" {
+			cdnRecords = append(cdnRecords, rec)
+		}
+	}
+	require.Len(t, cdnRecords, 1)
+	assert.Contains(t, cdnRecords[0].Value, "AWS CloudFront")
+	assert.Contains(t, cdnRecords[0].Value, "abc.cloudfront.net.")
+}
+
+func TestApexService_Run_SubdomainTXTDetection(t *testing.T) {
+	client := newTestClient(t)
+
+	// mail.example.com has its own SPF record for outbound email sending.
+	txtRR := &dns.TXT{
+		Hdr: dns.Header{Name: "mail.example.com.", Class: dns.ClassINET, TTL: 300},
+		TXT: rdata.TXT{Txt: []string{"v=spf1 include:_spf.google.com ~all"}},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "mail.example.com" && qtype == dns.TypeTXT {
+				return buildWireResponse(t, 0, []dns.RR{txtRR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	var emailRecords []apex.Record
+	for _, rec := range result.Records {
+		if rec.Host == "detected" && rec.Type == "Email" {
+			emailRecords = append(emailRecords, rec)
+		}
+	}
+	require.NotEmpty(t, emailRecords, "expected Email detection from mail subdomain SPF")
+	assert.Contains(t, emailRecords[0].Value, "Google Workspace")
+	assert.Contains(t, emailRecords[0].Value, "include:_spf.google.com")
+}
+
+func TestApexService_Run_ManagedDMARCDelegation(t *testing.T) {
+	client := newTestClient(t)
+
+	// Valimail-style managed DMARC: _dmarc CNAME _dmarc.valimail.com.
+	// The CNAME target is not a CDN, so no CDN detection should fire.
+	cnameRR := &dns.CNAME{
+		Hdr:   dns.Header{Name: "_dmarc.example.com.", Class: dns.ClassINET, TTL: 300},
+		CNAME: rdata.CNAME{Target: "_dmarc.valimail.com."},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "_dmarc.example.com" && qtype == dns.TypeCNAME {
+				return buildWireResponse(t, 0, []dns.RR{cnameRR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	// CNAME record must be stored.
+	var dmarcCNAME []apex.Record
+	for _, rec := range result.Records {
+		if rec.Type == "CNAME" && rec.Host == "_dmarc.example.com" {
+			dmarcCNAME = append(dmarcCNAME, rec)
+		}
+	}
+	require.Len(t, dmarcCNAME, 1)
+	assert.Equal(t, "_dmarc.valimail.com.", dmarcCNAME[0].Value)
+
+	// No CDN detection — valimail.com is not a CDN endpoint.
+	for _, rec := range result.Records {
+		assert.NotEqual(t, "CDN", rec.Type, "unexpected CDN detection for non-CDN DMARC delegation")
+	}
+}
+
 func TestApexService_Run_EmailCNAME(t *testing.T) {
 	client := newTestClient(t)
 

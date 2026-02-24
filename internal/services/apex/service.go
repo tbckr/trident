@@ -151,6 +151,10 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		// autodiscover subdomain
 		{"autodiscover." + domain, dns.TypeA, "A"},
 		{"autodiscover." + domain, dns.TypeAAAA, "AAAA"},
+		// mail subdomain — outbound mail server; may carry a separate SPF record
+		{"mail." + domain, dns.TypeA, "A"},
+		{"mail." + domain, dns.TypeAAAA, "AAAA"},
+		{"mail." + domain, dns.TypeTXT, "TXT"},
 		// Email security subdomains (TXT then CNAME for each)
 		{"_dmarc." + domain, dns.TypeTXT, "TXT"},
 		{"_dmarc." + domain, dns.TypeCNAME, "CNAME"},
@@ -222,16 +226,19 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		result.Records = append(result.Records, recs...)
 	}
 
-	// Flatten CNAME chains in slice order; collect targets for CDN detection.
-	var allCNAMEs []string
+	// Flatten CNAME chains in slice order.
 	for _, recs := range cnameResults {
-		for _, rec := range recs {
-			allCNAMEs = append(allCNAMEs, rec.Value)
-		}
 		result.Records = append(result.Records, recs...)
 	}
 
-	// CDN detection from CNAME chains
+	// CDN detection from all CNAME records (chain traversals + direct queries
+	// for email security subdomains such as _dmarc, _mta-sts, _domainkey, _smtp._tls).
+	var allCNAMEs []string
+	for _, rec := range result.Records {
+		if rec.Type == "CNAME" {
+			allCNAMEs = append(allCNAMEs, rec.Value)
+		}
+	}
 	if len(allCNAMEs) > 0 {
 		for _, d := range detect.CDN(allCNAMEs) {
 			result.Records = append(result.Records, Record{
@@ -280,15 +287,15 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		}
 	}
 
-	// TXT record detection from apex TXT records
-	var apexTXTs []string
+	// TXT record detection from all TXT records (apex + subdomains such as _dmarc, _mta-sts, etc.).
+	var allTXTs []string
 	for _, rec := range result.Records {
-		if rec.Host == domain && rec.Type == "TXT" {
-			apexTXTs = append(apexTXTs, rec.Value)
+		if rec.Type == "TXT" {
+			allTXTs = append(allTXTs, rec.Value)
 		}
 	}
-	if len(apexTXTs) > 0 {
-		for _, d := range detect.TXTRecord(apexTXTs) {
+	if len(allTXTs) > 0 {
+		for _, d := range detect.TXTRecord(allTXTs) {
 			result.Records = append(result.Records, Record{
 				Host:  "detected",
 				Type:  string(d.Type),
