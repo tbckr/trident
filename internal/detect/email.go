@@ -32,6 +32,7 @@ func EmailProvider(mxHosts []string) []Detection {
 					Type:     TypeEmail,
 					Provider: p.provider,
 					Evidence: host,
+					Source:   "mx",
 				})
 			}
 		}

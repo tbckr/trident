@@ -46,6 +46,7 @@ func TestDetectCDN_KnownProviders(t *testing.T) {
 			assert.Equal(t, detect.TypeCDN, detections[0].Type)
 			assert.Equal(t, tt.provider, detections[0].Provider)
 			assert.Equal(t, tt.cname, detections[0].Evidence)
+			assert.Equal(t, "cname", detections[0].Source)
 		})
 	}
 }

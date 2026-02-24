@@ -17,8 +17,8 @@ type MultiResult struct {
 func (m *MultiResult) WriteTable(w io.Writer) error {
 	var rows [][]string
 	for _, r := range m.Results {
-		for _, d := range r.Detections {
-			rows = append(rows, []string{r.Input, d.Type, d.Provider, d.Evidence})
+		for _, d := range sortDetections(r.Detections) {
+			rows = append(rows, []string{r.Input, d.Type, d.Provider, d.Source + ": " + d.Evidence})
 		}
 	}
 	table := output.NewGroupedWrappingTable(w, 20, 40)

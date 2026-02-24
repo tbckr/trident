@@ -15,6 +15,7 @@ func TestDetectDNSHost_CloudflareDNS(t *testing.T) {
 	assert.Equal(t, detect.TypeDNS, detections[0].Type)
 	assert.Equal(t, "Cloudflare DNS", detections[0].Provider)
 	assert.Equal(t, "liz.ns.cloudflare.com.", detections[0].Evidence)
+	assert.Equal(t, "ns", detections[0].Source)
 }
 
 func TestDetectDNSHost_AWSRoute53(t *testing.T) {

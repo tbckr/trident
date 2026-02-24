@@ -49,6 +49,7 @@ func DNSHost(nsHosts []string) []Detection {
 			Type:     TypeDNS,
 			Provider: provider,
 			Evidence: host,
+			Source:   "ns",
 		})
 	}
 	return detections

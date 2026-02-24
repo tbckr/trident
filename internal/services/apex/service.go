@@ -280,6 +280,23 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		}
 	}
 
+	// TXT record detection from apex TXT records
+	var apexTXTs []string
+	for _, rec := range result.Records {
+		if rec.Host == domain && rec.Type == "TXT" {
+			apexTXTs = append(apexTXTs, rec.Value)
+		}
+	}
+	if len(apexTXTs) > 0 {
+		for _, d := range detect.TXTRecord(apexTXTs) {
+			result.Records = append(result.Records, Record{
+				Host:  "detected",
+				Type:  string(d.Type),
+				Value: d.Provider + " (txt: " + d.Evidence + ")",
+			})
+		}
+	}
+
 	// ASN lookup for all unique IPs discovered via A and AAAA records.
 	ipSet := map[string]bool{}
 	for _, rec := range result.Records {

@@ -15,6 +15,7 @@ func TestDetectEmailProvider_GoogleWorkspace(t *testing.T) {
 	assert.Equal(t, detect.TypeEmail, detections[0].Type)
 	assert.Equal(t, "Google Workspace", detections[0].Provider)
 	assert.Equal(t, "aspmx.l.google.com.", detections[0].Evidence)
+	assert.Equal(t, "mx", detections[0].Source)
 }
 
 func TestDetectEmailProvider_Microsoft365(t *testing.T) {

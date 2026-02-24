@@ -13,7 +13,7 @@ import (
 func TestResult_IsEmpty(t *testing.T) {
 	assert.True(t, (&detect.Result{}).IsEmpty())
 	assert.False(t, (&detect.Result{
-		Detections: []detect.Detection{{Type: "CDN", Provider: "AWS CloudFront", Evidence: "foo.cloudfront.net."}},
+		Detections: []detect.Detection{{Type: "CDN", Provider: "AWS CloudFront", Evidence: "foo.cloudfront.net.", Source: "cname"}},
 	}).IsEmpty())
 }
 
@@ -21,7 +21,7 @@ func TestResult_WriteText(t *testing.T) {
 	result := &detect.Result{
 		Input: "example.com",
 		Detections: []detect.Detection{
-			{Type: "CDN", Provider: "AWS CloudFront", Evidence: "foo.cloudfront.net."},
+			{Type: "CDN", Provider: "AWS CloudFront", Evidence: "foo.cloudfront.net.", Source: "cname"},
 		},
 	}
 
@@ -35,9 +35,9 @@ func TestResult_WriteText_AllTypes(t *testing.T) {
 	result := &detect.Result{
 		Input: "example.com",
 		Detections: []detect.Detection{
-			{Type: "CDN", Provider: "AWS CloudFront", Evidence: "foo.cloudfront.net."},
-			{Type: "Email", Provider: "Google Workspace", Evidence: "aspmx.l.google.com."},
-			{Type: "DNS", Provider: "AWS Route 53", Evidence: "ns-1.awsdns-1.com."},
+			{Type: "CDN", Provider: "AWS CloudFront", Evidence: "foo.cloudfront.net.", Source: "cname"},
+			{Type: "Email", Provider: "Google Workspace", Evidence: "aspmx.l.google.com.", Source: "mx"},
+			{Type: "DNS", Provider: "AWS Route 53", Evidence: "ns-1.awsdns-1.com.", Source: "ns"},
 		},
 	}
 
@@ -54,7 +54,7 @@ func TestResult_WriteTable(t *testing.T) {
 	result := &detect.Result{
 		Input: "example.com",
 		Detections: []detect.Detection{
-			{Type: "CDN", Provider: "AWS CloudFront", Evidence: "foo.cloudfront.net."},
+			{Type: "CDN", Provider: "AWS CloudFront", Evidence: "foo.cloudfront.net.", Source: "cname"},
 		},
 	}
 
@@ -67,5 +67,5 @@ func TestResult_WriteTable(t *testing.T) {
 	assert.Contains(t, out, "EVIDENCE")
 	assert.Contains(t, out, "CDN")
 	assert.Contains(t, out, "AWS CloudFront")
-	assert.Contains(t, out, "foo.cloudfront.net.")
+	assert.Contains(t, out, "cname: foo.cloudfront.net.")
 }

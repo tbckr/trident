@@ -88,12 +88,23 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 		}
 	}
 
+	// Collect TXT records.
+	var txtRecords []string
+	if txts, err := s.resolver.LookupTXT(ctx, clean); err != nil {
+		s.logger.Debug("TXT lookup failed", "domain", clean, "error", err)
+	} else {
+		for _, txt := range txts {
+			txtRecords = append(txtRecords, output.StripANSI(txt))
+		}
+	}
+
 	// Run detections.
 	for _, d := range providers.CDN(cnames) {
 		result.Detections = append(result.Detections, Detection{
 			Type:     string(d.Type),
 			Provider: d.Provider,
 			Evidence: d.Evidence,
+			Source:   d.Source,
 		})
 	}
 	for _, d := range providers.EmailProvider(mxHosts) {
@@ -101,6 +112,7 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 			Type:     string(d.Type),
 			Provider: d.Provider,
 			Evidence: d.Evidence,
+			Source:   d.Source,
 		})
 	}
 	for _, d := range providers.DNSHost(nsHosts) {
@@ -108,6 +120,15 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 			Type:     string(d.Type),
 			Provider: d.Provider,
 			Evidence: d.Evidence,
+			Source:   d.Source,
+		})
+	}
+	for _, d := range providers.TXTRecord(txtRecords) {
+		result.Detections = append(result.Detections, Detection{
+			Type:     string(d.Type),
+			Provider: d.Provider,
+			Evidence: d.Evidence,
+			Source:   d.Source,
 		})
 	}
 

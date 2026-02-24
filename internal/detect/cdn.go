@@ -46,6 +46,7 @@ func CDN(cnames []string) []Detection {
 					Type:     TypeCDN,
 					Provider: p.provider,
 					Evidence: cname,
+					Source:   "cname",
 				})
 			}
 		}

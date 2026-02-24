@@ -236,6 +236,41 @@ func TestApexService_Run_DNSHostDetection(t *testing.T) {
 	assert.Contains(t, dnsRecords[0].Value, "Cloudflare DNS")
 }
 
+func TestApexService_Run_TXTDetection(t *testing.T) {
+	client := newTestClient(t)
+
+	txtRR := &dns.TXT{
+		Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300},
+		TXT: rdata.TXT{Txt: []string{"google-site-verification=abc123"}},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "example.com" && qtype == dns.TypeTXT {
+				return buildWireResponse(t, 0, []dns.RR{txtRR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+
+	var verificationRecords []apex.Record
+	for _, rec := range result.Records {
+		if rec.Host == "detected" && rec.Type == "Verification" {
+			verificationRecords = append(verificationRecords, rec)
+		}
+	}
+	require.Len(t, verificationRecords, 1)
+	assert.Equal(t, "Verification", verificationRecords[0].Type)
+	assert.Contains(t, verificationRecords[0].Value, "Google")
+	assert.Contains(t, verificationRecords[0].Value, "google-site-verification=abc123")
+}
+
 func TestApexService_Run_InvalidInput(t *testing.T) {
 	client := newTestClient(t)
 	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger())

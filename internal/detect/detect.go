@@ -7,9 +7,10 @@ type ServiceType string
 
 // ServiceType constants for each detection category.
 const (
-	TypeCDN   ServiceType = "CDN"
-	TypeEmail ServiceType = "Email"
-	TypeDNS   ServiceType = "DNS"
+	TypeCDN          ServiceType = "CDN"
+	TypeEmail        ServiceType = "Email"
+	TypeDNS          ServiceType = "DNS"
+	TypeVerification ServiceType = "Verification"
 )
 
 // Detection holds the result of matching a DNS record against known provider patterns.
@@ -17,6 +18,7 @@ type Detection struct {
 	Type     ServiceType
 	Provider string
 	Evidence string // e.g. CNAME target, MX exchange, NS server
+	Source   string // DNS record type: "cname", "mx", "ns", "txt"
 }
 
 // pattern maps a DNS suffix to a provider name.

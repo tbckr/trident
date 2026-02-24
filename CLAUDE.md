@@ -58,7 +58,7 @@ internal/
   resolver/         # *net.Resolver factory with SOCKS5 DNS-leak prevention
   worker/           # Bounded goroutine pool (pool.go only)
   services/         # One package per service (dns/, cymru/, crtsh/, threatminer/, pgp/, detect/, identify/); IsDomain() lives here
-  detect/           # Provider detection from DNS data: CDN (CNAME), EmailProvider (MX), DNSHost (NS); pure-function, no I/O
+  detect/           # Provider detection from DNS data: CDN (CNAME), EmailProvider (MX), DNSHost (NS), TXTRecord (TXT); pure-function, no I/O
   output/           # Text (tablewriter), JSON, text formatters + defang helpers
 ```
 
@@ -244,10 +244,16 @@ type Service interface {
 | `pgp` | `https://keys.openpgp.org/pks/lookup?op=index&options=mr` — HKP MRINDEX format; HTTP 404 → empty result (not error); accepts any HKP query: email, name, or `0x`-prefixed key fingerprint/ID — no format validation beyond non-empty | AMBER (3rd-party API) |
 | `quad9 resolve` | Quad9 DoH `https://dns.quad9.net/dns-query` — RFC 8484 wire format (GET `?dns=<base64url>` + `Accept: application/dns-message`); HTTP/2 required; A, AAAA, NS, MX, TXT; partial result returned on context cancellation | AMBER (3rd-party API) |
 | `quad9 blocked` | Same endpoint — A query only; RFC 8484 wire format + HTTP/2; blocked = `Rcode==3 (NXDOMAIN) && empty authority section (HasAuthority==false)`; genuine NXDOMAIN includes SOA in authority section; `IsEmpty()` returns false when Input is set (always renders) | AMBER (3rd-party API) |
-| `detect` | Go `net` package — CNAME (apex + www), MX, NS; matches against `internal/detect` provider patterns (CDN/email/DNS hosting); import as `providers "github.com/tbckr/trident/internal/detect"` inside the service package to avoid name collision | GREEN (direct target interaction) |
-| `identify` | Pure pattern matching — no I/O; accepts `(cnames, mxHosts, nsHosts []string)`; reuses `internal/detect` provider functions; custom `Run` signature (not `services.Service`); no `multi_result.go` | RED (local only) |
+| `detect` | Go `net` package — CNAME (apex + www), MX, NS, TXT; matches against `internal/detect` provider patterns (CDN/email/DNS hosting/verification tokens); import as `providers "github.com/tbckr/trident/internal/detect"` inside the service package to avoid name collision | GREEN (direct target interaction) |
+| `identify` | Pure pattern matching — no I/O; accepts `(cnames, mxHosts, nsHosts, txtRecords []string)`; reuses `internal/detect` provider functions; custom `Run` signature (not `services.Service`); no `multi_result.go` | RED (local only) |
 
 **Cloudflare DNS NS hostname format** — Cloudflare NS servers are subdomains of `ns.cloudflare.com` (e.g. `diana.ns.cloudflare.com`), not `ns1.cloudflare.com`. Use the correct format in test fixtures for `internal/detect` DNS pattern tests.
+
+**`internal/detect` TXT pattern matching** — `TXTRecord(txts []string)` uses `strings.Contains` (substring match), not `matchSuffix` (suffix match) — TXT values are arbitrary strings, not hostnames. Deduplication key: `provider:txt`. SPF `include:` patterns produce `TypeEmail` detections; domain ownership tokens produce `TypeVerification`.
+
+**`detect.Detection.Source` field** — DNS record type that produced the detection: `"cname"` (CDN), `"mx"` (EmailProvider), `"ns"` (DNSHost), `"txt"` (TXTRecord). Used in evidence display (`"source: value"` format). Never map Type→source statically — `TXTRecord` produces both `TypeEmail` and `TypeVerification`, both with `Source: "txt"`.
+
+**`sortDetections()` in detect service** — Email detections arrive from both `EmailProvider(mxHosts)` and `TXTRecord(txtRecords)`, so insertion order is CDN → Email(MX) → DNS → Email(TXT) + Verification — Email appears non-consecutively, breaking `MergeHierarchical`. `sortDetections()` in `internal/services/detect/result.go` sorts by `(Type, Source, Provider)` before table rendering; reused by `multi_result.go`. Do not sort in `Run()`.
 
 ### Configuration
 
@@ -283,7 +289,7 @@ type Service interface {
 - **HTTP:** `imroc/req` v3 (no external SDKs — all APIs implemented natively)
 - **Logging:** `log/slog` (stdlib only — no zap/logrus)
 - **Tables:** `olekukonko/tablewriter`
-- **DNS wire format:** `codeberg.org/miekg/dns` — the library moved from `github.com/miekg/dns` to Codeberg; maintainers call it "expected to be v2" but it is NOT a Go `/v2` module (import path has no version suffix); RFC 8484 encoding/decoding for Quad9 DoH; `Pack()` stores to `m.Data`, `Unpack()` reads from `m.Data`; promoted rdata fields: `*dns.A.Addr`, `*dns.NS.Ns`, `*dns.MX.Preference`/`.Mx`, `*dns.TXT.Txt`; `dns.NewMsg(domain, uint16(type))` convenience constructor (returns nil for unknown type); `dns.RRToType(rr)` extracts type code from any RR including Question entries; `dns.RcodeNameError` is the NXDOMAIN Rcode constant (value 3); in test response messages set `m.Response = true` or the client may reject the response; RR struct literals in tests require `codeberg.org/miekg/dns/rdata` import: `&dns.NS{Hdr: dns.Header{...}, NS: rdata.NS{Ns: "..."}}`; `rdata.DNSKEY{Flags uint16, Protocol uint8, Algorithm uint8, PublicKey string}`; `rdata.SRV{Priority uint16, Weight uint16, Port uint16, Target string}`
+- **DNS wire format:** `codeberg.org/miekg/dns` — the library moved from `github.com/miekg/dns` to Codeberg; maintainers call it "expected to be v2" but it is NOT a Go `/v2` module (import path has no version suffix); RFC 8484 encoding/decoding for Quad9 DoH; `Pack()` stores to `m.Data`, `Unpack()` reads from `m.Data`; promoted rdata fields: `*dns.A.Addr`, `*dns.NS.Ns`, `*dns.MX.Preference`/`.Mx`, `*dns.TXT.Txt`; `dns.NewMsg(domain, uint16(type))` convenience constructor (returns nil for unknown type); `dns.RRToType(rr)` extracts type code from any RR including Question entries; `dns.RcodeNameError` is the NXDOMAIN Rcode constant (value 3); in test response messages set `m.Response = true` or the client may reject the response; RR struct literals in tests require `codeberg.org/miekg/dns/rdata` import: `&dns.NS{Hdr: dns.Header{...}, NS: rdata.NS{Ns: "..."}}`; `rdata.DNSKEY{Flags uint16, Protocol uint8, Algorithm uint8, PublicKey string}`; `rdata.SRV{Priority uint16, Weight uint16, Port uint16, Target string}`; `rdata.TXT{Txt: []string{"..."}}` (note: `Txt` is `[]string`, not `string`); `rdata.CNAME{Target: "..."}`, `rdata.MX{Preference: uint16, Mx: "..."}`
 - **Tests:** `stretchr/testify` + `jarcoal/httpmock`
 - **Lint:** `golangci-lint` v2 (strict — CI fails on any lint error). Config requires `version: "2"` at top; formatters (`gofmt`, `goimports`) go in `formatters:` section, not `linters:`. GitHub Action: `golangci/golangci-lint-action@v8` with `version: latest` (pinning a specific version risks Go version mismatch with `go.mod`).
 - **GoReleaser v2 `format_overrides`** — use `formats: [zip]` (list), not `format: zip` (deprecated scalar since v2.6); `goreleaser check` catches this at validation time.

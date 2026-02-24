@@ -35,6 +35,7 @@ func TestRun_CDNDetected(t *testing.T) {
 	assert.Equal(t, "CDN", result.Detections[0].Type)
 	assert.Equal(t, "AWS CloudFront", result.Detections[0].Provider)
 	assert.Equal(t, "example.cloudfront.net.", result.Detections[0].Evidence)
+	assert.Equal(t, "cname", result.Detections[0].Source)
 }
 
 func TestRun_EmailDetected(t *testing.T) {
@@ -55,6 +56,7 @@ func TestRun_EmailDetected(t *testing.T) {
 	require.Len(t, result.Detections, 1)
 	assert.Equal(t, "Email", result.Detections[0].Type)
 	assert.Equal(t, "Google Workspace", result.Detections[0].Provider)
+	assert.Equal(t, "mx", result.Detections[0].Source)
 }
 
 func TestRun_DNSDetected(t *testing.T) {
@@ -75,6 +77,7 @@ func TestRun_DNSDetected(t *testing.T) {
 	require.Len(t, result.Detections, 1)
 	assert.Equal(t, "DNS", result.Detections[0].Type)
 	assert.Equal(t, "AWS Route 53", result.Detections[0].Provider)
+	assert.Equal(t, "ns", result.Detections[0].Source)
 }
 
 func TestRun_NoDetections(t *testing.T) {
@@ -88,6 +91,61 @@ func TestRun_NoDetections(t *testing.T) {
 		},
 		LookupNSFn: func(_ context.Context, _ string) ([]*net.NS, error) {
 			return []*net.NS{{Host: "ns1.unknown-provider.com."}}, nil
+		},
+	}
+
+	svc := detect.NewService(r, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*detect.Result)
+	require.True(t, ok, "expected *detect.Result")
+	assert.True(t, result.IsEmpty())
+}
+
+func TestRun_TXTEmailDetected(t *testing.T) {
+	r := &testutil.MockResolver{
+		LookupTXTFn: func(_ context.Context, _ string) ([]string, error) {
+			return []string{"v=spf1 include:_spf.google.com ~all"}, nil
+		},
+	}
+
+	svc := detect.NewService(r, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*detect.Result)
+	require.True(t, ok, "expected *detect.Result")
+	require.Len(t, result.Detections, 1)
+	assert.Equal(t, "Email", result.Detections[0].Type)
+	assert.Equal(t, "Google Workspace", result.Detections[0].Provider)
+	assert.Equal(t, "txt", result.Detections[0].Source)
+}
+
+func TestRun_TXTVerificationDetected(t *testing.T) {
+	r := &testutil.MockResolver{
+		LookupTXTFn: func(_ context.Context, _ string) ([]string, error) {
+			return []string{"google-site-verification=abc123"}, nil
+		},
+	}
+
+	svc := detect.NewService(r, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*detect.Result)
+	require.True(t, ok, "expected *detect.Result")
+	require.Len(t, result.Detections, 1)
+	assert.Equal(t, "Verification", result.Detections[0].Type)
+	assert.Equal(t, "Google", result.Detections[0].Provider)
+	assert.Equal(t, "txt", result.Detections[0].Source)
+}
+
+func TestRun_TXTLookupError(t *testing.T) {
+	lookupErr := errors.New("lookup failed")
+	r := &testutil.MockResolver{
+		LookupTXTFn: func(_ context.Context, _ string) ([]string, error) {
+			return nil, lookupErr
 		},
 	}
 
