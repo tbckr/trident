@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/tbckr/trident)](https://goreportcard.com/report/github.com/tbckr/trident)
 [![License: GPL-3.0](https://img.shields.io/github/license/tbckr/trident)](LICENSE)
 
-**Fast, keyless OSINT in a single binary.** DNS lookups, Cymru ASN info, certificate transparency, threat intelligence, and PGP key search — no API keys, no registration, no configuration required.
+**Fast, keyless OSINT in a single binary.** DNS lookups, Cymru ASN info, certificate transparency, threat intelligence, PGP key search, and CDN/provider detection — no API keys, no registration, no configuration required.
 
 trident is a Go port and evolution of the Python [Harpoon](https://github.com/Te-k/harpoon) tool, built for analysts and security researchers who live in the terminal.
 
@@ -95,6 +95,9 @@ trident quad9 malicious.example.com
 # Aggregate DNS recon for an apex domain
 trident apex example.com
 
+# Detect CDN, email, and DNS hosting providers via live DNS queries
+trident detect example.com
+
 # Identify providers from known DNS record values (no network calls)
 trident identify --cname abc.cloudfront.net --mx aspmx.l.google.com
 ```
@@ -120,6 +123,7 @@ trident identify --cname abc.cloudfront.net --mx aspmx.l.google.com
 | Command | Description | PAP | Data Source |
 |---------|-------------|-----|-------------|
 | `dns` | A, AAAA, MX, NS, TXT records; reverse PTR | GREEN | Direct DNS resolver |
+| `detect` | Detect CDN, email, and DNS hosting providers via live DNS queries | GREEN | Direct DNS resolver |
 | `cymru` | ASN info for IPs and ASN numbers (IPv4 + IPv6) | AMBER | Team Cymru DNS |
 | `crtsh` | Subdomain enumeration via certificate transparency | AMBER | [crt.sh](https://crt.sh) |
 | `threatminer` | Threat intel for domains, IPs, and file hashes | AMBER | [ThreatMiner](https://www.threatminer.org) |
@@ -182,9 +186,9 @@ to prevent accidental active interaction with targets:
 
 | Level | Meaning | Permitted Services |
 |-------|---------|-------------------|
-| `red` | Offline/local only — non-detectable | none |
-| `amber` | Limited 3rd-party APIs — no direct target contact | Cymru, crt.sh, ThreatMiner, PGP |
-| `green` | Direct target interaction permitted | DNS + all AMBER |
+| `red` | Offline/local only — non-detectable | `identify` |
+| `amber` | Limited 3rd-party APIs — no direct target contact | `identify` + Cymru, crt.sh, ThreatMiner, PGP, Quad9, apex |
+| `green` | Direct target interaction permitted | all AMBER + DNS, `detect` |
 | `white` | Unrestricted **(default)** | all |
 
 Set `--pap-limit` to block services above that level:
@@ -221,8 +225,7 @@ pap_limit: amber
 concurrency: 20
 proxy: socks5://127.0.0.1:9050
 alias:
-  ct: crtsh
-  myasn: "cymru --pap-limit=amber"
+  asn: cymru
 ```
 
 > **Note:** The `alias` block is config-file only — it has no corresponding flag or environment
@@ -347,6 +350,18 @@ cat domains.txt | trident apex
 trident apex --output json example.com
 ```
 
+### `detect` — Provider Detection
+
+Detects CDN, email, and DNS hosting providers for one or more domains by querying CNAME (apex
+and www), MX, and NS records and matching them against known provider patterns (PAP: GREEN).
+Unlike `identify`, this command makes live DNS queries to discover the records.
+
+```bash
+trident detect example.com
+trident detect example.com google.com
+cat domains.txt | trident detect
+```
+
 ### `identify` — Offline Provider Identification
 
 Matches CNAME, MX, and NS record values against known provider patterns to identify CDN, email,
@@ -357,6 +372,17 @@ record values you already have (PAP: RED).
 trident identify --cname abc.cloudfront.net
 trident identify --domain example.com --ns ns1.cloudflare.com
 trident identify --domain example.com --cname abc.cloudfront.net --mx aspmx.l.google.com --ns ns1.cloudflare.com
+```
+
+### `services` — List All Services
+
+Lists every implemented service with its group and PAP level. Useful for quickly checking which
+commands are available and what PAP level each requires.
+
+```bash
+trident services
+trident services -o json
+trident services -o text
 ```
 
 ### `config` — Configuration Management
@@ -407,17 +433,17 @@ and appear in `trident --help` under *Aliases:*.
 
 ```bash
 # Create or update an alias
-trident alias set ct "crtsh --pap-limit=amber"
+trident alias set asn cymru
 
 # Use the alias — extra arguments are appended after the expansion
-trident ct example.com
+trident asn 8.8.8.8
 
 # List all aliases
 trident alias list
 trident alias list -o json
 
 # Delete an alias
-trident alias delete ct
+trident alias delete asn
 ```
 
 **Limitations:**
@@ -429,7 +455,7 @@ trident alias delete ct
 - No shell features — environment variable substitution, pipes, globs, and quoting within
   the expansion string are not interpreted.
 - Aliases do not expand recursively; an alias expansion cannot reference another alias.
-- Alias names cannot shadow built-in commands (`dns`, `cymru`, `crtsh`, `threatminer`, `pgp`).
+- Alias names cannot shadow built-in commands (`dns`, `cymru`, `crtsh`, `threatminer`, `pgp`, `quad9`, `detect`, `identify`, `apex`, `services`, `config`, `alias`).
 - Alias names must not start with `-` or contain whitespace.
 - Changes take effect on the next invocation.
 

@@ -221,7 +221,7 @@ type Service interface {
 }
 ```
 
-**README.md updates** — whenever a new service is added, update all four places in `README.md`: (1) quick-start code block, (2) Services table, (3) Commands Reference section (add a `### <service>` entry before `config`), (4) architecture directory tree under `services/`.
+**README.md updates** — whenever a new service is added, update all five places in `README.md`: (1) quick-start code block, (2) Services table, (3) PAP System table (Permitted Services column), (4) Commands Reference section (add a `### <service>` entry before `config`), (5) architecture directory tree under `services/`.
 
 ### Service Implementations
 
