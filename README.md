@@ -99,7 +99,7 @@ trident apex example.com
 trident detect example.com
 
 # Identify providers from known DNS record values (no network calls)
-trident identify --cname abc.cloudfront.net --mx aspmx.l.google.com
+trident identify --cname abc.cloudfront.net --mx aspmx.l.google.com --txt "v=spf1 include:_spf.google.com ~all"
 ```
 
 ---
@@ -123,14 +123,14 @@ trident identify --cname abc.cloudfront.net --mx aspmx.l.google.com
 | Command | Description | PAP | Data Source |
 |---------|-------------|-----|-------------|
 | `dns` | A, AAAA, MX, NS, TXT records; reverse PTR | GREEN | Direct DNS resolver |
-| `detect` | Detect CDN, email, and DNS hosting providers via live DNS queries | GREEN | Direct DNS resolver |
+| `detect` | Detect CDN, email, DNS hosting, and verification providers via live DNS queries (CNAME, MX, NS, TXT) | GREEN | Direct DNS resolver |
 | `cymru` | ASN info for IPs and ASN numbers (IPv4 + IPv6) | AMBER | Team Cymru DNS |
 | `crtsh` | Subdomain enumeration via certificate transparency | AMBER | [crt.sh](https://crt.sh) |
 | `threatminer` | Threat intel for domains, IPs, and file hashes | AMBER | [ThreatMiner](https://www.threatminer.org) |
 | `pgp` | PGP key search by email, name, or fingerprint | AMBER | [keys.openpgp.org](https://keys.openpgp.org) |
 | `quad9` | Detect whether Quad9 has flagged a domain as malicious | AMBER | [dns.quad9.net](https://www.quad9.net) |
-| `apex` | Aggregate DNS recon (NS, SOA, A, AAAA, MX, TXT, CNAME, CDN) for an apex domain | AMBER | [dns.quad9.net](https://www.quad9.net) |
-| `identify` | Identify CDN, email, and DNS hosting providers from known DNS record values | RED | Local (no network) |
+| `apex` | Aggregate DNS recon across many record types and subdomains; CDN/email/DNS/TXT detection and ASN lookup | AMBER | [dns.quad9.net](https://www.quad9.net), Team Cymru DNS |
+| `identify` | Identify CDN, email, DNS hosting, and verification providers from known DNS record values (CNAME, MX, NS, TXT) | RED | Local (no network) |
 
 ---
 
@@ -339,9 +339,19 @@ cat domains.txt | trident quad9
 ### `apex` — Aggregate DNS Recon
 
 Performs parallel DNS reconnaissance for an apex domain via the [Quad9](https://www.quad9.net)
-DNS-over-HTTPS resolver (PAP: AMBER). Fans out queries across the apex domain and well-known
-derived hostnames (`www`, `autodiscover`, `_dmarc`, `_mta-sts`, DKIM selectors, BIMI),
-follows CNAME chains, and detects CDN providers from CNAME targets.
+DNS-over-HTTPS resolver (PAP: AMBER). Fans out queries across the apex domain and a large set
+of well-known derived hostnames — `www`, `autodiscover`, `mail`, `_dmarc`, `_domainkey`,
+`_mta-sts`, `_smtp._tls`, DKIM selectors (`google._domainkey`, `selector1/2._domainkey`),
+BIMI (`default._bimi`), and SRV prefixes for SIP and XMPP. Queried record types include A,
+AAAA, CAA, CNAME, DNSKEY, HTTPS, MX, NS, SOA, SSHFP, SRV, and TXT.
+
+After gathering records, `apex` runs all four provider detectors:
+- **CDN** — from CNAME targets (apex chain, www, and email-security subdomains)
+- **Email provider** — from MX records
+- **DNS hosting** — from NS records
+- **Email provider and verification tokens** — from TXT records across all queried hostnames
+
+Finally, it performs **ASN lookups** (via Team Cymru) for every unique IP found in A/AAAA records.
 
 ```bash
 trident apex example.com
@@ -352,9 +362,10 @@ trident apex --output json example.com
 
 ### `detect` — Provider Detection
 
-Detects CDN, email, and DNS hosting providers for one or more domains by querying CNAME (apex
-and www), MX, and NS records and matching them against known provider patterns (PAP: GREEN).
-Unlike `identify`, this command makes live DNS queries to discover the records.
+Detects CDN, email, DNS hosting, and domain verification providers for one or more domains by
+querying CNAME (apex and www), MX, NS, and TXT records and matching them against known provider
+patterns (PAP: GREEN). Unlike `identify`, this command makes live DNS queries to discover the
+records.
 
 ```bash
 trident detect example.com
@@ -364,14 +375,15 @@ cat domains.txt | trident detect
 
 ### `identify` — Offline Provider Identification
 
-Matches CNAME, MX, and NS record values against known provider patterns to identify CDN, email,
-and DNS hosting providers. Unlike `detect`, no DNS queries are made — this operates entirely on
-record values you already have (PAP: RED).
+Matches CNAME, MX, NS, and TXT record values against known provider patterns to identify CDN,
+email, DNS hosting, and domain verification providers. Unlike `detect`, no DNS queries are made
+— this operates entirely on record values you already have (PAP: RED).
 
 ```bash
 trident identify --cname abc.cloudfront.net
 trident identify --domain example.com --ns ns1.cloudflare.com
 trident identify --domain example.com --cname abc.cloudfront.net --mx aspmx.l.google.com --ns ns1.cloudflare.com
+trident identify --txt "v=spf1 include:_spf.google.com ~all" --txt "google-site-verification=abc123"
 ```
 
 ### `services` — List All Services
