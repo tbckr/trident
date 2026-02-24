@@ -44,6 +44,32 @@ func NewGroupedWrappingTable(w io.Writer, minWidth, overhead int) *tablewriter.T
 	)
 }
 
+// NewGroupedWrappingTablePerCol is like NewGroupedWrappingTable but accepts
+// explicit per-column max widths instead of a single global cap. colMaxWidths
+// maps column index (0-based) to max character width; omit a column or set it
+// to 0 to leave it unconstrained.
+func NewGroupedWrappingTablePerCol(w io.Writer, colMaxWidths map[int]int) *tablewriter.Table {
+	perCol := make(tw.Mapper[int, int], len(colMaxWidths))
+	for k, v := range colMaxWidths {
+		if v > 0 {
+			perCol[k] = v
+		}
+	}
+	return tablewriter.NewTable(w,
+		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
+			Settings: tw.Settings{
+				Separators: tw.Separators{BetweenRows: tw.On},
+			},
+		})),
+		tablewriter.WithConfig(tablewriter.Config{
+			Row: tw.CellConfig{
+				Formatting:   tw.CellFormatting{MergeMode: tw.MergeHierarchical, AutoWrap: tw.WrapNormal},
+				ColMaxWidths: tw.CellWidth{PerColumn: perCol},
+			},
+		}),
+	)
+}
+
 // NewWrappingTable returns a tablewriter that auto-wraps cell content to fit
 // the terminal. minWidth is the floor for the computed column max width;
 // overhead is the characters consumed by borders, padding, and fixed columns.

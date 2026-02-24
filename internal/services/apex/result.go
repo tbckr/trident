@@ -79,7 +79,18 @@ func (r *Result) WriteTable(w io.Writer) error {
 	for _, name := range r.Skipped {
 		rows = append(rows, []string{"skipped", name, ""})
 	}
-	table := output.NewGroupedWrappingTable(w, 20, 30)
+	// 3-col table: | host | type | value |
+	// Fixed structure: 10 chars (4 borders + 6 padding spaces).
+	// Type column (col 1) is left unconstrained — values are at most ~6 chars.
+	// Host column (col 0) is capped proportionally to avoid long subdomain names
+	// (e.g. "_sipfederationtls._tcp.example.com") from overflowing the terminal.
+	// Value column (col 2) receives the remaining space.
+	const structureAndType = 18 // 10 fixed + 8 generous type-col budget
+	termWidth := output.TerminalWidth(w)
+	available := termWidth - structureAndType
+	hostMax := max(20, min(30, available*2/5))
+	valueMax := max(20, available-hostMax)
+	table := output.NewGroupedWrappingTablePerCol(w, map[int]int{0: hostMax, 2: valueMax})
 	table.Header([]string{"Host", "Type", "Value"})
 	if err := table.Bulk(rows); err != nil {
 		return err
