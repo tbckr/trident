@@ -33,3 +33,11 @@ type Service interface {
 	Run(ctx context.Context, input string) (Result, error)
 	AggregateResults(results []Result) Result
 }
+
+// AggregateService is implemented by commands that orchestrate multiple sub-services.
+// MinPAP returns the minimum PAP level required to produce any useful results.
+// Sub-services whose PAP exceeds the user's limit are skipped with a log message.
+type AggregateService interface {
+	Service
+	MinPAP() pap.Level
+}

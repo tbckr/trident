@@ -23,7 +23,15 @@ import (
 const (
 	// Name is the service identifier.
 	Name = "apex"
-	// PAP is the PAP activity level for the apex service.
+	// MinPAP is the minimum PAP level required to produce any useful output.
+	// Quad9 DoH (the mandatory core sub-service) is AMBER.
+	MinPAP = pap.AMBER
+	// PAP is the highest PAP level among all sub-services.
+	// Currently MinPAP == PAP == AMBER because every sub-service (Quad9 DoH + Cymru ASN) is AMBER.
+	// This equality means runAggregateCmd's MinPAP gate is sufficient: if the command runs at all,
+	// all sub-services are permitted and no per-sub-service PAP check inside Run() is needed.
+	// If a future sub-service at a higher PAP level is added, PAP must be raised and a per-sub-service
+	// guard (with the service's papLimit stored in the struct) should be introduced at that point.
 	PAP = pap.AMBER
 )
 
@@ -44,6 +52,9 @@ func (s *Service) Name() string { return Name }
 
 // PAP returns the PAP activity level for the apex service (Quad9 third-party API).
 func (s *Service) PAP() pap.Level { return PAP }
+
+// MinPAP returns the minimum PAP level required to produce any useful results.
+func (s *Service) MinPAP() pap.Level { return MinPAP }
 
 // AggregateResults combines multiple apex results into an MultiResult.
 func (s *Service) AggregateResults(results []services.Result) services.Result {

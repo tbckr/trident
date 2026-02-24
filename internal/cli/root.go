@@ -218,14 +218,9 @@ func resolveInputs(cmd *cobra.Command, args []string) ([]string, error) {
 	return input.Read(r)
 }
 
-// runServiceCmd is the shared RunE body for all OSINT subcommands.
-// It handles PAP enforcement, input resolution, single-result and bulk paths.
-func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []string) error {
-	if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.PAP()) {
-		return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
-			services.ErrPAPBlocked, svc.Name(), svc.PAP(), pap.MustParse(d.cfg.PAPLimit))
-	}
-
+// runCmdBody is the shared execution body for all OSINT subcommands after PAP enforcement.
+// It handles input resolution, single-result and bulk paths.
+func runCmdBody(cmd *cobra.Command, d *deps, svc services.Service, args []string) error {
 	inputs, err := resolveInputs(cmd, args)
 	if err != nil {
 		return err
@@ -265,6 +260,27 @@ func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []str
 	default:
 		return writeResult(cmd.OutOrStdout(), d, svc.AggregateResults(valid))
 	}
+}
+
+// runServiceCmd is the shared RunE body for all OSINT subcommands.
+// It handles PAP enforcement, input resolution, single-result and bulk paths.
+func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []string) error {
+	if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.PAP()) {
+		return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
+			services.ErrPAPBlocked, svc.Name(), svc.PAP(), pap.MustParse(d.cfg.PAPLimit))
+	}
+	return runCmdBody(cmd, d, svc, args)
+}
+
+// runAggregateCmd is the shared RunE body for aggregate commands that orchestrate multiple sub-services.
+// It enforces the minimum PAP level required for any useful output; sub-services exceeding the limit
+// are skipped at the service level.
+func runAggregateCmd(cmd *cobra.Command, d *deps, svc services.AggregateService, args []string) error {
+	if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.MinPAP()) {
+		return fmt.Errorf("%w: %q requires a minimum PAP of %s but limit is %s",
+			services.ErrPAPBlocked, svc.Name(), svc.MinPAP(), pap.MustParse(d.cfg.PAPLimit))
+	}
+	return runCmdBody(cmd, d, svc, args)
 }
 
 // writeResult formats and writes a service result to stdout.

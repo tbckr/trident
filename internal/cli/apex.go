@@ -33,7 +33,7 @@ Derived hostnames: www, mail, autodiscover, _dmarc, _domainkey, _mta-sts,
 _smtp._tls, default._bimi, google._domainkey, selector1._domainkey,
 selector2._domainkey.
 
-PAP level: AMBER (queries go to Quad9 third-party servers).
+PAP level: AMBER (queries go to Quad9 and Cymru third-party servers).
 
 Multiple inputs can be supplied as arguments or piped via stdin (one per line).
 Bulk stdin input is processed concurrently (see --concurrency).`,
@@ -64,7 +64,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 				return fmt.Errorf("creating DNS resolver: %w", err)
 			}
 			svc := apexsvc.NewService(client, r, d.logger)
-			return runServiceCmd(cmd, d, svc, args)
+			return runAggregateCmd(cmd, d, svc, args)
 		},
 	}
 }

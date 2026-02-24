@@ -376,8 +376,16 @@ trident identify --domain example.com --cname abc.cloudfront.net --mx aspmx.l.go
 
 ### `services` — List All Services
 
-Lists every implemented service with its group and PAP level. Useful for quickly checking which
-commands are available and what PAP level each requires.
+Lists every implemented service with its command group, minimum PAP level (MIN PAP), and maximum
+PAP level (MAX PAP).
+
+For individual services the two PAP columns are always equal — the service either runs or is
+blocked by `--pap-limit`, with no partial behaviour.
+
+For aggregate commands (such as `apex`), the two values may differ: MIN PAP is the lowest PAP
+level required to produce any useful output; MAX PAP is the highest level required by any
+sub-service. When `--pap-limit` falls between the two, the aggregate command runs but skips the
+sub-services whose level exceeds the limit, returning whatever it can gather at that PAP level.
 
 ```bash
 trident services
