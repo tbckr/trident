@@ -66,11 +66,13 @@ archives:
           group: root
           mtime: "{{ .CommitDate }}"
       - src: .build/completions/*
+        dst: completions
         info:
           owner: root
           group: root
           mtime: "{{ .CommitDate }}"
       - src: .build/man/*.1
+        dst: man
         info:
           owner: root
           group: root
