@@ -20,6 +20,9 @@ import (
 	cymrusvc "github.com/tbckr/trident/internal/services/cymru"
 )
 
+// Compile-time interface check.
+var _ services.AggregateService = (*Service)(nil)
+
 const (
 	// Name is the service identifier.
 	Name = "apex"

@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/services/apex"
 	"github.com/tbckr/trident/internal/testutil"
@@ -75,6 +76,11 @@ func TestApexService_Name(t *testing.T) {
 func TestApexService_PAP(t *testing.T) {
 	svc := apex.NewService(req.NewClient(), &testutil.MockResolver{}, testutil.NopLogger())
 	assert.Equal(t, "amber", svc.PAP().String())
+}
+
+func TestApexService_MinPAP(t *testing.T) {
+	svc := apex.NewService(req.NewClient(), &testutil.MockResolver{}, testutil.NopLogger())
+	assert.Equal(t, pap.AMBER, svc.MinPAP())
 }
 
 func TestApexService_Run_ValidDomain(t *testing.T) {

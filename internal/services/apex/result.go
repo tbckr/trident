@@ -22,9 +22,9 @@ type Result struct {
 	Skipped []string `json:"skipped,omitempty"`
 }
 
-// IsEmpty reports whether the result contains no records.
+// IsEmpty reports whether the result contains no records and no skipped sub-services.
 func (r *Result) IsEmpty() bool {
-	return len(r.Records) == 0
+	return len(r.Records) == 0 && len(r.Skipped) == 0
 }
 
 // WriteText renders each record as "HOST TYPE VALUE\n".

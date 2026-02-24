@@ -15,6 +15,11 @@ func TestResult_IsEmpty(t *testing.T) {
 	r := &apex.Result{}
 	assert.True(t, r.IsEmpty())
 
+	// Skipped-only result is not empty.
+	r.Skipped = append(r.Skipped, "asn")
+	assert.False(t, r.IsEmpty())
+
+	r.Skipped = nil
 	r.Records = append(r.Records, apex.Record{Host: "example.com", Type: "A", Value: "1.2.3.4"})
 	assert.False(t, r.IsEmpty())
 }
