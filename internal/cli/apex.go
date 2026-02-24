@@ -68,6 +68,9 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			if err != nil {
 				return fmt.Errorf("resolving pattern paths: %w", err)
 			}
+			if d.cfg.DetectPatterns.File != "" {
+				paths = append([]string{d.cfg.DetectPatterns.File}, paths...)
+			}
 			patterns, err := providers.LoadPatterns(paths...)
 			if err != nil {
 				return fmt.Errorf("loading detect patterns: %w", err)

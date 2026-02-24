@@ -33,15 +33,25 @@ func newDownloadCmd(d *deps) *cobra.Command {
 }
 
 func newDownloadDetectCmd(d *deps) *cobra.Command {
-	return &cobra.Command{
+	var flagURL, flagDest string
+	cmd := &cobra.Command{
 		Use:   "detect",
 		Short: "Download latest detect patterns from GitHub",
-		Long: `Download the latest provider detection patterns from the trident GitHub repository.
+		Long: `Download the latest provider detection patterns from a URL.
 
-The patterns are saved to ~/.config/trident/detect-downloaded.yaml and are used
-by the detect and apex commands as an override over the embedded patterns.
+The patterns are saved to ~/.config/trident/detect-downloaded.yaml by default
+and are used by the detect, apex, and identify commands as an override over
+the embedded patterns.
 
-PAP level: AMBER (makes an outbound HTTPS request to GitHub).`,
+URL resolution precedence (highest to lowest):
+  1. --url flag
+  2. detect_patterns.url in config.yaml (or TRIDENT_DETECT_PATTERNS_URL env var)
+  3. Built-in default (trident GitHub repository)
+
+Configure a persistent URL via:
+  trident config set detect_patterns.url https://example.com/patterns.yaml
+
+PAP level: AMBER (makes an outbound HTTPS request).`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), pap.AMBER) {
@@ -49,12 +59,21 @@ PAP level: AMBER (makes an outbound HTTPS request to GitHub).`,
 					services.ErrPAPBlocked, "download detect", pap.AMBER, pap.MustParse(d.cfg.PAPLimit))
 			}
 
+			// Resolve download URL: flag > config/env > built-in const.
+			downloadURL := detectPatternsURL
+			if d.cfg.DetectPatterns.URL != "" {
+				downloadURL = d.cfg.DetectPatterns.URL
+			}
+			if flagURL != "" {
+				downloadURL = flagURL
+			}
+
 			client, err := httpclient.New(d.cfg.Proxy, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
 			if err != nil {
 				return fmt.Errorf("creating HTTP client: %w", err)
 			}
 
-			resp, err := client.R().SetContext(cmd.Context()).Get(detectPatternsURL)
+			resp, err := client.R().SetContext(cmd.Context()).Get(downloadURL)
 			if err != nil {
 				return fmt.Errorf("downloading detect patterns: %w", err)
 			}
@@ -70,21 +89,33 @@ PAP level: AMBER (makes an outbound HTTPS request to GitHub).`,
 				return fmt.Errorf("validating downloaded patterns: %w", err)
 			}
 
-			dir, err := appdir.ConfigDir()
-			if err != nil {
-				return fmt.Errorf("getting config dir: %w", err)
-			}
-			if err := os.MkdirAll(dir, 0o700); err != nil {
-				return fmt.Errorf("creating config dir: %w", err)
+			// Resolve destination path: --dest flag > default.
+			var path string
+			if flagDest != "" {
+				path = flagDest
+			} else {
+				dir, err := appdir.ConfigDir()
+				if err != nil {
+					return fmt.Errorf("getting config dir: %w", err)
+				}
+				if err := os.MkdirAll(dir, 0o700); err != nil {
+					return fmt.Errorf("creating config dir: %w", err)
+				}
+				path = filepath.Join(dir, "detect-downloaded.yaml")
 			}
 
-			path := filepath.Join(dir, "detect-downloaded.yaml")
+			// Ensure parent directory exists when --dest is a custom path.
+			destDir := filepath.Dir(path)
+			if err := os.MkdirAll(destDir, 0o700); err != nil {
+				return fmt.Errorf("creating destination dir: %w", err)
+			}
+
 			verb := "saved to"
 			if _, err := os.Stat(path); err == nil {
 				verb = "updated at"
 			}
 
-			tmp, err := os.CreateTemp(dir, "detect-downloaded-*.yaml")
+			tmp, err := os.CreateTemp(destDir, "detect-downloaded-*.yaml")
 			if err != nil {
 				return fmt.Errorf("creating temp file: %w", err)
 			}
@@ -106,4 +137,7 @@ PAP level: AMBER (makes an outbound HTTPS request to GitHub).`,
 			return err
 		},
 	}
+	cmd.Flags().StringVar(&flagURL, "url", "", "URL to download patterns from (overrides config and default)")
+	cmd.Flags().StringVar(&flagDest, "dest", "", "destination file path (default: <config-dir>/detect-downloaded.yaml)")
+	return cmd
 }

@@ -217,13 +217,17 @@ The config file is created automatically at first run:
 | Windows | `%AppData%\trident\config.yaml` |
 
 Use `trident config set` to modify values without opening the file, or `trident config edit` to
-edit directly. The config file supports all global flags plus the `alias` block:
+edit directly. The config file supports all global flags plus the `alias` block and
+`detect_patterns` section:
 
 ```yaml
 output: json
 pap_limit: amber
 concurrency: 20
 proxy: socks5://127.0.0.1:9050
+detect_patterns:
+  url: https://example.com/custom-patterns.yaml  # optional: override download URL
+  file: /path/to/patterns.yaml                   # optional: use this file instead of defaults
 alias:
   asn: cymru
 ```
@@ -234,8 +238,8 @@ alias:
 
 Environment variables override config file values using the `TRIDENT_` prefix:
 
-| Variable | Corresponding Flag |
-|----------|--------------------|
+| Variable | Corresponding Flag / Key |
+|----------|--------------------------|
 | `TRIDENT_OUTPUT` | `--output` |
 | `TRIDENT_PAP_LIMIT` | `--pap-limit` |
 | `TRIDENT_PROXY` | `--proxy` |
@@ -244,6 +248,8 @@ Environment variables override config file values using the `TRIDENT_` prefix:
 | `TRIDENT_VERBOSE` | `--verbose` |
 | `TRIDENT_DEFANG` | `--defang` |
 | `TRIDENT_NO_DEFANG` | `--no-defang` |
+| `TRIDENT_DETECT_PATTERNS_URL` | `detect_patterns.url` |
+| `TRIDENT_DETECT_PATTERNS_FILE` | `--patterns-file` / `detect_patterns.file` |
 
 When `--proxy` / `TRIDENT_PROXY` is not set, trident honours the standard `HTTP_PROXY`,
 `HTTPS_PROXY`, and `NO_PROXY` environment variables automatically.
@@ -263,6 +269,7 @@ When `--proxy` / `TRIDENT_PROXY` is not set, trident honours the standard `HTTP_
 | `--pap-limit` | `white` | PAP limit: `red`, `amber`, `green`, `white` |
 | `--defang` | `false` | Force output defanging |
 | `--no-defang` | `false` | Disable output defanging |
+| `--patterns-file` | — | Custom detect patterns file for `detect`, `apex`, and `identify` |
 
 ---
 
@@ -371,6 +378,9 @@ records.
 trident detect example.com
 trident detect example.com google.com
 cat domains.txt | trident detect
+
+# Use a custom patterns file for this invocation
+trident detect --patterns-file /path/to/patterns.yaml example.com
 ```
 
 ### `identify` — Offline Provider Identification
@@ -384,6 +394,29 @@ trident identify --cname abc.cloudfront.net
 trident identify --domain example.com --ns ns1.cloudflare.com
 trident identify --domain example.com --cname abc.cloudfront.net --mx aspmx.l.google.com --ns ns1.cloudflare.com
 trident identify --txt "v=spf1 include:_spf.google.com ~all" --txt "google-site-verification=abc123"
+
+# Use a custom patterns file for this invocation
+trident identify --patterns-file /path/to/patterns.yaml --cname abc.cloudfront.net
+```
+
+### `download detect` — Update Provider Patterns
+
+Downloads the latest provider detection patterns from a URL and saves them locally. The downloaded
+file overrides the embedded patterns for `detect`, `apex`, and `identify` (PAP: AMBER).
+
+```bash
+# Download from the default URL (trident GitHub repository)
+trident download detect
+
+# Download from a custom URL
+trident download detect --url https://example.com/patterns.yaml
+
+# Save to a custom destination instead of the default config dir
+trident download detect --dest /path/to/my-patterns.yaml
+
+# Configure a persistent custom URL
+trident config set detect_patterns.url https://example.com/patterns.yaml
+trident download detect
 ```
 
 ### `services` — List All Services
@@ -444,7 +477,7 @@ trident config edit
   process already loaded config at startup.
 - The `aliases` section is not managed by `config set` — use the `alias` subcommand instead.
 - Only known configuration keys are accepted (`output`, `pap_limit`, `proxy`, `user_agent`,
-  `concurrency`, `verbose`, `defang`, `no_defang`).
+  `concurrency`, `verbose`, `defang`, `no_defang`, `detect_patterns.url`, `detect_patterns.file`).
 
 ### `alias` — Command Aliases
 

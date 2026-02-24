@@ -35,14 +35,16 @@ type configKeyMeta struct {
 // configKeys is the single source of truth for valid config keys.
 // Keys use the viper/mapstructure naming convention (underscores, not hyphens).
 var configKeys = map[string]configKeyMeta{
-	"verbose":     {typ: keyTypeBool},
-	"output":      {typ: keyTypeString, allowed: []string{"table", "json", "text"}},
-	"proxy":       {typ: keyTypeString},
-	"user_agent":  {typ: keyTypeString},
-	"pap_limit":   {typ: keyTypeString, allowed: []string{"red", "amber", "green", "white"}},
-	"defang":      {typ: keyTypeBool},
-	"no_defang":   {typ: keyTypeBool},
-	"concurrency": {typ: keyTypeInt},
+	"verbose":              {typ: keyTypeBool},
+	"output":               {typ: keyTypeString, allowed: []string{"table", "json", "text"}},
+	"proxy":                {typ: keyTypeString},
+	"user_agent":           {typ: keyTypeString},
+	"pap_limit":            {typ: keyTypeString, allowed: []string{"red", "amber", "green", "white"}},
+	"defang":               {typ: keyTypeBool},
+	"no_defang":            {typ: keyTypeBool},
+	"concurrency":          {typ: keyTypeInt},
+	"detect_patterns.url":  {typ: keyTypeString},
+	"detect_patterns.file": {typ: keyTypeString},
 }
 
 // ValidKeys returns every recognised config key in sorted order.
@@ -120,18 +122,25 @@ func normalizeKey(key string) string {
 	return string(result)
 }
 
+// DetectPatternsConfig holds configuration for the detect patterns system.
+type DetectPatternsConfig struct {
+	URL  string `mapstructure:"url"`  // custom download URL; empty = built-in default
+	File string `mapstructure:"file"` // custom patterns file; empty = use DefaultPatternPaths
+}
+
 // Config holds the runtime settings resolved from flags, env vars, and config file.
 type Config struct {
-	ConfigFile  string            // set after Unmarshal — no mapstructure tag
-	Verbose     bool              `mapstructure:"verbose"`
-	Output      string            `mapstructure:"output"`      // table | json | text
-	Proxy       string            `mapstructure:"proxy"`       // http://, https://, socks5://
-	UserAgent   string            `mapstructure:"user_agent"`  // override or empty (→ rotation)
-	PAPLimit    string            `mapstructure:"pap_limit"`   // "white" (default)
-	Defang      bool              `mapstructure:"defang"`      // force defang
-	NoDefang    bool              `mapstructure:"no_defang"`   // suppress defang
-	Concurrency int               `mapstructure:"concurrency"` // default 10
-	Aliases     map[string]string `mapstructure:"alias"`       // file-only; no flag/env binding
+	ConfigFile     string               // set after Unmarshal — no mapstructure tag
+	Verbose        bool                 `mapstructure:"verbose"`
+	Output         string               `mapstructure:"output"`          // table | json | text
+	Proxy          string               `mapstructure:"proxy"`           // http://, https://, socks5://
+	UserAgent      string               `mapstructure:"user_agent"`      // override or empty (→ rotation)
+	PAPLimit       string               `mapstructure:"pap_limit"`       // "white" (default)
+	Defang         bool                 `mapstructure:"defang"`          // force defang
+	NoDefang       bool                 `mapstructure:"no_defang"`       // suppress defang
+	Concurrency    int                  `mapstructure:"concurrency"`     // default 10
+	Aliases        map[string]string    `mapstructure:"alias"`           // file-only; no flag/env binding
+	DetectPatterns DetectPatternsConfig `mapstructure:"detect_patterns"` // detect patterns configuration
 }
 
 // RegisterFlags defines all persistent CLI flags on the given FlagSet.
@@ -146,6 +155,7 @@ func RegisterFlags(flags *pflag.FlagSet) {
 	flags.Bool("defang", false, "defang text/plain output (dots → [.], http → hxxp)")
 	flags.Bool("no-defang", false, "disable defanging even if enabled in config")
 	flags.IntP("concurrency", "c", 10, "parallel workers for bulk stdin input")
+	flags.String("patterns-file", "", "custom detect patterns file (overrides detect.yaml search)")
 }
 
 // Load initializes Viper with the full precedence chain:
@@ -175,6 +185,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	_ = v.BindPFlag("defang", flags.Lookup("defang"))
 	_ = v.BindPFlag("no_defang", flags.Lookup("no-defang"))
 	_ = v.BindPFlag("concurrency", flags.Lookup("concurrency"))
+	_ = v.BindPFlag("detect_patterns.file", flags.Lookup("patterns-file"))
 
 	// Config file resolution.
 	var resolvedPath string
