@@ -261,7 +261,7 @@ type Service interface {
 | `--output` / `-o` | `table` (also: `json`, `text`) |
 | `--concurrency` / `-c` | `10` |
 | `--proxy` | — (supports `http://`, `https://`, `socks5://`) |
-| `--user-agent` | rotating browser UAs |
+| `--user-agent` | — (default: `trident/<version>`) |
 | `--pap-limit` | `white` |
 | `--defang` | `false` |
 | `--no-defang` | `false` |

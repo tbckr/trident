@@ -139,7 +139,7 @@ func RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolP("verbose", "v", false, "enable verbose (debug) logging")
 	flags.StringP("output", "o", "table", "output format: table, json, or text")
 	flags.String("proxy", "", "proxy URL (http://, https://, or socks5://)")
-	flags.String("user-agent", "", "HTTP User-Agent (empty = random rotation)")
+	flags.String("user-agent", "", "HTTP User-Agent override (empty = trident/<version>)")
 	flags.String("pap-limit", "white", "PAP limit: white, green, amber, or red")
 	flags.Bool("defang", false, "defang text/plain output (dots → [.], http → hxxp)")
 	flags.Bool("no-defang", false, "disable defanging even if enabled in config")
