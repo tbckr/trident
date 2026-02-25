@@ -89,3 +89,86 @@ func TestNew_InvalidTLSFingerprint(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown TLS fingerprint")
 }
+
+func TestNew_PresetUADerivesTLS(t *testing.T) {
+	// Passing a preset UA name with no explicit TLS should succeed (derived TLS is applied internally).
+	client, err := httpclient.New("", "chrome", "", nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, client)
+}
+
+func TestPresetNames(t *testing.T) {
+	names := httpclient.PresetNames()
+	assert.Equal(t, []string{"android", "chrome", "edge", "firefox", "ios", "safari"}, names)
+}
+
+func TestResolveUserAgent_PresetName(t *testing.T) {
+	for name, want := range httpclient.UserAgentPresets {
+		t.Run(name, func(t *testing.T) {
+			got := httpclient.ResolveUserAgent(name, "")
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+func TestResolveUserAgent_CustomString(t *testing.T) {
+	custom := "MyBot/2.0 (+https://example.com)"
+	got := httpclient.ResolveUserAgent(custom, "")
+	assert.Equal(t, custom, got)
+}
+
+func TestResolveUserAgent_TLSDerived(t *testing.T) {
+	// Empty UA + TLS preset → matching browser UA.
+	got := httpclient.ResolveUserAgent("", "firefox")
+	assert.Equal(t, httpclient.UserAgentPresets["firefox"], got)
+}
+
+func TestResolveUserAgent_RandomizedNoDerive(t *testing.T) {
+	// "randomized" TLS should NOT derive a UA.
+	got := httpclient.ResolveUserAgent("", "randomized")
+	assert.Equal(t, httpclient.DefaultUserAgent, got)
+}
+
+func TestResolveUserAgent_ExplicitWinsOverTLS(t *testing.T) {
+	// Preset UA overrides TLS-derived UA.
+	got := httpclient.ResolveUserAgent("chrome", "firefox")
+	assert.Equal(t, httpclient.UserAgentPresets["chrome"], got)
+}
+
+func TestResolveUserAgent_CustomWinsOverTLS(t *testing.T) {
+	// Custom string overrides TLS-derived UA.
+	custom := "CustomAgent/1.0"
+	got := httpclient.ResolveUserAgent(custom, "chrome")
+	assert.Equal(t, custom, got)
+}
+
+func TestResolveUserAgent_Default(t *testing.T) {
+	got := httpclient.ResolveUserAgent("", "")
+	assert.Equal(t, httpclient.DefaultUserAgent, got)
+}
+
+func TestResolveTLSFingerprint_ExplicitValue(t *testing.T) {
+	got := httpclient.ResolveTLSFingerprint("", "firefox")
+	assert.Equal(t, "firefox", got)
+}
+
+func TestResolveTLSFingerprint_DerivedFromPreset(t *testing.T) {
+	got := httpclient.ResolveTLSFingerprint("safari", "")
+	assert.Equal(t, "safari", got)
+}
+
+func TestResolveTLSFingerprint_CustomUANoDerive(t *testing.T) {
+	got := httpclient.ResolveTLSFingerprint("MyBot/1.0", "")
+	assert.Equal(t, "", got)
+}
+
+func TestResolveTLSFingerprint_ExplicitWinsOverPreset(t *testing.T) {
+	// Explicit TLS fingerprint wins over UA-derived.
+	got := httpclient.ResolveTLSFingerprint("chrome", "firefox")
+	assert.Equal(t, "firefox", got)
+}
+
+func TestResolveTLSFingerprint_Default(t *testing.T) {
+	got := httpclient.ResolveTLSFingerprint("", "")
+	assert.Equal(t, "", got)
+}

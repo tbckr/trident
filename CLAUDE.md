@@ -175,6 +175,8 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 
 **Adding a persistent config flag** — 6 coordinated changes: (1) entry in `configKeys` map, (2) field in `Config` struct with `mapstructure` tag, (3) flag in `RegisterFlags`, (4) `BindPFlag` in `Load`, (5) completion func in `root.go` for enum keys, (6) `case` in `effectiveValue()` in `internal/cli/config.go` (omitting causes `config show`/`config get` to silently return empty). Tests: add to `TestParseValue` table + a `TestLoad_*` func.
 
+**UA preset bidirectional linking** — `httpclient.UserAgentPresets` maps preset names (`chrome`, `firefox`, `safari`, `edge`, `ios`, `android`) to full UA strings. `ResolveUserAgent(ua, tls)` and `ResolveTLSFingerprint(ua, tls)` implement bidirectional derivation: a preset UA name auto-derives the matching TLS fingerprint, and a preset TLS fingerprint auto-derives the matching UA (except `"randomized"` which has no single matching browser UA). Explicit values always win. `config show`/`config get` for `user_agent` and `tls_fingerprint` display fully-resolved values. Shell completion for `--user-agent` returns `httpclient.PresetNames()` (sorted).
+
 ## Tech Stack
 
 - **CLI:** cobra v1.10.2 | **Config:** viper | **HTTP:** imroc/req v3 | **Tables:** olekukonko/tablewriter v1.1.3

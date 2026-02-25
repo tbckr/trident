@@ -253,6 +253,7 @@ Environment variables override config file values using the `TRIDENT_` prefix:
 | `TRIDENT_PAP_LIMIT` | `--pap-limit` |
 | `TRIDENT_PROXY` | `--proxy` |
 | `TRIDENT_USER_AGENT` | `--user-agent` |
+| `TRIDENT_TLS_FINGERPRINT` | `--tls-fingerprint` |
 | `TRIDENT_CONCURRENCY` | `--concurrency` |
 | `TRIDENT_VERBOSE` | `--verbose` |
 | `TRIDENT_DEFANG` | `--defang` |
@@ -274,11 +275,30 @@ When `--proxy` / `TRIDENT_PROXY` is not set, trident honours the standard `HTTP_
 | `--output`, `-o` | `table` | Output format: `table`, `json`, `text` |
 | `--concurrency`, `-c` | `10` | Worker pool size for bulk input |
 | `--proxy` | — | Proxy URL (`http://`, `https://`, `socks5://`) |
-| `--user-agent` | `trident/<version> (+https://github.com/tbckr/trident)` | Override HTTP User-Agent |
+| `--user-agent` | `trident/<version>` | HTTP User-Agent: preset name (`chrome`, `firefox`, `safari`, `edge`, `ios`, `android`) or custom string |
+| `--tls-fingerprint` | — | TLS ClientHello fingerprint: `chrome`, `firefox`, `edge`, `safari`, `ios`, `android`, `randomized` |
 | `--pap-limit` | `white` | PAP limit: `red`, `amber`, `green`, `white` |
 | `--defang` | `false` | Force output defanging |
 | `--no-defang` | `false` | Disable output defanging |
 | `--patterns-file` | — | Custom detect patterns file for `detect`, `apex`, and `identify` |
+
+`--user-agent` and `--tls-fingerprint` are **bidirectionally linked** via browser presets:
+
+| Preset | User-Agent | TLS ClientHello |
+|--------|-----------|-----------------|
+| `chrome` | Chrome 120 (Windows) | Chrome uTLS |
+| `firefox` | Firefox 120 (Windows) | Firefox uTLS |
+| `safari` | Safari 17 (macOS) | Safari uTLS |
+| `edge` | Edge 120 (Windows) | Edge uTLS |
+| `ios` | Safari 17 (iPhone) | iOS uTLS |
+| `android` | Chrome 120 (Android) | Android uTLS |
+
+- `--user-agent=chrome` → sets Chrome UA **and** derives Chrome TLS fingerprint automatically
+- `--tls-fingerprint=chrome` → sets Chrome TLS **and** derives Chrome UA automatically
+- Both flags set explicitly → each uses its own value (no derivation)
+- `--tls-fingerprint=randomized` → randomised TLS only; UA stays as default (no single matching browser)
+
+Use `trident config show` to see the fully-resolved values.
 
 ---
 
@@ -591,8 +611,10 @@ own or have been explicitly authorised to investigate.
 without authorisation. Misuse may violate computer fraud laws and the terms of service of the
 queried APIs.
 
-trident identifies itself honestly with a `trident/<version>` HTTP User-Agent so that server
-operators can recognise and control its traffic.
+By default trident identifies itself honestly with a `trident/<version>` HTTP User-Agent so that
+server operators can recognise and control its traffic. Browser UA presets (`--user-agent=chrome`
+etc.) are available for engagements that require realistic browser fingerprints; use them only
+within the scope of your authorisation.
 
 ---
 

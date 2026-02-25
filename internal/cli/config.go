@@ -86,20 +86,16 @@ func effectiveValue(d *deps, key string) string {
 	case "detect_patterns.file":
 		return resolveDetectPatternsFile(d)
 	case "tls_fingerprint":
-		return d.cfg.TLSFingerprint
+		return httpclient.ResolveTLSFingerprint(d.cfg.UserAgent, d.cfg.TLSFingerprint)
 	default:
 		return ""
 	}
 }
 
 // resolveUserAgent returns the user-agent that will actually be sent.
-// If user_agent is explicitly configured, it is returned as-is.
-// Otherwise DefaultUserAgent from the httpclient package is returned.
+// Delegates to httpclient.ResolveUserAgent for bidirectional preset resolution.
 func resolveUserAgent(d *deps) string {
-	if d.cfg.UserAgent != "" {
-		return d.cfg.UserAgent
-	}
-	return httpclient.DefaultUserAgent
+	return httpclient.ResolveUserAgent(d.cfg.UserAgent, d.cfg.TLSFingerprint)
 }
 
 // resolveProxy returns the proxy configuration that will actually be used.
@@ -150,9 +146,19 @@ func newConfigShowCmd(d *deps) *cobra.Command {
 Values reflect the fully resolved configuration — defaults, config file, environment
 variables, and flags are all merged before display.
 
+user_agent and tls_fingerprint are bidirectionally linked via browser presets
+(chrome, firefox, safari, edge, ios, android):
+  --user-agent=chrome     → Chrome UA + Chrome TLS fingerprint (derived)
+  --tls-fingerprint=chrome → Chrome TLS + Chrome UA (derived)
+  Explicit values always win; custom strings disable derivation.
+
 user_agent: shows the resolved User-Agent header that will actually be sent.
 If not explicitly configured, the built-in default is used:
   trident/<version> (+https://github.com/tbckr/trident)
+
+tls_fingerprint: shows the resolved TLS fingerprint that will actually be used.
+If user_agent is a preset name and no explicit fingerprint is set, the matching
+fingerprint is derived and displayed here.
 
 proxy: shows the resolved proxy configuration that will actually be used.
 If not explicitly configured, standard environment variables are honoured:

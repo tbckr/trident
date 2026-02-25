@@ -11,6 +11,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/tbckr/trident/internal/config"
+	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/input"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
@@ -57,6 +58,9 @@ PAP levels (least to most active intrusion): red < amber < green < white.`,
 	})
 	_ = cmd.RegisterFlagCompletionFunc("tls-fingerprint", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 		return []string{"chrome", "firefox", "edge", "safari", "ios", "android", "randomized"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	_ = cmd.RegisterFlagCompletionFunc("user-agent", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return httpclient.PresetNames(), cobra.ShellCompDirectiveNoFileComp
 	})
 
 	cmd.Version = version.Version
