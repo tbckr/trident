@@ -58,7 +58,7 @@ PAP level: AMBER (makes an outbound HTTPS request).`,
 			}
 
 			// Resolve download URL: flag > config/env/default (via viper).
-			downloadURL := d.cfg.DetectPatterns.URL // always set; viper default = providers.DefaultPatternsURL
+			downloadURL := d.cfg.DetectPatterns.URL // always set; viper default = config.DefaultPatternsURL
 			if flagURL != "" {
 				downloadURL = flagURL
 			}

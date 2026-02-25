@@ -12,8 +12,11 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/tbckr/trident/internal/appdir"
-	"github.com/tbckr/trident/internal/detect"
 )
+
+// DefaultPatternsURL is the built-in URL used by `download detect` when no
+// custom URL is configured.
+const DefaultPatternsURL = "https://raw.githubusercontent.com/tbckr/trident/refs/heads/main/internal/detect/patterns.yaml"
 
 // ErrUnknownKey is returned when a config key is not recognised.
 var ErrUnknownKey = errors.New("unknown config key")
@@ -172,7 +175,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	v.SetDefault("output", "table")
 	v.SetDefault("pap_limit", "white")
 	v.SetDefault("concurrency", 10)
-	v.SetDefault("detect_patterns.url", detect.DefaultPatternsURL)
+	v.SetDefault("detect_patterns.url", DefaultPatternsURL)
 
 	// Env vars: TRIDENT_VERBOSE, TRIDENT_OUTPUT, TRIDENT_USER_AGENT, etc.
 	v.SetEnvPrefix("TRIDENT")
