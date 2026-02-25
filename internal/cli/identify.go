@@ -5,7 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	providers "github.com/tbckr/trident/internal/detect"
 	"github.com/tbckr/trident/internal/pap"
 	identifysvc "github.com/tbckr/trident/internal/services/identify"
 )
@@ -35,20 +34,13 @@ PAP level: RED (no network calls — pure pattern matching).`,
   trident identify --domain example.com --cname abc.cloudfront.net --mx aspmx.l.google.com --ns ns1.cloudflare.com
   trident identify --txt "google-site-verification=abc123" --txt "v=spf1 include:_spf.google.com ~all"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			paths, err := providers.DefaultPatternPaths()
+			patterns, err := d.loadPatterns()
 			if err != nil {
-				return fmt.Errorf("resolving pattern paths: %w", err)
-			}
-			if d.cfg.DetectPatterns.File != "" {
-				paths = append([]string{d.cfg.DetectPatterns.File}, paths...)
-			}
-			patterns, err := providers.LoadPatterns(paths...)
-			if err != nil {
-				return fmt.Errorf("loading detect patterns: %w", err)
+				return err
 			}
 			svc := identifysvc.NewService(d.logger, patterns)
-			if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.PAP()) {
-				return fmt.Errorf("service %s requires PAP level %s, but limit is %s", svc.Name(), svc.PAP(), d.cfg.PAPLimit)
+			if !pap.Allows(d.papLevel, svc.PAP()) {
+				return fmt.Errorf("service %s requires PAP level %s, but limit is %s", svc.Name(), svc.PAP(), d.papLevel)
 			}
 			if len(cnames)+len(mxHosts)+len(nsHosts)+len(txtRecords) == 0 {
 				return fmt.Errorf("no records provided: specify at least one --cname, --mx, --ns, or --txt value")

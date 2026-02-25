@@ -1,15 +1,11 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
-	providers "github.com/tbckr/trident/internal/detect"
 	"github.com/tbckr/trident/internal/doh"
 	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/ratelimit"
-	"github.com/tbckr/trident/internal/resolver"
 	apexsvc "github.com/tbckr/trident/internal/services/apex"
 )
 
@@ -54,26 +50,19 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := httpclient.New(d.cfg.Proxy, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
+			client, err := d.newHTTPClient()
 			if err != nil {
-				return fmt.Errorf("creating HTTP client: %w", err)
+				return err
 			}
 			client.EnableForceHTTP2()
 			httpclient.AttachRateLimit(client, ratelimit.New(doh.DefaultRPS, doh.DefaultBurst))
-			r, err := resolver.NewResolver(d.cfg.Proxy)
+			r, err := d.newResolver()
 			if err != nil {
-				return fmt.Errorf("creating DNS resolver: %w", err)
+				return err
 			}
-			paths, err := providers.DefaultPatternPaths()
+			patterns, err := d.loadPatterns()
 			if err != nil {
-				return fmt.Errorf("resolving pattern paths: %w", err)
-			}
-			if d.cfg.DetectPatterns.File != "" {
-				paths = append([]string{d.cfg.DetectPatterns.File}, paths...)
-			}
-			patterns, err := providers.LoadPatterns(paths...)
-			if err != nil {
-				return fmt.Errorf("loading detect patterns: %w", err)
+				return err
 			}
 			svc := apexsvc.NewService(client, r, d.logger, patterns)
 			return runAggregateCmd(cmd, d, svc, args)

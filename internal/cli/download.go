@@ -11,7 +11,6 @@ import (
 
 	"github.com/tbckr/trident/internal/appdir"
 	providers "github.com/tbckr/trident/internal/detect"
-	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
 )
@@ -52,9 +51,9 @@ Configure a persistent URL via:
 PAP level: AMBER (makes an outbound HTTPS request).`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), pap.AMBER) {
+			if !pap.Allows(d.papLevel, pap.AMBER) {
 				return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
-					services.ErrPAPBlocked, "download detect", pap.AMBER, pap.MustParse(d.cfg.PAPLimit))
+					services.ErrPAPBlocked, "download detect", pap.AMBER, d.papLevel)
 			}
 
 			// Resolve download URL: flag > config/env/default (via viper).
@@ -63,9 +62,9 @@ PAP level: AMBER (makes an outbound HTTPS request).`,
 				downloadURL = flagURL
 			}
 
-			client, err := httpclient.New(d.cfg.Proxy, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
+			client, err := d.newHTTPClient()
 			if err != nil {
-				return fmt.Errorf("creating HTTP client: %w", err)
+				return err
 			}
 
 			resp, err := client.R().SetContext(cmd.Context()).Get(downloadURL)

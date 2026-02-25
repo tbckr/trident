@@ -1,12 +1,8 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
-	providers "github.com/tbckr/trident/internal/detect"
-	"github.com/tbckr/trident/internal/resolver"
 	detectsvc "github.com/tbckr/trident/internal/services/detect"
 )
 
@@ -30,20 +26,13 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := resolver.NewResolver(d.cfg.Proxy)
+			r, err := d.newResolver()
 			if err != nil {
-				return fmt.Errorf("creating DNS resolver: %w", err)
+				return err
 			}
-			paths, err := providers.DefaultPatternPaths()
+			patterns, err := d.loadPatterns()
 			if err != nil {
-				return fmt.Errorf("resolving pattern paths: %w", err)
-			}
-			if d.cfg.DetectPatterns.File != "" {
-				paths = append([]string{d.cfg.DetectPatterns.File}, paths...)
-			}
-			patterns, err := providers.LoadPatterns(paths...)
-			if err != nil {
-				return fmt.Errorf("loading detect patterns: %w", err)
+				return err
 			}
 			svc := detectsvc.NewService(r, d.logger, patterns)
 			return runServiceCmd(cmd, d, svc, args)

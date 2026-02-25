@@ -23,7 +23,7 @@ go mod tidy
 ```
 cmd/trident/        # main.go → run()
 internal/
-  cli/              # Cobra root, global flags, output
+  cli/              # Cobra root, global flags, output; deps.go has deps struct + factory methods
   config/           # Viper config (~/.config/trident/config.yaml)
   httpclient/       # req.Client factory (proxy + UA)
   input/            # stdin line reader
@@ -71,6 +71,9 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 **`allServices()` in `internal/cli/services.go`** — must be updated when adding a service; reads package-level constants (no instantiation). Easy to miss since it's not near the service code.
 
 ## Key Gotchas
+
+### CLI / deps factory methods
+**New commands must use `deps` factory methods** — never call `httpclient.New(d.cfg.Proxy, ...)`, `resolver.NewResolver(d.cfg.Proxy)`, or `providers.DefaultPatternPaths()+LoadPatterns()` directly in command files. Use `d.newHTTPClient()`, `d.newResolver()`, `d.loadPatterns()` instead. Use `d.papLevel` directly instead of `pap.MustParse(d.cfg.PAPLimit)`. All three factories + `papLevel` live in `internal/cli/deps.go`.
 
 ### HTTP / req
 **`req.Response` nil guard** — transport-level error: `*req.Response` is non-nil but embedded `*http.Response` is nil. Always guard `resp.Response != nil` before accessing `StatusCode`/`Header`.

@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/tbckr/trident/internal/httpclient"
@@ -48,9 +46,9 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := httpclient.New(d.cfg.Proxy, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
+			client, err := d.newHTTPClient()
 			if err != nil {
-				return fmt.Errorf("creating HTTP client: %w", err)
+				return err
 			}
 			httpclient.AttachRateLimit(client, ratelimit.New(tmsvc.DefaultRPS, tmsvc.DefaultBurst))
 			svc := tmsvc.NewService(client, d.logger)

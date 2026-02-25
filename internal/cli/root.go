@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strings"
 
@@ -13,7 +12,6 @@ import (
 
 	"github.com/tbckr/trident/internal/config"
 	"github.com/tbckr/trident/internal/input"
-	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/version"
@@ -160,51 +158,6 @@ func peekConfigFlag(args []string, defaultPath string) string {
 	return defaultPath
 }
 
-// deps holds fully-resolved runtime dependencies for a subcommand.
-type deps struct {
-	logger   *slog.Logger
-	cfg      *config.Config
-	doDefang bool
-}
-
-// buildDeps resolves config, logger, output format, PAP level, and defang flag.
-func buildDeps(cmd *cobra.Command, stderr io.Writer) (*deps, error) {
-	cfg, err := config.Load(cmd.Flags())
-	if err != nil {
-		return nil, fmt.Errorf("loading config: %w", err)
-	}
-
-	if cfg.Defang && cfg.NoDefang {
-		return nil, fmt.Errorf("--defang and --no-defang are mutually exclusive")
-	}
-
-	if cfg.Concurrency < 1 {
-		return nil, fmt.Errorf("--concurrency must be at least 1, got %d", cfg.Concurrency)
-	}
-
-	level := slog.LevelInfo
-	if cfg.Verbose {
-		level = slog.LevelDebug
-	}
-	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: level}))
-
-	format := output.Format(cfg.Output)
-	switch format {
-	case output.FormatTable, output.FormatJSON, output.FormatText:
-	default:
-		return nil, fmt.Errorf("invalid output format %q: must be \"table\", \"json\", or \"text\"", cfg.Output)
-	}
-
-	papLevel, err := pap.Parse(cfg.PAPLimit)
-	if err != nil {
-		return nil, fmt.Errorf("invalid PAP limit %q: %w", cfg.PAPLimit, err)
-	}
-
-	doDefang := output.ResolveDefang(papLevel, format, cfg.Defang, cfg.NoDefang)
-
-	return &deps{cfg: cfg, logger: logger, doDefang: doDefang}, nil
-}
-
 // resolveInputs returns positional args, or reads non-empty lines from stdin when
 // no args are provided. Returns an error if stdin is an interactive terminal with
 // no args (i.e. the user forgot to pass an argument or pipe input).
@@ -266,9 +219,9 @@ func runCmdBody(cmd *cobra.Command, d *deps, svc services.Service, args []string
 // runServiceCmd is the shared RunE body for all OSINT subcommands.
 // It handles PAP enforcement, input resolution, single-result and bulk paths.
 func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []string) error {
-	if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.PAP()) {
+	if !pap.Allows(d.papLevel, svc.PAP()) {
 		return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
-			services.ErrPAPBlocked, svc.Name(), svc.PAP(), pap.MustParse(d.cfg.PAPLimit))
+			services.ErrPAPBlocked, svc.Name(), svc.PAP(), d.papLevel)
 	}
 	return runCmdBody(cmd, d, svc, args)
 }
@@ -277,22 +230,9 @@ func runServiceCmd(cmd *cobra.Command, d *deps, svc services.Service, args []str
 // It enforces the minimum PAP level required for any useful output; sub-services exceeding the limit
 // are skipped at the service level.
 func runAggregateCmd(cmd *cobra.Command, d *deps, svc services.AggregateService, args []string) error {
-	if !pap.Allows(pap.MustParse(d.cfg.PAPLimit), svc.MinPAP()) {
+	if !pap.Allows(d.papLevel, svc.MinPAP()) {
 		return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
-			services.ErrPAPBlocked, svc.Name(), svc.MinPAP(), pap.MustParse(d.cfg.PAPLimit))
+			services.ErrPAPBlocked, svc.Name(), svc.MinPAP(), d.papLevel)
 	}
 	return runCmdBody(cmd, d, svc, args)
-}
-
-// writeResult formats and writes a service result to stdout.
-// When d.doDefang is true the writer is wrapped with DefangWriter.
-func writeResult(stdout io.Writer, d *deps, result any) error {
-	w := stdout
-	if d.doDefang {
-		w = &output.DefangWriter{Inner: stdout}
-	}
-	if err := output.Write(w, output.Format(d.cfg.Output), result); err != nil {
-		return fmt.Errorf("writing output: %w", err)
-	}
-	return nil
 }
