@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sort"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -56,8 +55,6 @@ type configRow struct {
 // not just what is written to the file.
 func buildConfigRows(d *deps) []configRow {
 	keys := config.ValidKeys()
-	sort.Strings(keys)
-
 	rows := make([]configRow, 0, len(keys))
 	for _, k := range keys {
 		rows = append(rows, configRow{key: k, value: effectiveValue(d, k)})

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -52,11 +53,13 @@ var configKeys = map[string]configKeyMeta{
 }
 
 // ValidKeys returns every recognised config key in sorted order.
+// The returned slice is always sorted; callers must not sort it again.
 func ValidKeys() []string {
 	keys := make([]string, 0, len(configKeys))
 	for k := range configKeys {
 		keys = append(keys, k)
 	}
+	slices.Sort(keys)
 	return keys
 }
 
@@ -116,15 +119,7 @@ func ParseValue(key, value string) (any, error) {
 // NormalizeKey converts hyphenated flag names to their viper key equivalents
 // (e.g. "pap-limit" → "pap_limit").
 func NormalizeKey(key string) string {
-	result := make([]byte, len(key))
-	for i := range key {
-		if key[i] == '-' {
-			result[i] = '_'
-		} else {
-			result[i] = key[i]
-		}
-	}
-	return string(result)
+	return strings.ReplaceAll(key, "-", "_")
 }
 
 // DetectPatternsConfig holds configuration for the detect patterns system.
@@ -224,6 +219,8 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unmarshaling config: %w", err)
 	}
+	// ConfigFileUsed returns the path set via SetConfigFile even when
+	// ReadInConfig failed with not-found, so this is always populated.
 	cfg.ConfigFile = v.ConfigFileUsed()
 	return &cfg, nil
 }
