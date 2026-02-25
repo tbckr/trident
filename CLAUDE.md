@@ -173,7 +173,7 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 
 **`config.Load()` — custom path must exist** — `EnsureFile` and not-found silencing only apply to the default path; `--config=<file>` that doesn't exist returns an error. Tests using `newTestFlags(t, cfgFile)` must pre-create the file with `os.WriteFile(cfgFile, []byte{}, 0o600)`.
 
-**Adding a persistent config flag** — 5 coordinated changes: (1) entry in `configKeys` map, (2) field in `Config` struct with `mapstructure` tag, (3) flag in `RegisterFlags`, (4) `BindPFlag` in `Load`, (5) completion func in `root.go` for enum keys. Tests: add to `TestParseValue` table + a `TestLoad_*` func.
+**Adding a persistent config flag** — 6 coordinated changes: (1) entry in `configKeys` map, (2) field in `Config` struct with `mapstructure` tag, (3) flag in `RegisterFlags`, (4) `BindPFlag` in `Load`, (5) completion func in `root.go` for enum keys, (6) `case` in `effectiveValue()` in `internal/cli/config.go` (omitting causes `config show`/`config get` to silently return empty). Tests: add to `TestParseValue` table + a `TestLoad_*` func.
 
 ## Tech Stack
 

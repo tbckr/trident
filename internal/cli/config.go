@@ -85,6 +85,8 @@ func effectiveValue(d *deps, key string) string {
 		return d.cfg.DetectPatterns.URL
 	case "detect_patterns.file":
 		return resolveDetectPatternsFile(d)
+	case "tls_fingerprint":
+		return d.cfg.TLSFingerprint
 	default:
 		return ""
 	}
