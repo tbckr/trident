@@ -29,8 +29,8 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
   # Bulk input from stdin
   echo -e "example.com\nexample.org" | trident crtsh
 
-  # Plain text output (one subdomain per line)
-  trident crtsh --output plain example.com
+  # Text output (one subdomain per line, ideal for piping)
+  trident crtsh --output text example.com
 
   # JSON output
   trident crtsh --output json example.com`,
