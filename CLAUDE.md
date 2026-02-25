@@ -4,6 +4,8 @@ Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harp
 
 **Naming:** Always lowercase `trident` — never `Trident`.
 
+**Git commits:** Never add `Co-Authored-By` or any attribution trailer to commit messages.
+
 **Library docs:** Use context7 MCP (`resolve-library-id` + `query-docs`). Never guess API shapes.
 
 ## Module
