@@ -74,6 +74,26 @@ func LoadPatterns(paths ...string) (Patterns, error) {
 	return p, nil
 }
 
+// ResolvePatternFile returns the patterns file that will actually be used.
+// If explicitFile is non-empty, it is returned as-is.
+// Otherwise, DefaultPatternPaths() is searched in order; the first existing file
+// is returned. If none exist, "<embedded>" is returned.
+func ResolvePatternFile(explicitFile string) string {
+	if explicitFile != "" {
+		return explicitFile
+	}
+	paths, err := DefaultPatternPaths()
+	if err != nil {
+		return "<embedded>"
+	}
+	for _, p := range paths {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return "<embedded>"
+}
+
 // DefaultPatternPaths returns the two override paths in priority order:
 // user-edited file first, then the reserved download path.
 // Derives from appdir.ConfigDir().

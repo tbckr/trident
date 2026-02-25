@@ -70,9 +70,9 @@ func effectiveValue(d *deps, key string) string {
 	case "output":
 		return d.cfg.Output
 	case "proxy":
-		return resolveProxy(d)
+		return httpclient.ResolveProxy(d.cfg.Proxy)
 	case "user_agent":
-		return resolveUserAgent(d)
+		return httpclient.ResolveUserAgent(d.cfg.UserAgent, d.cfg.TLSFingerprint)
 	case "pap_limit":
 		return d.cfg.PAPLimit
 	case "defang":
@@ -84,56 +84,12 @@ func effectiveValue(d *deps, key string) string {
 	case "detect_patterns.url":
 		return d.cfg.DetectPatterns.URL
 	case "detect_patterns.file":
-		return resolveDetectPatternsFile(d)
+		return providers.ResolvePatternFile(d.cfg.DetectPatterns.File)
 	case "tls_fingerprint":
 		return httpclient.ResolveTLSFingerprint(d.cfg.UserAgent, d.cfg.TLSFingerprint)
 	default:
 		return ""
 	}
-}
-
-// resolveUserAgent returns the user-agent that will actually be sent.
-// Delegates to httpclient.ResolveUserAgent for bidirectional preset resolution.
-func resolveUserAgent(d *deps) string {
-	return httpclient.ResolveUserAgent(d.cfg.UserAgent, d.cfg.TLSFingerprint)
-}
-
-// resolveProxy returns the proxy configuration that will actually be used.
-// If proxy is explicitly configured, it is returned as-is.
-// Otherwise the standard proxy env vars are checked
-// (HTTPS_PROXY, HTTP_PROXY, ALL_PROXY and their lowercase variants);
-// if any are set "<from environment>" is returned.
-// If none are set, an empty string is returned.
-func resolveProxy(d *deps) string {
-	if d.cfg.Proxy != "" {
-		return d.cfg.Proxy
-	}
-	for _, env := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"} {
-		if os.Getenv(env) != "" {
-			return "<from environment>"
-		}
-	}
-	return ""
-}
-
-// resolveDetectPatternsFile returns the patterns file that will actually be used.
-// If detect_patterns.file is explicitly set, it is returned as-is.
-// Otherwise, DefaultPatternPaths() is searched in order; the first existing file
-// is returned. If none exist, "<embedded>" is returned.
-func resolveDetectPatternsFile(d *deps) string {
-	if d.cfg.DetectPatterns.File != "" {
-		return d.cfg.DetectPatterns.File
-	}
-	paths, err := providers.DefaultPatternPaths()
-	if err != nil {
-		return "<embedded>"
-	}
-	for _, p := range paths {
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return "<embedded>"
 }
 
 func newConfigShowCmd(d *deps) *cobra.Command {
@@ -148,11 +104,15 @@ variables, and flags are all merged before display.
 
 user_agent and tls_fingerprint are bidirectionally linked via browser presets
 (chrome, firefox, safari, edge, ios, android):
-  --user-agent=chrome     → Chrome UA + Chrome TLS fingerprint (derived)
-  --tls-fingerprint=chrome → Chrome TLS + Chrome UA (derived)
-  Explicit values always win; custom strings disable derivation.
+  --user-agent=chrome      → Chrome TLS fingerprint derived
+  --tls-fingerprint=chrome → Chrome TLS fingerprint + matching browser profile
+  chrome, firefox, and safari set a full browser profile (TLS, HTTP/2, User-Agent).
+  edge, ios, and android set the TLS fingerprint only.
+  Explicit custom strings always win; custom values disable derivation.
 
-user_agent: shows the resolved User-Agent header that will actually be sent.
+user_agent: shows the configured User-Agent.
+For chrome, firefox, and safari the preset name is shown; the browser profile
+manages the actual User-Agent string. For all other cases the effective string is shown.
 If not explicitly configured, the built-in default is used:
   trident/<version> (+https://github.com/tbckr/trident)
 

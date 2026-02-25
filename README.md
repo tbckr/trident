@@ -284,21 +284,23 @@ When `--proxy` / `TRIDENT_PROXY` is not set, trident honours the standard `HTTP_
 
 `--user-agent` and `--tls-fingerprint` are **bidirectionally linked** via browser presets:
 
-| Preset | User-Agent | TLS ClientHello |
-|--------|-----------|-----------------|
-| `chrome` | Chrome 120 (Windows) | Chrome uTLS |
-| `firefox` | Firefox 120 (Windows) | Firefox uTLS |
-| `safari` | Safari 17 (macOS) | Safari uTLS |
-| `edge` | Edge 120 (Windows) | Edge uTLS |
-| `ios` | Safari 17 (iPhone) | iOS uTLS |
-| `android` | Chrome 120 (Android) | Android uTLS |
+| Preset | Browser Profile | TLS ClientHello |
+|--------|----------------|-----------------|
+| `chrome` | Full (TLS, HTTP/2, User-Agent) | Chrome uTLS |
+| `firefox` | Full (TLS, HTTP/2, User-Agent) | Firefox uTLS |
+| `safari` | Full (TLS, HTTP/2, User-Agent) | Safari uTLS |
+| `edge` | TLS fingerprint only | Edge uTLS |
+| `ios` | TLS fingerprint only | iOS uTLS |
+| `android` | TLS fingerprint only | Android uTLS |
 
-- `--user-agent=chrome` → sets Chrome UA **and** derives Chrome TLS fingerprint automatically
-- `--tls-fingerprint=chrome` → sets Chrome TLS **and** derives Chrome UA automatically
+- `--user-agent=chrome` → activates Chrome browser profile **and** derives Chrome TLS fingerprint
+- `--tls-fingerprint=chrome` → activates Chrome browser profile **and** TLS fingerprint
+- `chrome`, `firefox`, `safari` set a full browser profile (TLS, HTTP/2 settings, User-Agent)
+- `edge`, `ios`, `android` set the TLS fingerprint only; User-Agent stays as default
 - Both flags set explicitly → each uses its own value (no derivation)
-- `--tls-fingerprint=randomized` → randomised TLS only; UA stays as default (no single matching browser)
+- `--tls-fingerprint=randomized` → randomised TLS only; User-Agent stays as default
 
-Use `trident config show` to see the fully-resolved values.
+Use `trident config show` to see the effective configuration.
 
 ---
 

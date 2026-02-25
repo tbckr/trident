@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"sort"
 
 	"github.com/imroc/req/v3"
@@ -16,46 +17,55 @@ import (
 // var (not const) because version.Version is a link-time variable, not a compile-time constant.
 var DefaultUserAgent = "trident/" + version.Version + " (+https://github.com/tbckr/trident)"
 
-// UserAgentPresets maps browser preset names to their full User-Agent strings.
-// Preset names correspond to TLS fingerprint identifiers so both can be derived from each other.
-var UserAgentPresets = map[string]string{
-	"chrome":  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-	"firefox": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
-	"safari":  "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-	"edge":    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-	"ios":     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-	"android": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+// impersonatePresets are the preset names for which req provides a full ImpersonateXxx()
+// method that sets TLS fingerprint, HTTP/2 settings, header order, and User-Agent atomically.
+var impersonatePresets = map[string]bool{
+	"chrome":  true,
+	"firefox": true,
+	"safari":  true,
 }
 
-// PresetNames returns a sorted slice of all UA preset names.
+// tlsFingerprintPresets are all preset names accepted by --user-agent and --tls-fingerprint.
+// Superset of impersonatePresets; edge/ios/android/randomized provide TLS fingerprint only.
+var tlsFingerprintPresets = map[string]bool{
+	"chrome": true, "firefox": true, "safari": true,
+	"edge": true, "ios": true, "android": true, "randomized": true,
+}
+
+// PresetNames returns a sorted slice of all browser preset names.
 // Suitable for shell completion functions.
 func PresetNames() []string {
-	names := make([]string, 0, len(UserAgentPresets))
-	for name := range UserAgentPresets {
-		names = append(names, name)
+	names := make([]string, 0, len(tlsFingerprintPresets)-1) // exclude "randomized"
+	for name := range tlsFingerprintPresets {
+		if name != "randomized" {
+			names = append(names, name)
+		}
 	}
 	sort.Strings(names)
 	return names
 }
 
-// ResolveUserAgent returns the User-Agent string that will actually be sent.
+// ResolveUserAgent returns the User-Agent value for display in config show/get.
 //
 // Resolution order:
-//  1. userAgent is a known preset name → full browser UA string
+//  1. userAgent is an impersonate preset (chrome/firefox/safari) → return preset name;
+//     req's ImpersonateXxx() manages the actual UA string.
 //  2. userAgent is a non-empty custom string → use as-is
-//  3. userAgent is empty and tlsFingerprint is a known preset (not "randomized") → matching browser UA
+//  3. userAgent is empty and tlsFingerprint is an impersonate preset → return preset name
 //  4. otherwise → DefaultUserAgent
 func ResolveUserAgent(userAgent, tlsFingerprint string) string {
-	if ua, ok := UserAgentPresets[userAgent]; ok {
-		return ua
+	if impersonatePresets[userAgent] {
+		return userAgent
+	}
+	if tlsFingerprintPresets[userAgent] {
+		// TLS-only preset (edge/ios/android/randomized): req sets no UA; use default.
+		return DefaultUserAgent
 	}
 	if userAgent != "" {
 		return userAgent
 	}
-	if tlsFingerprint != "" && tlsFingerprint != "randomized" {
-		if ua, ok := UserAgentPresets[tlsFingerprint]; ok {
-			return ua
-		}
+	if impersonatePresets[tlsFingerprint] {
+		return tlsFingerprint
 	}
 	return DefaultUserAgent
 }
@@ -70,8 +80,26 @@ func ResolveTLSFingerprint(userAgent, tlsFingerprint string) string {
 	if tlsFingerprint != "" {
 		return tlsFingerprint
 	}
-	if _, ok := UserAgentPresets[userAgent]; ok {
+	if tlsFingerprintPresets[userAgent] {
 		return userAgent
+	}
+	return ""
+}
+
+// ResolveProxy returns the proxy value that will actually be used.
+// If proxy is explicitly configured, it is returned as-is.
+// Otherwise the standard proxy env vars are checked
+// (HTTPS_PROXY, HTTP_PROXY, ALL_PROXY and their lowercase variants);
+// if any are set "<from environment>" is returned.
+// If none are set, an empty string is returned.
+func ResolveProxy(proxy string) string {
+	if proxy != "" {
+		return proxy
+	}
+	for _, env := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"} {
+		if os.Getenv(env) != "" {
+			return "<from environment>"
+		}
 	}
 	return ""
 }
@@ -87,20 +115,22 @@ func ResolveTLSFingerprint(userAgent, tlsFingerprint string) string {
 // that logs the HTTP method, URL, and status code at DEBUG level.
 // Returns an error if the proxy URL is syntactically invalid or tlsFingerprint is unrecognised.
 func New(proxy, userAgent, tlsFingerprint string, logger *slog.Logger, debug bool) (*req.Client, error) {
-	resolvedUA := ResolveUserAgent(userAgent, tlsFingerprint)
 	resolvedTLS := ResolveTLSFingerprint(userAgent, tlsFingerprint)
 
-	client := req.NewClient().SetUserAgent(resolvedUA)
+	// isCustomUA is true when the caller provided a non-preset User-Agent string.
+	isCustomUA := userAgent != "" && !tlsFingerprintPresets[userAgent]
+
+	client := req.NewClient()
 
 	switch resolvedTLS {
 	case "chrome":
-		client.SetTLSFingerprintChrome()
+		client.ImpersonateChrome()
 	case "firefox":
-		client.SetTLSFingerprintFirefox()
+		client.ImpersonateFirefox()
+	case "safari":
+		client.ImpersonateSafari()
 	case "edge":
 		client.SetTLSFingerprintEdge()
-	case "safari":
-		client.SetTLSFingerprintSafari()
 	case "ios":
 		client.SetTLSFingerprintIOS()
 	case "android":
@@ -110,6 +140,14 @@ func New(proxy, userAgent, tlsFingerprint string, logger *slog.Logger, debug boo
 	case "": // default Go TLS — no-op
 	default:
 		return nil, fmt.Errorf("unknown TLS fingerprint %q", resolvedTLS)
+	}
+
+	// ImpersonateXxx sets the User-Agent from its built-in browser profile.
+	// For non-impersonate cases set DefaultUserAgent; for any case a custom string overrides.
+	if isCustomUA {
+		client.SetUserAgent(userAgent)
+	} else if !impersonatePresets[resolvedTLS] {
+		client.SetUserAgent(DefaultUserAgent)
 	}
 
 	if proxy != "" {
