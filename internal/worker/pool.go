@@ -34,6 +34,10 @@ func Run(ctx context.Context, svc services.Service, inputs []string, concurrency
 	for range concurrency {
 		wg.Go(func() {
 			for j := range jobs {
+				if err := ctx.Err(); err != nil {
+					results[j.index] = Result{Input: j.input, Err: err}
+					continue
+				}
 				out, err := svc.Run(ctx, j.input)
 				results[j.index] = Result{Input: j.input, Output: out, Err: err}
 			}

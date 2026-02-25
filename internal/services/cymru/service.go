@@ -138,7 +138,7 @@ func (s *Service) enrichASN(ctx context.Context, result *Result, asn string) {
 func parseCymruIPRecord(result *Result, txt string) {
 	parts := strings.Split(txt, "|")
 	if len(parts) >= 1 {
-		result.ASN = "AS" + strings.TrimSpace(parts[0])
+		result.ASN = "AS" + output.StripANSI(strings.TrimSpace(parts[0]))
 	}
 	if len(parts) >= 2 {
 		result.Prefix = output.StripANSI(strings.TrimSpace(parts[1]))

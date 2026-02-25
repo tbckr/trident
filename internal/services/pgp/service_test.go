@@ -137,6 +137,39 @@ func TestRun_ANSISanitization(t *testing.T) {
 	}
 }
 
+func TestRun_MalformedMRINDEX(t *testing.T) {
+	// Lines that don't match expected format should be silently skipped.
+	malformed := "info:1:1\nnotavalidline\npub:0xABCD1234:1:2048:1609459200::\nuid:Alice <alice@example.com>:::\n"
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet,
+		"https://keys.openpgp.org/pks/lookup?op=index&search=alice%40example.com&options=mr",
+		httpmock.NewStringResponder(http.StatusOK, malformed),
+	)
+
+	svc := pgp.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "alice@example.com")
+	require.NoError(t, err)
+	result, ok := raw.(*pgp.Result)
+	require.True(t, ok, "expected *pgp.Result")
+	// Valid pub/uid lines still parsed; invalid line skipped.
+	assert.Len(t, result.Keys, 1)
+	assert.Equal(t, "0xABCD1234", result.Keys[0].KeyID)
+}
+
+func TestService_AggregateResults(t *testing.T) {
+	svc := pgp.NewService(req.NewClient(), testutil.NopLogger())
+
+	r1 := &pgp.Result{Input: "alice@example.com", Keys: []pgp.Key{{KeyID: "0x1234ABCD"}}}
+	r2 := &pgp.Result{Input: "bob@example.com", Keys: []pgp.Key{{KeyID: "0xDEADBEEF"}}}
+
+	agg := svc.AggregateResults([]services.Result{r1, r2})
+	mr, ok := agg.(*pgp.MultiResult)
+	require.True(t, ok, "expected *pgp.MultiResult")
+	assert.Len(t, mr.Results, 2)
+	assert.Equal(t, "alice@example.com", mr.Results[0].Input)
+	assert.Equal(t, "bob@example.com", mr.Results[1].Input)
+}
+
 func TestService_PAP(t *testing.T) {
 	svc := pgp.NewService(req.NewClient(), testutil.NopLogger())
 	assert.Equal(t, "amber", svc.PAP().String())

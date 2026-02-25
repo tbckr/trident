@@ -32,6 +32,10 @@ func evidenceLabel(detType string) string {
 		return "cname"
 	case "Email":
 		return "mx"
+	case "DNS":
+		return "ns"
+	case "Verification":
+		return "txt"
 	default:
 		return "ns"
 	}

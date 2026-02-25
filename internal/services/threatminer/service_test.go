@@ -202,6 +202,20 @@ func TestRun_ANSISanitization(t *testing.T) {
 	}
 }
 
+func TestService_AggregateResults(t *testing.T) {
+	svc := threatminer.NewService(req.NewClient(), testutil.NopLogger())
+
+	r1 := &threatminer.Result{Input: "example.com", InputType: "domain"}
+	r2 := &threatminer.Result{Input: "1.2.3.4", InputType: "ip"}
+
+	agg := svc.AggregateResults([]services.Result{r1, r2})
+	mr, ok := agg.(*threatminer.MultiResult)
+	require.True(t, ok, "expected *threatminer.MultiResult")
+	assert.Len(t, mr.Results, 2)
+	assert.Equal(t, "example.com", mr.Results[0].Input)
+	assert.Equal(t, "1.2.3.4", mr.Results[1].Input)
+}
+
 func TestService_PAP(t *testing.T) {
 	svc := threatminer.NewService(req.NewClient(), testutil.NopLogger())
 	assert.Equal(t, "amber", svc.PAP().String())

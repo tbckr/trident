@@ -200,6 +200,20 @@ func TestRun_FilteredEntries(t *testing.T) {
 	assert.NotContains(t, result.Subdomains, "example.com")
 }
 
+func TestService_AggregateResults(t *testing.T) {
+	svc := crtsh.NewService(req.NewClient(), testutil.NopLogger())
+
+	r1 := &crtsh.Result{Input: "example.com", Subdomains: []string{"www.example.com"}}
+	r2 := &crtsh.Result{Input: "example.org", Subdomains: []string{"api.example.org"}}
+
+	agg := svc.AggregateResults([]services.Result{r1, r2})
+	mr, ok := agg.(*crtsh.MultiResult)
+	require.True(t, ok, "expected *crtsh.MultiResult")
+	assert.Len(t, mr.Results, 2)
+	assert.Equal(t, "example.com", mr.Results[0].Input)
+	assert.Equal(t, "example.org", mr.Results[1].Input)
+}
+
 func TestService_PAP(t *testing.T) {
 	client := req.NewClient()
 	svc := crtsh.NewService(client, testutil.NopLogger())

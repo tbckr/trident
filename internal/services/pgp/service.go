@@ -3,6 +3,7 @@ package pgp
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -68,13 +69,17 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 
 	resp, err := s.client.R().SetContext(ctx).Get(reqURL)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return &Result{Input: output.StripANSI(input)}, nil
+		}
 		return nil, fmt.Errorf("%w: %s", services.ErrRequestFailed, err)
 	}
-	if resp.StatusCode == 404 {
+	cleanInput := output.StripANSI(input)
+	if resp.Response != nil && resp.StatusCode == 404 {
 		// Key not found — return empty result, not an error.
-		return &Result{Input: input}, nil
+		return &Result{Input: cleanInput}, nil
 	}
-	if !resp.IsSuccessState() {
+	if resp.Response == nil || !resp.IsSuccessState() {
 		body := resp.String()
 		if len(body) > 200 {
 			body = body[:200] + "..."
@@ -87,7 +92,7 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 		return nil, fmt.Errorf("failed to parse HKP response: %w", err)
 	}
 
-	return &Result{Input: input, Keys: keys}, nil
+	return &Result{Input: cleanInput, Keys: keys}, nil
 }
 
 // parseMRINDEX parses HKP machine-readable index format into a slice of Keys.

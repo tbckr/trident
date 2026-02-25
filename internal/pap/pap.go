@@ -35,7 +35,7 @@ func Parse(s string) (Level, error) {
 	case "white":
 		return WHITE, nil
 	default:
-		return WHITE, fmt.Errorf("unknown PAP level %q: must be one of red, amber, green, white", s)
+		return RED, fmt.Errorf("unknown PAP level %q: must be one of red, amber, green, white", s)
 	}
 }
 

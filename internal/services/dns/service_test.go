@@ -206,6 +206,37 @@ func TestRun_ANSISanitization(t *testing.T) {
 	assert.Equal(t, []string{"malicious"}, result.TXT)
 }
 
+func TestRun_ReverseLookupFailure(t *testing.T) {
+	resolver := &testutil.MockResolver{
+		LookupAddrFn: func(_ context.Context, _ string) ([]string, error) {
+			return nil, errors.New("PTR lookup failed")
+		},
+	}
+
+	svc := dns.NewService(resolver, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "8.8.8.8")
+	require.NoError(t, err) // failure is logged, not returned as error
+	result, ok := raw.(*dns.Result)
+	require.True(t, ok, "expected *dns.Result")
+	assert.Equal(t, "8.8.8.8", result.Input)
+	assert.Nil(t, result.PTR)
+	assert.True(t, result.IsEmpty())
+}
+
+func TestService_AggregateResults(t *testing.T) {
+	svc := dns.NewService(&testutil.MockResolver{}, testutil.NopLogger())
+
+	r1 := &dns.Result{Input: "example.com", A: []string{"1.2.3.4"}}
+	r2 := &dns.Result{Input: "example.org", A: []string{"5.6.7.8"}}
+
+	agg := svc.AggregateResults([]services.Result{r1, r2})
+	mr, ok := agg.(*dns.MultiResult)
+	require.True(t, ok, "expected *dns.MultiResult")
+	assert.Len(t, mr.Results, 2)
+	assert.Equal(t, "example.com", mr.Results[0].Input)
+	assert.Equal(t, "example.org", mr.Results[1].Input)
+}
+
 func TestService_PAP(t *testing.T) {
 	svc := dns.NewService(&testutil.MockResolver{}, testutil.NopLogger())
 	assert.Equal(t, "green", svc.PAP().String())

@@ -152,6 +152,20 @@ func TestRun_IPv6(t *testing.T) {
 	assert.Equal(t, "2001:4860::/32", result.Prefix)
 }
 
+func TestService_AggregateResults(t *testing.T) {
+	svc := cymru.NewService(&testutil.MockResolver{}, testutil.NopLogger())
+
+	r1 := &cymru.Result{Input: "8.8.8.8", ASN: "AS15169"}
+	r2 := &cymru.Result{Input: "1.1.1.1", ASN: "AS13335"}
+
+	agg := svc.AggregateResults([]services.Result{r1, r2})
+	mr, ok := agg.(*cymru.MultiResult)
+	require.True(t, ok, "expected *cymru.MultiResult")
+	assert.Len(t, mr.Results, 2)
+	assert.Equal(t, "8.8.8.8", mr.Results[0].Input)
+	assert.Equal(t, "1.1.1.1", mr.Results[1].Input)
+}
+
 func TestService_PAP(t *testing.T) {
 	svc := cymru.NewService(&testutil.MockResolver{}, testutil.NopLogger())
 	assert.Equal(t, "amber", svc.PAP().String())

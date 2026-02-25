@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tbckr/trident/internal/pap"
+	"github.com/tbckr/trident/internal/services"
 	identifysvc "github.com/tbckr/trident/internal/services/identify"
 )
 
@@ -40,7 +41,8 @@ PAP level: RED (no network calls — pure pattern matching).`,
 			}
 			svc := identifysvc.NewService(d.logger, patterns)
 			if !pap.Allows(d.papLevel, svc.PAP()) {
-				return fmt.Errorf("service %s requires PAP level %s, but limit is %s", svc.Name(), svc.PAP(), d.papLevel)
+				return fmt.Errorf("%w: %q requires PAP %s but limit is %s",
+					services.ErrPAPBlocked, svc.Name(), svc.PAP(), d.papLevel)
 			}
 			if len(cnames)+len(mxHosts)+len(nsHosts)+len(txtRecords) == 0 {
 				return fmt.Errorf("no records provided: specify at least one --cname, --mx, --ns, or --txt value")

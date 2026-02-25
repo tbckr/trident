@@ -3,6 +3,7 @@ package threatminer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -82,7 +83,7 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 		return nil, fmt.Errorf("%w: %s", services.ErrInvalidInput, input)
 	}
 
-	result := &Result{Input: input, InputType: string(itype)}
+	result := &Result{Input: output.StripANSI(input), InputType: string(itype)}
 
 	switch itype {
 	case inputDomain:
@@ -177,9 +178,12 @@ func (s *Service) fetchHashData(ctx context.Context, hash string, result *Result
 func (s *Service) fetch(ctx context.Context, url string) (json.RawMessage, error) {
 	resp, err := s.client.R().SetContext(ctx).Get(url)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("%w: %s", services.ErrRequestFailed, err)
 	}
-	if !resp.IsSuccessState() {
+	if resp.Response == nil || !resp.IsSuccessState() {
 		body := resp.String()
 		if len(body) > 200 {
 			body = body[:200] + "..."

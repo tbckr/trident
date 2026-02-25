@@ -43,12 +43,10 @@ func NewResolver(proxyURL string) (*net.Resolver, error) {
 		return &net.Resolver{}, nil
 	}
 
-	if !strings.HasPrefix(proxyURL, "socks5://") {
+	host, ok := strings.CutPrefix(proxyURL, "socks5://")
+	if !ok {
 		return &net.Resolver{}, nil
 	}
-
-	// Strip the scheme to get host:port.
-	host := strings.TrimPrefix(proxyURL, "socks5://")
 
 	dialer, err := proxy.SOCKS5("tcp", host, nil, proxy.Direct)
 	if err != nil {

@@ -65,13 +65,12 @@ PAP levels (least to most active intrusion): red < amber < green < white.`,
 	if len(aliases) > 0 {
 		cmd.AddGroup(&cobra.Group{ID: "aliases", Title: "Aliases:"})
 		for name, expansion := range aliases {
-			n, e := name, expansion
 			cmd.AddCommand(&cobra.Command{
-				Use:     n,
-				Short:   fmt.Sprintf("Alias for %q", e),
+				Use:     name,
+				Short:   fmt.Sprintf("Alias for %q", expansion),
 				GroupID: "aliases",
 				RunE: func(aliasCmd *cobra.Command, extraArgs []string) error {
-					parts := append(strings.Fields(e), extraArgs...)
+					parts := append(strings.Fields(expansion), extraArgs...)
 					aliasCmd.Root().SetArgs(parts)
 					return aliasCmd.Root().ExecuteContext(aliasCmd.Context())
 				},

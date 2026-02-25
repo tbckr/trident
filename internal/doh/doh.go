@@ -116,7 +116,7 @@ func parseDNSResponse(data []byte) (*Response, error) {
 func MakeDoHRequest(ctx context.Context, client *req.Client, domain string, recordType uint16) (*Response, error) {
 	query, err := buildDNSQuery(domain, recordType)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to build DNS query for %q type %d: %w", apperr.ErrRequestFailed, domain, recordType, err)
+		return nil, fmt.Errorf("%w: failed to build DNS query for %q type %d: %v", apperr.ErrRequestFailed, domain, recordType, err)
 	}
 	encoded := base64.RawURLEncoding.EncodeToString(query)
 
@@ -129,7 +129,7 @@ func MakeDoHRequest(ctx context.Context, client *req.Client, domain string, reco
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, err
 		}
-		return nil, fmt.Errorf("%w: quad9 request error for %q type %d: %w", apperr.ErrRequestFailed, domain, recordType, err)
+		return nil, fmt.Errorf("%w: quad9 request error for %q type %d: %v", apperr.ErrRequestFailed, domain, recordType, err)
 	}
 	if !httpResp.IsSuccessState() {
 		body := httpResp.String()

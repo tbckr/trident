@@ -50,7 +50,7 @@ Test files: `service_test.go`, `result_test.go`, `multi_result_test.go`.
 
 Every service exports package-level `Name` and `PAP` constants; aggregate services also export `MinPAP`. `const PAP = pap.AMBER` is valid Go — `pap.Level` is an iota-typed integer.
 
-**Services that don't implement `services.Service`** (e.g. `identify` — typed slice inputs): use custom `Run` signature, call `writeResult` from `RunE`, inline PAP check. No `runServiceCmd`, no `AggregateResults`, no `multi_result.go`.
+**Services that don't implement `services.Service`** (e.g. `identify` — typed slice inputs): use custom `Run` signature, call `writeResult` from `RunE`, inline PAP check. No `runServiceCmd`, no `AggregateResults`, no `multi_result.go`. **Inline PAP check (identify-style)** — must still wrap `services.ErrPAPBlocked`: `fmt.Errorf("%w: %q requires PAP %s but limit is %s", services.ErrPAPBlocked, svc.Name(), svc.PAP(), d.papLevel)` — same format as `runServiceCmd`.
 
 ## Service Implementations
 
@@ -89,7 +89,7 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 
 **`resolver.NewResolver` naming** — use `r`, not `resolver` (shadows the package import → compile error).
 
-**`codeberg.org/miekg/dns`** — moved from `github.com/miekg/dns` to Codeberg; NOT a v2 module (no `/v2` suffix in import path). RR struct literals in tests need `codeberg.org/miekg/dns/rdata` import. `rdata.TXT{Txt: []string{...}}` (slice, not string). Set `m.Response = true` in test response messages.
+**`codeberg.org/miekg/dns`** — moved from `github.com/miekg/dns` to Codeberg; NOT a v2 module (no `/v2` suffix in import path). RR struct literals in tests need `codeberg.org/miekg/dns/rdata` import. `rdata.TXT{Txt: []string{...}}` (slice, not string). Set `m.Response = true` in test response messages. In `dns.TXT{}` struct literals, the embedded rdata field is `TXT:` (uppercase) not `Txt:`.
 
 ### Tables / output
 **tablewriter v1.1.3 API** — `table.Header([]string{...})` is **void** (no return); `table.Bulk(rows)` and `table.Render()` return `error` — always propagate. `Header()` renders ALL CAPS — test assertions must use `"DOMAIN"`, not `"Domain"`.
@@ -141,6 +141,10 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 **`gofmt` alignment** — never manually align struct field types or map key→value pairs (lint fails). `const` blocks may be pre-aligned (gofmt preserves it). No trailing blank line before closing `)`.
 
 ### Other
+**`fmt.Errorf` single sentinel** — two `%w` verbs in one call create a multi-error (Go 1.20+); use `%v` for the inner error: `fmt.Errorf("%w: ...: %v", services.ErrXxx, err)`. Never two `%w` in the same error string.
+
+**Context cancel in HTTP services** — check `errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)` *before* wrapping as `ErrRequestFailed`; return a partial/empty result instead. Pattern: crtsh, quad9, threatminer, pgp.
+
 **`MultiResult` composite literal** — embeds `services.MultiResultBase[Result, *Result]`; init via field assignment (`m := &dns.MultiResult{}; m.Results = [...]`), not a composite literal (promoted fields cause compile error). `MarshalJSON` → bare JSON array, not envelope.
 
 **`sync.WaitGroup.Go`** — use `wg.Go(func() { ... })` (available since Go 1.25; project uses Go 1.26). No `i := i` needed (auto-capture since Go 1.22).

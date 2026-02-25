@@ -109,7 +109,7 @@ func newAliasListCmd(d *deps) *cobra.Command {
 					}
 				}
 				return nil
-			default: // text
+			default: // table
 				table := output.NewWrappingTable(w, 20, 6)
 				table.Header([]string{"ALIAS", "EXPANSION"})
 				rows := make([][]string, 0, len(names))
