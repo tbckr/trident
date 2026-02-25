@@ -195,7 +195,8 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 
 	// Config file resolution.
 	configFile, _ := flags.GetString("config")
-	if configFile == "" {
+	useDefault := configFile == ""
+	if useDefault {
 		var err error
 		configFile, err = DefaultConfigPath()
 		if err != nil {
@@ -204,13 +205,16 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	}
 	v.SetConfigFile(configFile)
 
-	if err := appdir.EnsureFile(configFile); err != nil {
-		return nil, fmt.Errorf("ensuring config file: %w", err)
+	if useDefault {
+		if err := appdir.EnsureFile(configFile); err != nil {
+			return nil, fmt.Errorf("ensuring config file: %w", err)
+		}
 	}
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
-		if !errors.As(err, &notFound) && !os.IsNotExist(err) {
+		isNotFound := errors.As(err, &notFound) || os.IsNotExist(err)
+		if !isNotFound || !useDefault {
 			return nil, fmt.Errorf("reading config: %w", err)
 		}
 	}

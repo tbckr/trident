@@ -163,6 +163,8 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 
 File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→viper key: hyphens become underscores. `Config.Aliases` uses mapstructure tag `"alias"`; file-only (no flag/env). `config.LoadAliases(path)` reads only alias section; returns empty non-nil map when file missing.
 
+**`config.Load()` — custom path must exist** — `EnsureFile` and not-found silencing only apply to the default path; `--config=<file>` that doesn't exist returns an error. Tests using `newTestFlags(t, cfgFile)` must pre-create the file with `os.WriteFile(cfgFile, []byte{}, 0o600)`.
+
 ## Tech Stack
 
 - **CLI:** cobra v1.10.2 | **Config:** viper | **HTTP:** imroc/req v3 | **Tables:** olekukonko/tablewriter v1.1.3

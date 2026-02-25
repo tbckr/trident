@@ -25,6 +25,7 @@ func newTestFlags(t *testing.T, cfgFile string, extra ...string) *pflag.FlagSet 
 func TestLoad_DefaultsWithTempDir(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte{}, 0o600))
 
 	cfg, err := config.Load(newTestFlags(t, cfgFile))
 	require.NoError(t, err)
@@ -35,11 +36,23 @@ func TestLoad_DefaultsWithTempDir(t *testing.T) {
 	assert.Equal(t, 10, cfg.Concurrency)
 	assert.False(t, cfg.Defang)
 	assert.False(t, cfg.NoDefang)
+}
 
-	// Config file should now exist with 0600 permissions.
-	info, err := os.Stat(cfgFile)
-	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+func TestLoad_CustomConfigSkipsEnsure(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "nonexistent.yaml")
+
+	// File must NOT exist before Load.
+	_, err := os.Stat(cfgFile)
+	require.True(t, os.IsNotExist(err))
+
+	// Explicit --config to a nonexistent file must error (not silenced).
+	_, err = config.Load(newTestFlags(t, cfgFile))
+	require.Error(t, err)
+
+	// EnsureFile must NOT have run — file still absent.
+	_, err = os.Stat(cfgFile)
+	assert.True(t, os.IsNotExist(err), "custom config path must not be auto-created")
 }
 
 func TestLoad_ExistingConfigFile(t *testing.T) {
@@ -58,6 +71,7 @@ func TestLoad_ExistingConfigFile(t *testing.T) {
 func TestLoad_VerboseAndOutput(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte{}, 0o600))
 
 	cfg, err := config.Load(newTestFlags(t, cfgFile, "--verbose", "--output=json"))
 	require.NoError(t, err)
@@ -68,6 +82,7 @@ func TestLoad_VerboseAndOutput(t *testing.T) {
 func TestLoad_NewFields(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte{}, 0o600))
 
 	cfg, err := config.Load(newTestFlags(t, cfgFile,
 		"--proxy=http://proxy:8080",
@@ -88,6 +103,7 @@ func TestLoad_NewFields(t *testing.T) {
 func TestLoad_ConcurrencyDefault(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte{}, 0o600))
 
 	cfg, err := config.Load(newTestFlags(t, cfgFile))
 	require.NoError(t, err)
@@ -97,6 +113,7 @@ func TestLoad_ConcurrencyDefault(t *testing.T) {
 func TestLoad_PAPLimitDefault(t *testing.T) {
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte{}, 0o600))
 
 	cfg, err := config.Load(newTestFlags(t, cfgFile))
 	require.NoError(t, err)
