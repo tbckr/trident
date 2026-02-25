@@ -194,23 +194,17 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	_ = v.BindPFlag("detect_patterns.file", flags.Lookup("patterns-file"))
 
 	// Config file resolution.
-	var resolvedPath string
 	configFile, _ := flags.GetString("config")
-	if configFile != "" {
-		resolvedPath = configFile
-		v.SetConfigFile(configFile)
-	} else {
-		dir, err := appdir.ConfigDir()
+	if configFile == "" {
+		var err error
+		configFile, err = DefaultConfigPath()
 		if err != nil {
-			return nil, fmt.Errorf("resolving config dir: %w", err)
+			return nil, err
 		}
-		resolvedPath = filepath.Join(dir, "config.yaml")
-		v.SetConfigName("config")
-		v.SetConfigType("yaml")
-		v.AddConfigPath(dir)
 	}
+	v.SetConfigFile(configFile)
 
-	if err := appdir.EnsureFile(resolvedPath); err != nil {
+	if err := appdir.EnsureFile(configFile); err != nil {
 		return nil, fmt.Errorf("ensuring config file: %w", err)
 	}
 
@@ -226,7 +220,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unmarshaling config: %w", err)
 	}
-	cfg.ConfigFile = resolvedPath
+	cfg.ConfigFile = v.ConfigFileUsed()
 	return &cfg, nil
 }
 
