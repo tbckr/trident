@@ -33,6 +33,7 @@ internal/
   worker/           # Bounded goroutine pool
   services/         # One package per service; IsDomain() here
   appdir/           # OS config-dir helpers: ConfigDir(), EnsureFile()
+  apperr/           # Shared error sentinels (leaf; no internal imports)
   detect/           # Provider detection: CDN/Email/DNS/TXT (pure, no I/O); patterns.yaml embedded
   output/           # Table/JSON/text formatters + defang helpers
 ```
@@ -141,7 +142,9 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 
 **`sync.WaitGroup.Go`** — use `wg.Go(func() { ... })` (available since Go 1.25; project uses Go 1.26). No `i := i` needed (auto-capture since Go 1.22).
 
-**`services.ErrInvalidInput`** — shared sentinel in `internal/services/service.go`; wrap: `fmt.Errorf("%w: ...: %q", services.ErrInvalidInput, input)`. Never define per-service variants.
+**Error sentinels** — defined in `internal/apperr/` (leaf; no internal imports); re-exported from `services` for backward compat. Use `services.ErrInvalidInput/ErrRequestFailed/ErrPAPBlocked` in service code. `doh` imports `apperr` directly to avoid the `doh → services` cycle. Wrap: `fmt.Errorf("%w: ...: %q", services.ErrInvalidInput, input)`. Never define per-service variants.
+
+**`config.DefaultPatternsURL`** — built-in patterns download URL lives in `internal/config` (not `detect`). **`config.NormalizeKey`** — exported; converts `"pap-limit"` → `"pap_limit"`; don't duplicate locally.
 
 **`DefangURL` host extraction** — never use `strings.Index(s, "/")` to find host/path boundary (hits first `/` in `://`). Find `://` first, skip 3 bytes, then search from there.
 
