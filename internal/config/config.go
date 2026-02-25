@@ -75,7 +75,7 @@ func KeyCompletions(key string) []string {
 // ValidateKey returns ErrUnknownKey when key is not a recognised config key.
 // Accepts both hyphenated (user-agent) and underscored (user_agent) forms.
 func ValidateKey(key string) error {
-	if _, ok := configKeys[normalizeKey(key)]; !ok {
+	if _, ok := configKeys[NormalizeKey(key)]; !ok {
 		return fmt.Errorf("%w: %q", ErrUnknownKey, key)
 	}
 	return nil
@@ -85,7 +85,7 @@ func ValidateKey(key string) error {
 // validates enum constraints. Returns an error for type mismatches or invalid
 // enum values.
 func ParseValue(key, value string) (any, error) {
-	meta, ok := configKeys[normalizeKey(key)]
+	meta, ok := configKeys[NormalizeKey(key)]
 	if !ok {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownKey, key)
 	}
@@ -113,8 +113,9 @@ func ParseValue(key, value string) (any, error) {
 	}
 }
 
-// normalizeKey converts hyphenated flag names to their viper key equivalents.
-func normalizeKey(key string) string {
+// NormalizeKey converts hyphenated flag names to their viper key equivalents
+// (e.g. "pap-limit" → "pap_limit").
+func NormalizeKey(key string) string {
 	result := make([]byte, len(key))
 	for i := range key {
 		if key[i] == '-' {

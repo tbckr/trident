@@ -217,7 +217,7 @@ func newConfigGetCmd(d *deps) *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key := normalizeConfigKey(args[0])
+			key := config.NormalizeKey(args[0])
 			if err := config.ValidateKey(key); err != nil {
 				return err
 			}
@@ -238,12 +238,12 @@ func newConfigSetCmd(d *deps) *cobra.Command {
 			case 0:
 				return config.ValidKeys(), cobra.ShellCompDirectiveNoFileComp
 			case 1:
-				return config.KeyCompletions(normalizeConfigKey(args[0])), cobra.ShellCompDirectiveNoFileComp
+				return config.KeyCompletions(config.NormalizeKey(args[0])), cobra.ShellCompDirectiveNoFileComp
 			}
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key := normalizeConfigKey(args[0])
+			key := config.NormalizeKey(args[0])
 			if err := config.ValidateKey(key); err != nil {
 				return err
 			}
@@ -302,18 +302,4 @@ func newConfigEditCmd(d *deps) *cobra.Command {
 			return c.Run()
 		},
 	}
-}
-
-// normalizeConfigKey converts hyphenated flag names to their viper key equivalents
-// (e.g. "pap-limit" → "pap_limit").
-func normalizeConfigKey(key string) string {
-	result := make([]byte, len(key))
-	for i := range key {
-		if key[i] == '-' {
-			result[i] = '_'
-		} else {
-			result[i] = key[i]
-		}
-	}
-	return string(result)
 }
