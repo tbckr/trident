@@ -77,6 +77,8 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 ### CLI / deps factory methods
 **New commands must use `deps` factory methods** — never call `httpclient.New(d.cfg.Proxy, ...)`, `resolver.NewResolver(d.cfg.Proxy)`, or `providers.DefaultPatternPaths()+LoadPatterns()` directly in command files. Use `d.newHTTPClient()`, `d.newResolver()`, `d.loadPatterns()` instead. Use `d.papLevel` directly instead of `pap.MustParse(d.cfg.PAPLimit)`. All three factories + `papLevel` live in `internal/cli/deps.go`.
 
+**`httpclient.New` direct callers** — only `internal/cli/deps.go` (via `newHTTPClient`) and `internal/httpclient/*_test.go` call `New` directly. IDE may falsely flag service files on signature changes; `grep -rn "httpclient.New(" --include="*.go"` shows actual callers.
+
 ### HTTP / req
 **`req.Response` nil guard** — transport-level error: `*req.Response` is non-nil but embedded `*http.Response` is nil. Always guard `resp.Response != nil` before accessing `StatusCode`/`Header`.
 
@@ -170,6 +172,8 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→viper key: hyphens become underscores. `Config.Aliases` uses mapstructure tag `"alias"`; file-only (no flag/env). `config.LoadAliases(path)` reads only alias section; returns empty non-nil map when file missing.
 
 **`config.Load()` — custom path must exist** — `EnsureFile` and not-found silencing only apply to the default path; `--config=<file>` that doesn't exist returns an error. Tests using `newTestFlags(t, cfgFile)` must pre-create the file with `os.WriteFile(cfgFile, []byte{}, 0o600)`.
+
+**Adding a persistent config flag** — 5 coordinated changes: (1) entry in `configKeys` map, (2) field in `Config` struct with `mapstructure` tag, (3) flag in `RegisterFlags`, (4) `BindPFlag` in `Load`, (5) completion func in `root.go` for enum keys. Tests: add to `TestParseValue` table + a `TestLoad_*` func.
 
 ## Tech Stack
 

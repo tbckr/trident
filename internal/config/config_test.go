@@ -165,6 +165,15 @@ func TestParseValue(t *testing.T) {
 		{key: "pap-limit", value: "amber", want: "amber"},
 		{key: "pap_limit", value: "white", want: "white"},
 		{key: "pap_limit", value: "invalid", wantErr: true},
+		// enum string — tls_fingerprint
+		{key: "tls_fingerprint", value: "chrome", want: "chrome"},
+		{key: "tls_fingerprint", value: "firefox", want: "firefox"},
+		{key: "tls_fingerprint", value: "edge", want: "edge"},
+		{key: "tls_fingerprint", value: "safari", want: "safari"},
+		{key: "tls_fingerprint", value: "ios", want: "ios"},
+		{key: "tls_fingerprint", value: "android", want: "android"},
+		{key: "tls_fingerprint", value: "randomized", want: "randomized"},
+		{key: "tls_fingerprint", value: "ie6", wantErr: true},
 		// free-form string
 		{key: "proxy", value: "http://proxy:3128", want: "http://proxy:3128"},
 		{key: "user_agent", value: "MyAgent/1.0", want: "MyAgent/1.0"},
@@ -253,4 +262,38 @@ func TestLoadAliases_WithAliases(t *testing.T) {
 		"mydns": "dns -o json",
 		"qs":    "crtsh",
 	}, aliases)
+}
+
+func TestLoad_TLSFingerprint(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte{}, 0o600))
+
+	cfg, err := config.Load(newTestFlags(t, cfgFile, "--tls-fingerprint=chrome"))
+	require.NoError(t, err)
+	assert.Equal(t, "chrome", cfg.TLSFingerprint)
+}
+
+func TestWarnInsecurePermissions_Safe(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte{}, 0o600))
+
+	warn := config.WarnInsecurePermissions(cfgFile)
+	assert.Empty(t, warn)
+}
+
+func TestWarnInsecurePermissions_TooOpen(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte{}, 0o644))
+
+	warn := config.WarnInsecurePermissions(cfgFile)
+	assert.NotEmpty(t, warn)
+	assert.Contains(t, warn, "0644")
+}
+
+func TestWarnInsecurePermissions_NonExistent(t *testing.T) {
+	warn := config.WarnInsecurePermissions("/nonexistent/path/config.yaml")
+	assert.Empty(t, warn)
 }

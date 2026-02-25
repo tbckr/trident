@@ -19,7 +19,7 @@ import (
 // *http.Response) nil. This was the root cause of the panic reported for
 // "quad9 blocked <domain>" when the underlying HTTP transport failed.
 func TestAttachRateLimit_TransportError_NoPanic(t *testing.T) {
-	client, err := httpclient.New("", "", nil, false)
+	client, err := httpclient.New("", "", "", nil, false)
 	require.NoError(t, err)
 
 	// High rate/burst so the limiter never blocks during the test.
@@ -40,7 +40,7 @@ func TestAttachRateLimit_TransportError_NoPanic(t *testing.T) {
 // TestAttachRateLimit_TransportError_Retries verifies that transient transport
 // errors are retried and that the client succeeds once the error clears.
 func TestAttachRateLimit_TransportError_Retries(t *testing.T) {
-	client, err := httpclient.New("", "", nil, false)
+	client, err := httpclient.New("", "", "", nil, false)
 	require.NoError(t, err)
 
 	httpclient.AttachRateLimit(client, ratelimit.New(1000, 1000))
@@ -67,7 +67,7 @@ func TestAttachRateLimit_TransportError_Retries(t *testing.T) {
 // TestAttachRateLimit_ContextCancel_NoRetry verifies that context.Canceled
 // errors are not retried.
 func TestAttachRateLimit_ContextCancel_NoRetry(t *testing.T) {
-	client, err := httpclient.New("", "", nil, false)
+	client, err := httpclient.New("", "", "", nil, false)
 	require.NoError(t, err)
 
 	httpclient.AttachRateLimit(client, ratelimit.New(1000, 1000))

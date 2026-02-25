@@ -15,21 +15,43 @@ import (
 // var (not const) because version.Version is a link-time variable, not a compile-time constant.
 var DefaultUserAgent = "trident/" + version.Version + " (+https://github.com/tbckr/trident)"
 
-// New builds a *req.Client with optional proxy and user-agent configuration.
-// If userAgent is empty, defaultUserAgent is used.
+// New builds a *req.Client with optional proxy, user-agent, and TLS fingerprint configuration.
+// If userAgent is empty, DefaultUserAgent is used.
 // proxy supports http://, https://, and socks5:// URLs via req's SetProxyURL.
 // When proxy is empty, HTTP_PROXY / HTTPS_PROXY / NO_PROXY environment variables
 // are honoured automatically via http.ProxyFromEnvironment.
+// tlsFingerprint selects a uTLS client hello profile (chrome, firefox, edge, safari, ios,
+// android, randomized). An empty string uses Go's default TLS implementation.
 // When debug is true and logger is non-nil, an OnAfterResponse hook is attached
 // that logs the HTTP method, URL, and status code at DEBUG level.
-// Returns an error only if the proxy URL is syntactically invalid.
-func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client, error) {
+// Returns an error if the proxy URL is syntactically invalid or tlsFingerprint is unrecognised.
+func New(proxy, userAgent, tlsFingerprint string, logger *slog.Logger, debug bool) (*req.Client, error) {
 	ua := userAgent
 	if ua == "" {
 		ua = DefaultUserAgent
 	}
 
 	client := req.NewClient().SetUserAgent(ua)
+
+	switch tlsFingerprint {
+	case "chrome":
+		client.SetTLSFingerprintChrome()
+	case "firefox":
+		client.SetTLSFingerprintFirefox()
+	case "edge":
+		client.SetTLSFingerprintEdge()
+	case "safari":
+		client.SetTLSFingerprintSafari()
+	case "ios":
+		client.SetTLSFingerprintIOS()
+	case "android":
+		client.SetTLSFingerprintAndroid()
+	case "randomized":
+		client.SetTLSFingerprintRandomized()
+	case "": // default Go TLS — no-op
+	default:
+		return nil, fmt.Errorf("unknown TLS fingerprint %q", tlsFingerprint)
+	}
 
 	if proxy != "" {
 		if err := validateProxy(proxy); err != nil {

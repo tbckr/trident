@@ -55,6 +55,9 @@ PAP levels (least to most active intrusion): red < amber < green < white.`,
 	_ = cmd.RegisterFlagCompletionFunc("pap-limit", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 		return []string{"red", "amber", "green", "white"}, cobra.ShellCompDirectiveNoFileComp
 	})
+	_ = cmd.RegisterFlagCompletionFunc("tls-fingerprint", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return []string{"chrome", "firefox", "edge", "safari", "ios", "android", "randomized"}, cobra.ShellCompDirectiveNoFileComp
+	})
 
 	cmd.Version = version.Version
 	cmd.SetVersionTemplate("trident {{.Version}}\n")

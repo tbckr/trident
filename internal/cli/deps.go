@@ -5,6 +5,8 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
+	"strings"
 
 	"github.com/imroc/req/v3"
 	"github.com/spf13/cobra"
@@ -60,13 +62,39 @@ func buildDeps(cmd *cobra.Command, stderr io.Writer) (*deps, error) {
 
 	doDefang := output.ResolveDefang(papLevel, format, cfg.Defang, cfg.NoDefang)
 
+	warnDNSLeak(cfg.Proxy, logger)
+	if warn := config.WarnInsecurePermissions(cfg.ConfigFile); warn != "" {
+		logger.Warn(warn)
+	}
+
 	return &deps{cfg: cfg, logger: logger, doDefang: doDefang, papLevel: papLevel}, nil
+}
+
+// warnDNSLeak logs a warning when the effective proxy is HTTP/HTTPS (not SOCKS5),
+// because DNS queries are not tunnelled through HTTP/HTTPS proxies and may leak
+// to the local ISP resolver.
+func warnDNSLeak(proxy string, logger *slog.Logger) {
+	effective := proxy
+	if effective == "" {
+		if v := os.Getenv("ALL_PROXY"); v != "" {
+			effective = v
+		} else if v := os.Getenv("all_proxy"); v != "" {
+			effective = v
+		}
+	}
+	if effective == "" {
+		return
+	}
+	if strings.HasPrefix(effective, "socks5://") {
+		return
+	}
+	logger.Warn("proxy is HTTP/HTTPS — DNS queries are NOT tunnelled and may leak to your ISP; use socks5:// to prevent DNS leaks")
 }
 
 // newHTTPClient creates a new HTTP client configured with the proxy, user-agent,
 // logger, and verbosity from the resolved config.
 func (d *deps) newHTTPClient() (*req.Client, error) {
-	client, err := httpclient.New(d.cfg.Proxy, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
+	client, err := httpclient.New(d.cfg.Proxy, d.cfg.UserAgent, d.cfg.TLSFingerprint, d.logger, d.cfg.Verbose)
 	if err != nil {
 		return nil, fmt.Errorf("creating HTTP client: %w", err)
 	}

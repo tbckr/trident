@@ -50,6 +50,7 @@ var configKeys = map[string]configKeyMeta{
 	"concurrency":          {typ: keyTypeInt},
 	"detect_patterns.url":  {typ: keyTypeString},
 	"detect_patterns.file": {typ: keyTypeString},
+	"tls_fingerprint":      {typ: keyTypeString, allowed: []string{"chrome", "firefox", "edge", "safari", "ios", "android", "randomized"}},
 }
 
 // ValidKeys returns every recognised config key in sorted order.
@@ -141,6 +142,7 @@ type Config struct {
 	Concurrency    int                  `mapstructure:"concurrency"`     // default 10
 	Aliases        map[string]string    `mapstructure:"alias"`           // file-only; no flag/env binding
 	DetectPatterns DetectPatternsConfig `mapstructure:"detect_patterns"` // detect patterns configuration
+	TLSFingerprint string               `mapstructure:"tls_fingerprint"` // uTLS fingerprint (chrome, firefox, …)
 }
 
 // RegisterFlags defines all persistent CLI flags on the given FlagSet.
@@ -156,6 +158,7 @@ func RegisterFlags(flags *pflag.FlagSet) {
 	flags.Bool("no-defang", false, "disable defanging even if enabled in config")
 	flags.IntP("concurrency", "c", 10, "parallel workers for bulk stdin input")
 	flags.String("patterns-file", "", "custom detect patterns file (overrides detect.yaml search)")
+	flags.String("tls-fingerprint", "", "TLS client hello fingerprint (chrome, firefox, edge, safari, ios, android, randomized)")
 }
 
 // Load initializes Viper with the full precedence chain:
@@ -187,6 +190,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	_ = v.BindPFlag("no_defang", flags.Lookup("no-defang"))
 	_ = v.BindPFlag("concurrency", flags.Lookup("concurrency"))
 	_ = v.BindPFlag("detect_patterns.file", flags.Lookup("patterns-file"))
+	_ = v.BindPFlag("tls_fingerprint", flags.Lookup("tls-fingerprint"))
 
 	// Config file resolution.
 	configFile, _ := flags.GetString("config")
@@ -233,6 +237,21 @@ func DefaultConfigPath() (string, error) {
 		return "", fmt.Errorf("resolving config dir: %w", err)
 	}
 	return filepath.Join(dir, "config.yaml"), nil
+}
+
+// WarnInsecurePermissions checks that the config file has safe permissions (0600).
+// Returns a non-empty warning string when permissions are too open.
+// Returns empty string when the file does not exist or cannot be stat'd.
+func WarnInsecurePermissions(path string) string {
+	info, err := os.Stat(path)
+	if err != nil {
+		return ""
+	}
+	perm := info.Mode().Perm()
+	if perm&0o077 != 0 {
+		return fmt.Sprintf("config file %s has permissions %04o, want 0600; run: chmod 0600 %s", path, perm, path)
+	}
+	return ""
 }
 
 // LoadAliases reads only the alias section from the config file at path.
