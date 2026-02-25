@@ -10,7 +10,7 @@ import (
 	"codeberg.org/miekg/dns"
 	"github.com/imroc/req/v3"
 
-	"github.com/tbckr/trident/internal/services"
+	"github.com/tbckr/trident/internal/apperr"
 )
 
 const (
@@ -116,7 +116,7 @@ func parseDNSResponse(data []byte) (*Response, error) {
 func MakeDoHRequest(ctx context.Context, client *req.Client, domain string, recordType uint16) (*Response, error) {
 	query, err := buildDNSQuery(domain, recordType)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to build DNS query for %q type %d: %w", services.ErrRequestFailed, domain, recordType, err)
+		return nil, fmt.Errorf("%w: failed to build DNS query for %q type %d: %w", apperr.ErrRequestFailed, domain, recordType, err)
 	}
 	encoded := base64.RawURLEncoding.EncodeToString(query)
 
@@ -129,14 +129,14 @@ func MakeDoHRequest(ctx context.Context, client *req.Client, domain string, reco
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, err
 		}
-		return nil, fmt.Errorf("%w: quad9 request error for %q type %d: %w", services.ErrRequestFailed, domain, recordType, err)
+		return nil, fmt.Errorf("%w: quad9 request error for %q type %d: %w", apperr.ErrRequestFailed, domain, recordType, err)
 	}
 	if !httpResp.IsSuccessState() {
 		body := httpResp.String()
 		if len(body) > 200 {
 			body = body[:200] + "..."
 		}
-		return nil, fmt.Errorf("%w: quad9 returned HTTP %d for %q type %d: %q", services.ErrRequestFailed, httpResp.StatusCode, domain, recordType, body)
+		return nil, fmt.Errorf("%w: quad9 returned HTTP %d for %q type %d: %q", apperr.ErrRequestFailed, httpResp.StatusCode, domain, recordType, body)
 	}
 	return parseDNSResponse(httpResp.Bytes())
 }

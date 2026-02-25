@@ -2,24 +2,23 @@ package services
 
 import (
 	"context"
-	"errors"
 
+	"github.com/tbckr/trident/internal/apperr"
 	"github.com/tbckr/trident/internal/pap"
 )
 
-// ErrInvalidInput is returned by any service when the provided input fails validation.
+// ErrInvalidInput is re-exported from apperr for backward compatibility.
 // Use errors.Is(err, services.ErrInvalidInput) to detect validation failures uniformly
 // across all services.
-var ErrInvalidInput = errors.New("invalid input")
+var ErrInvalidInput = apperr.ErrInvalidInput
 
-// ErrRequestFailed is returned by any HTTP-based service when the request fails at the
-// transport level or the server responds with a non-2xx status code.
+// ErrRequestFailed is re-exported from apperr for backward compatibility.
 // Use errors.Is(err, services.ErrRequestFailed) to detect request failures uniformly
 // across all services.
-var ErrRequestFailed = errors.New("request failed")
+var ErrRequestFailed = apperr.ErrRequestFailed
 
-// ErrPAPBlocked is returned when a service's PAP level exceeds the user-defined limit.
-var ErrPAPBlocked = errors.New("PAP limit exceeded")
+// ErrPAPBlocked is re-exported from apperr for backward compatibility.
+var ErrPAPBlocked = apperr.ErrPAPBlocked
 
 // Result is the common interface every service's Run output must satisfy.
 type Result interface {
