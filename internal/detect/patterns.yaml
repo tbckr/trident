@@ -1,82 +1,193 @@
 cdn:
-  - suffix: cloudfront.net
-    provider: AWS CloudFront
+  # Akamai
   - suffix: akamaiedge.net
     provider: Akamai
   - suffix: edgekey.net
     provider: Akamai
   - suffix: edgesuite.net
     provider: Akamai
+  - suffix: akamaized.net
+    provider: Akamai
+  - suffix: akamaihd.net
+    provider: Akamai
+  - suffix: akamai.net
+    provider: Akamai
+  # AWS
+  - suffix: cloudfront.net
+    provider: AWS CloudFront
+  - suffix: awsglobalaccelerator.com
+    provider: AWS Global Accelerator
+  # Fastly
   - suffix: fastly.net
     provider: Fastly
+  # Cloudflare
   - suffix: cloudflare.net
     provider: Cloudflare
+  # Microsoft Azure
   - suffix: azureedge.net
     provider: Azure CDN
   - suffix: azurefd.net
     provider: Azure Front Door
+  - suffix: trafficmanager.net
+    provider: Azure Traffic Manager
+  - suffix: msecnd.net
+    provider: Azure CDN
+  # Google
   - suffix: googleplex.com
     provider: Google Cloud CDN
   - suffix: l.google.com
     provider: Google Cloud CDN
+  # Vercel
+  - suffix: vercel-dns.com
+    provider: Vercel
+  # Netlify
+  - suffix: netlify.app
+    provider: Netlify
+  # Bunny CDN
   - suffix: b-cdn.net
     provider: Bunny CDN
+  # Imperva
   - suffix: incapdns.net
     provider: Imperva
+  - suffix: impervadns.net
+    provider: Imperva
+  # Sucuri
   - suffix: sucuri.net
     provider: Sucuri
+  # StackPath
   - suffix: stackpathcdn.com
     provider: StackPath
   - suffix: netdna-cdn.com
     provider: StackPath
+  - suffix: hwcdn.net
+    provider: StackPath
+  # Edgio
   - suffix: llnwd.net
     provider: Edgio
   - suffix: edgio.net
     provider: Edgio
-  - suffix: cdn77.org
-    provider: CDN77
-  - suffix: kxcdn.com
-    provider: KeyCDN
+  # Verizon EdgeCast
   - suffix: edgecastcdn.net
     provider: Verizon EdgeCast
+  # CDN77
+  - suffix: cdn77.org
+    provider: CDN77
+  # KeyCDN
+  - suffix: kxcdn.com
+    provider: KeyCDN
+  # CacheFly
   - suffix: cachefly.net
     provider: CacheFly
+  # G-Core
   - suffix: gcdn.co
     provider: G-Core
+  # Lumen
+  - suffix: footprint.net
+    provider: Lumen
+  # Alibaba Cloud
   - suffix: alikunlun.com
     provider: Alibaba Cloud CDN
+  - suffix: alicdn.com
+    provider: Alibaba Cloud CDN
+  - suffix: kunlunsl.com
+    provider: Alibaba Cloud CDN
+  # Tencent Cloud
+  - suffix: cdn.dnsv1.com
+    provider: Tencent Cloud CDN
+  - suffix: dsa.dnsv1.com
+    provider: Tencent Cloud CDN
 
 email:
+  # Google
   - suffix: google.com
     provider: Google Workspace
   - suffix: googlemail.com
     provider: Google Workspace
+  # Microsoft
   - suffix: mail.protection.outlook.com
     provider: Microsoft 365
   - suffix: eo.outlook.com
     provider: Microsoft 365
+  # Cloudflare
+  - suffix: cloudflare.net
+    provider: Cloudflare Email Routing
+  # Apple
+  - suffix: icloud.com
+    provider: Apple iCloud Mail
+  # Proton Mail
+  - suffix: protonmail.ch
+    provider: Proton Mail
+  # Fastmail
+  - suffix: messagingengine.com
+    provider: Fastmail
+  # Tuta
+  - suffix: tutanota.de
+    provider: Tuta
+  # ZOHO
+  - suffix: zoho.com
+    provider: ZOHO Mail
+  - suffix: zoho.eu
+    provider: ZOHO Mail
+  - suffix: zoho.in
+    provider: ZOHO Mail
+  # GoDaddy
+  - suffix: secureserver.net
+    provider: GoDaddy
+  # OVH
+  - suffix: ovh.net
+    provider: OVH
+  # IONOS
+  - suffix: ionos.com
+    provider: IONOS
+  # Rackspace
+  - suffix: emailsrvr.com
+    provider: Rackspace Email
+  # Email forwarding
+  - suffix: improvmx.com
+    provider: ImprovMX
+  - suffix: forwardemail.net
+    provider: Forward Email
+  - suffix: migadu.com
+    provider: Migadu
+  # Transactional email
+  - suffix: sendgrid.net
+    provider: SendGrid
+  - suffix: mailgun.org
+    provider: Mailgun
+  - suffix: postmarkapp.com
+    provider: Postmark
+  - suffix: sparkpostmail.com
+    provider: SparkPost
+  - suffix: mandrillapp.com
+    provider: Mandrill
+  - suffix: mailjet.com
+    provider: Mailjet
+  # Email security gateways
   - suffix: pphosted.com
     provider: Proofpoint
   - suffix: mimecast.com
     provider: Mimecast
   - suffix: barracudanetworks.com
     provider: Barracuda
-  - suffix: sendgrid.net
-    provider: SendGrid
-  - suffix: mailgun.org
-    provider: Mailgun
-  - suffix: zoho.com
-    provider: ZOHO Mail
-  - suffix: emailsrvr.com
-    provider: Rackspace Email
   - suffix: messagelabs.com
     provider: Broadcom Email Security
+  - suffix: iphmx.com
+    provider: Cisco Email Security
+  - suffix: sophos.com
+    provider: Sophos Email Security
+  - suffix: mailcontrol.com
+    provider: Forcepoint Email Security
+  - suffix: trendmicro.com
+    provider: Trend Micro Email Security
 
 dns:
+  # Cloudflare
   - suffix: ns.cloudflare.com
     provider: Cloudflare DNS
+  # AWS
   - contains: awsdns
     provider: AWS Route 53
+  # Microsoft Azure
   - suffix: azure-dns.com
     provider: Azure DNS
   - suffix: azure-dns.net
@@ -85,26 +196,77 @@ dns:
     provider: Azure DNS
   - suffix: azure-dns.info
     provider: Azure DNS
+  # Google
   - suffix: googledomains.com
     provider: Google Cloud DNS
+  # Vercel
+  - suffix: vercel-dns.com
+    provider: Vercel DNS
+  # Hetzner
+  - suffix: hetzner.com
+    provider: Hetzner DNS
+  - suffix: hetzner.de
+    provider: Hetzner DNS
+  # DigitalOcean
+  - suffix: digitalocean.com
+    provider: DigitalOcean DNS
+  # Linode
+  - suffix: linode.com
+    provider: Linode DNS
+  # Vultr
+  - suffix: vultr.com
+    provider: Vultr DNS
+  # OVH
+  - suffix: ovh.net
+    provider: OVH DNS
+  # Gandi
+  - suffix: gandi.net
+    provider: Gandi DNS
+  # Hurricane Electric
+  - suffix: he.net
+    provider: Hurricane Electric DNS
+  # NS1
   - suffix: nsone.net
     provider: NS1
+  # Oracle Dyn
+  - suffix: dynect.net
+    provider: Oracle Dyn
+  # DNSimple
   - suffix: dnsimple.com
     provider: DNSimple
+  # UltraDNS
   - suffix: ultradns.net
     provider: UltraDNS
   - suffix: ultradns.com
     provider: UltraDNS
+  # Constellix
+  - suffix: constellix.com
+    provider: Constellix DNS
+  # DNS Made Easy
   - suffix: dnsmadeeasy.com
     provider: DNS Made Easy
+  # ClouDNS
   - suffix: cloudns.net
     provider: ClouDNS
+  # Registrars
   - suffix: domaincontrol.com
     provider: GoDaddy
   - suffix: registrar-servers.com
     provider: Namecheap
+  - suffix: wixdns.net
+    provider: Wix DNS
+  - suffix: worldnic.com
+    provider: Network Solutions
+  - suffix: hostinger.com
+    provider: Hostinger DNS
+  - suffix: porkbun.com
+    provider: Porkbun DNS
+  # TransIP
+  - suffix: transip.net
+    provider: TransIP DNS
 
 txt:
+  # SPF - email sending services
   - substring: "include:_spf.google.com"
     provider: Google Workspace
     type: Email
@@ -113,6 +275,12 @@ txt:
     type: Email
   - substring: "include:_spf.salesforce.com"
     provider: Salesforce
+    type: Email
+  - substring: "include:aspmx.pardot.com"
+    provider: Pardot
+    type: Email
+  - substring: "include:amazonses.com"
+    provider: Amazon SES
     type: Email
   - substring: "include:spf.pphosted.com"
     provider: Proofpoint
@@ -126,6 +294,61 @@ txt:
   - substring: "include:servers.mcsv.net"
     provider: Mailchimp
     type: Email
+  - substring: "include:spf.mandrillapp.com"
+    provider: Mandrill
+    type: Email
+  - substring: "include:mailgun.org"
+    provider: Mailgun
+    type: Email
+  - substring: "include:_spf.mailgun.org"
+    provider: Mailgun
+    type: Email
+  - substring: "include:_spf.eu.mailgun.org"
+    provider: Mailgun
+    type: Email
+  - substring: "include:sparkpostmail.com"
+    provider: SparkPost
+    type: Email
+  - substring: "include:spf.mtasv.net"
+    provider: Postmark
+    type: Email
+  - substring: "include:spf.mailjet.com"
+    provider: Mailjet
+    type: Email
+  - substring: "include:spf.brevo.com"
+    provider: Brevo
+    type: Email
+  - substring: "include:spf.sendinblue.com"
+    provider: Brevo
+    type: Email
+  - substring: "include:spf.nl2go.com"
+    provider: Brevo
+    type: Email
+  - substring: "include:mail.zendesk.com"
+    provider: Zendesk
+    type: Email
+  - substring: "include:_spf.protonmail.ch"
+    provider: Proton Mail
+    type: Email
+  - substring: "include:_spf.fireeyecloud.com"
+    provider: Trellix
+    type: Email
+  - substring: "include:spf.hes.trendmicro.com"
+    provider: Trend Micro
+    type: Email
+  - substring: "include:_spf.schokokeks-dns.de"
+    provider: Schokokeks
+    type: Email
+  - substring: "hubspotemail.net"
+    provider: HubSpot
+    type: Email
+  - substring: "include:inxserver.com"
+    provider: Inxmail
+    type: Email
+  - substring: "sapsf.eu"
+    provider: SAP SuccessFactors
+    type: Email
+  # Domain verification records
   - substring: "google-site-verification="
     provider: Google
     type: Verification
@@ -134,6 +357,12 @@ txt:
     type: Verification
   - substring: "facebook-domain-verification="
     provider: Facebook
+    type: Verification
+  - substring: "pinterest-site-verification="
+    provider: Pinterest
+    type: Verification
+  - substring: "yandex-verification:"
+    provider: Yandex
     type: Verification
   - substring: "hs-site-verification="
     provider: HubSpot
@@ -150,9 +379,87 @@ txt:
   - substring: "zoom-domain-verification="
     provider: Zoom
     type: Verification
+  - substring: "webex-domain-verification="
+    provider: Webex
+    type: Verification
   - substring: "stripe-verification="
     provider: Stripe
     type: Verification
   - substring: "apple-domain-verification="
     provider: Apple
+    type: Verification
+  - substring: "slack-domain-verification="
+    provider: Slack
+    type: Verification
+  - substring: "dropbox-domain-verification="
+    provider: Dropbox
+    type: Verification
+  - substring: "notion-domain-verification="
+    provider: Notion
+    type: Verification
+  - substring: "miro-verification="
+    provider: Miro
+    type: Verification
+  - substring: "onetrust-domain-verification="
+    provider: OneTrust
+    type: Verification
+  - substring: "logmein-verification-code="
+    provider: GoTo
+    type: Verification
+  - substring: "citrix-verification-code="
+    provider: Citrix
+    type: Verification
+  - substring: "1password-site-verification="
+    provider: 1Password
+    type: Verification
+  - substring: "postman-domain-verification="
+    provider: Postman
+    type: Verification
+  - substring: "brave-ledger-verification="
+    provider: Brave
+    type: Verification
+  - substring: "openai-domain-verification="
+    provider: OpenAI
+    type: Verification
+  - substring: "mailgun-domain-verification="
+    provider: Mailgun
+    type: Verification
+  - substring: "d365mktkey="
+    provider: Microsoft Dynamics 365
+    type: Verification
+  - substring: "ms-domain-verification="
+    provider: Microsoft
+    type: Verification
+  - substring: "parallels-domain-verification="
+    provider: Parallels
+    type: Verification
+  - substring: "brevo-code:"
+    provider: Brevo
+    type: Verification
+  - substring: "insomnia-validation="
+    provider: Insomnia
+    type: Verification
+  - substring: "TAILSCALE-"
+    provider: Tailscale
+    type: Verification
+  - substring: "wrike-verification="
+    provider: Wrike
+    type: Verification
+  - substring: "teamviewer-sso-verification="
+    provider: TeamViewer
+    type: Verification
+  - substring: "cisco-ci-domain-verification="
+    provider: Cisco
+    type: Verification
+  - substring: "docker-verification="
+    provider: Docker
+    type: Verification
+  - substring: "atlassian-sending-domain-verification="
+    provider: Atlassian
+    type: Verification
+  - substring: "anthropic-domain-verification"
+    provider: Anthropic
+    type: Verification
+  - substring: "jamf-site-verification="
+    provider: Jamf
     type: Verification
