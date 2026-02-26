@@ -194,6 +194,7 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 - **80% coverage** — enforced on `./internal/services/...` only; CLI/cmd packages intentionally 0%
 - **HTTPS only** — no `InsecureSkipVerify`
 - **Output sanitization** — strip ANSI escape sequences from external data before printing
+- **`internal/version` BuildInfo fallback** — `init()` reads `debug.ReadBuildInfo()` to populate Version/Commit/Date when ldflags aren't set (e.g. `go install`); ldflags always win. Logic lives in `applyBuildInfo(*debug.BuildInfo)` (exported for unit tests). Strips `v` prefix; skips `""` and `"(devel)"` for Version; truncates `vcs.revision` to 7 chars.
 
 ## CI/CD
 
