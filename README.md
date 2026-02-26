@@ -33,6 +33,7 @@ $ trident dns example.com
 ## Contents
 
 - [Installation](#installation)
+- [Verify Release Artifacts](#verify-release-artifacts)
 - [Quickstart](#quickstart)
 - [Features](#features)
 - [Services](#services)
@@ -64,6 +65,67 @@ git clone https://github.com/tbckr/trident
 cd trident
 go build -o trident ./cmd/trident
 ```
+
+---
+
+## Verify Release Artifacts
+
+Every release is signed with [cosign](https://docs.sigstore.dev/cosign/system_config/installation/)
+using keyless signing via GitHub Actions OIDC. The signing chain:
+
+1. GoReleaser signs `checksums.txt` → produces `checksums.txt.sigstore.json`
+2. Every release archive's SHA-256 hash is listed in `checksums.txt`
+
+Verification reverses this: confirm the bundle was produced by the release workflow, then check the archive against the hashes.
+
+### Manual verification
+
+```bash
+VERSION=v0.5.0
+ARCHIVE=trident_Linux_x86_64.tar.gz
+
+# Download verification files
+curl -fsSL "https://github.com/tbckr/trident/releases/download/${VERSION}/checksums.txt" -o checksums.txt
+curl -fsSL "https://github.com/tbckr/trident/releases/download/${VERSION}/checksums.txt.sigstore.json" -o checksums.txt.sigstore.json
+
+# Verify the cosign bundle
+cosign verify-blob \
+  --bundle checksums.txt.sigstore.json \
+  --certificate-identity "https://github.com/tbckr/trident/.github/workflows/release.yml@refs/tags/${VERSION}" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  checksums.txt
+
+# Verify the archive checksum (Linux)
+sha256sum --check --ignore-missing checksums.txt
+
+# Verify the archive checksum (macOS)
+shasum -a 256 --check --ignore-missing checksums.txt
+```
+
+### Script
+
+`scripts/verify-release.sh` automates the steps above and works on both Linux and macOS:
+
+```bash
+# Download the archive from the releases page first, then:
+./scripts/verify-release.sh v0.5.0 trident_Linux_x86_64.tar.gz
+```
+
+The script downloads the checksums and bundle, runs `cosign verify-blob`, checks the archive hash, and exits non-zero on any failure. It requires `cosign` v2+ and `curl`.
+
+### Checksum-only (without cosign)
+
+If you do not have cosign installed, you can still verify the archive hash against `checksums.txt` after downloading it from the releases page:
+
+```bash
+# Linux
+sha256sum --check --ignore-missing checksums.txt
+
+# macOS
+shasum -a 256 --check --ignore-missing checksums.txt
+```
+
+This confirms the archive was not corrupted in transit, but does not verify it was produced by the official release workflow.
 
 ---
 

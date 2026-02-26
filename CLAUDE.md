@@ -199,6 +199,8 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 
 - `ci.yml` — test + lint + govulncheck + license-check (push/PR)
 - `release.yml` — GoReleaser + SBOM + Cosign (tag push)
+  - Cosign signing: `checksums.txt` → `checksums.txt.sigstore.json` (keyless OIDC); cert identity: `https://github.com/tbckr/trident/.github/workflows/release.yml@refs/tags/<VERSION>`; issuer: `https://token.actions.githubusercontent.com`
+  - Verification script: `scripts/verify-release.sh <VERSION> <ARCHIVE>` — downloads bundle, runs `cosign verify-blob`, checks SHA-256
 - `latest-deps.yml` — weekly: upgrade direct deps only (`go get <pkg>@latest` + `go mod tidy`). **Never `go get -u`** — upgrades all transitive deps, breaking direct-only intent.
 
 All `uses:` lines are SHA-pinned. Dependabot covers github-actions only (not gomod — `govulncheck` handles reachability, `latest-deps.yml` handles freshness).
