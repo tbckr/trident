@@ -49,7 +49,7 @@ archives:
       owner: root
       mtime: "{{ .CommitDate }}"
     files:
-      - src: LICENSE
+      - src: LICENSE.md
         info:
           owner: root
           group: root
@@ -163,7 +163,7 @@ nfpms:
           mode: 0644
           mtime: "{{ .CommitDate }}"
       # License
-      - src: LICENSE
+      - src: LICENSE.md
         dst: /usr/share/licenses/trident/LICENSE
         file_info:
           owner: root
