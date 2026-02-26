@@ -70,20 +70,18 @@ go build -o trident ./cmd/trident
 
 ## Verify Release Artifacts
 
-> **Note:** SLSA provenance attestation is available starting with **v0.8.0**. Verification will fail for earlier releases.
+> **Note:** Starting with **v0.9.0**, SLSA provenance is the only verification method. The previous `cosign sign-blob` signature (`checksums.txt.sigstore.json`) has been removed — SLSA provenance is a strict superset that provides the same trust chain plus structured build metadata. Releases **v0.8.0** and **v0.8.x** support both methods; releases before **v0.8.0** only support `cosign sign-blob` verification (`checksums.txt.sigstore.json`).
 
 Every release is signed with [cosign](https://docs.sigstore.dev/cosign/system_config/installation/)
 using keyless signing via GitHub Actions OIDC. The release pipeline produces:
 
 1. **SLSA Provenance v1 attestation** — a structured document proving *how* and *where* the release was built, signed with `cosign attest-blob` → `checksums.txt.slsa-provenance.sigstore.json`
-2. **Checksum bundle** — GoReleaser signs `checksums.txt` with `cosign sign-blob` → `checksums.txt.sigstore.json`
-3. **Archive checksums** — every release archive's SHA-256 hash is listed in `checksums.txt`
+2. **Archive checksums** — every release archive's SHA-256 hash is listed in `checksums.txt`
 
 Full verification chain:
 
 ```
-cosign verify-blob-attestation  →  provenance attests checksums.txt (build origin)
-cosign verify-blob              →  checksums.txt signature (integrity)
+cosign verify-blob-attestation  →  provenance attests checksums.txt (build origin + integrity)
 sha256sum --check               →  individual archive integrity
 ```
 
@@ -95,20 +93,12 @@ ARCHIVE=trident_Linux_x86_64.tar.gz
 
 # Download verification files
 curl -fsSL "https://github.com/tbckr/trident/releases/download/${VERSION}/checksums.txt" -o checksums.txt
-curl -fsSL "https://github.com/tbckr/trident/releases/download/${VERSION}/checksums.txt.sigstore.json" -o checksums.txt.sigstore.json
 curl -fsSL "https://github.com/tbckr/trident/releases/download/${VERSION}/checksums.txt.slsa-provenance.sigstore.json" -o checksums.txt.slsa-provenance.sigstore.json
 
-# Verify SLSA provenance attestation (proves build origin)
+# Verify SLSA provenance attestation (proves build origin + integrity)
 cosign verify-blob-attestation \
   --bundle checksums.txt.slsa-provenance.sigstore.json \
   --type slsaprovenance1 \
-  --certificate-identity "https://github.com/tbckr/trident/.github/workflows/release.yml@refs/tags/${VERSION}" \
-  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  checksums.txt
-
-# Verify the cosign bundle (proves checksum integrity)
-cosign verify-blob \
-  --bundle checksums.txt.sigstore.json \
   --certificate-identity "https://github.com/tbckr/trident/.github/workflows/release.yml@refs/tags/${VERSION}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   checksums.txt
@@ -129,7 +119,7 @@ shasum -a 256 --check --ignore-missing checksums.txt
 ./scripts/verify-release.sh v0.5.0 trident_Linux_x86_64.tar.gz
 ```
 
-The script downloads all verification files, runs `cosign verify-blob-attestation` (SLSA provenance), then `cosign verify-blob` (checksum signature), checks the archive hash, and exits non-zero on any failure. It requires `cosign` v2+ and `curl`.
+The script downloads the checksums and SLSA provenance bundle, runs `cosign verify-blob-attestation`, checks the archive hash, and exits non-zero on any failure. It requires `cosign` v2+ and `curl`.
 
 ### Checksum-only (without cosign)
 

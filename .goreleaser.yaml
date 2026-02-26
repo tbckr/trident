@@ -92,16 +92,6 @@ sboms:
       - "--output"
       - "cyclonedx-json=${document}"
 
-signs:
-  - cmd: cosign
-    signature: "${artifact}.sigstore.json"
-    artifacts: checksum
-    args:
-      - sign-blob
-      - "--bundle=${signature}"
-      - "${artifact}"
-      - "--yes"
-
 changelog:
   sort: asc
   filters:
