@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="trident logo" width="200">
+</p>
+
 # trident
 
 [![CI](https://github.com/tbckr/trident/actions/workflows/ci.yml/badge.svg)](https://github.com/tbckr/trident/actions/workflows/ci.yml)
