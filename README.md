@@ -45,6 +45,9 @@ $ trident dns example.com
 - [Commands Reference](#commands-reference)
 - [Development](#development)
 - [Responsible Use](#responsible-use)
+- [Contributing](#contributing)
+- [Security](#security)
+- [Code of Conduct](#code-of-conduct)
 
 ---
 
@@ -670,8 +673,15 @@ server operators can recognise and control its traffic.
 
 ## Contributing
 
-Contributions are welcome. Please open an issue before implementing a significant change to discuss
-the approach.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and the pull request process.
+
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
+## Code of Conduct
+
+This project follows the Contributor Covenant v3.0. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## License
 
