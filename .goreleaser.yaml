@@ -81,8 +81,11 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+source:
+  enabled: true
+
 sboms:
-  - artifacts: archive
+  - artifacts: source
     documents:
       - "${artifact}.cdx.json"
     cmd: syft
