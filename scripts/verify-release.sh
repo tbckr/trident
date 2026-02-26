@@ -49,19 +49,25 @@ if [[ ! -f "$ARCHIVE" ]]; then
   exit 1
 fi
 
+BASENAME=$(basename "$ARCHIVE")
+
+EXPECTED=$(grep "  ${BASENAME}$" "$CHECKSUMS" | awk '{print $1}')
+if [[ -z "$EXPECTED" ]]; then
+  echo "==> FAIL: ${BASENAME} not found in checksums.txt for ${VERSION}"
+  exit 1
+fi
+
 if command -v sha256sum &>/dev/null; then
-  EXPECTED=$(grep "  ${ARCHIVE}$" "$CHECKSUMS" | awk '{print $1}')
   ACTUAL=$(sha256sum "$ARCHIVE" | awk '{print $1}')
 else
-  EXPECTED=$(grep "  ${ARCHIVE}$" "$CHECKSUMS" | awk '{print $1}')
   ACTUAL=$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')
 fi
 
-if [[ "$EXPECTED" == "$ACTUAL" ]]; then
-  echo "==> OK: ${ARCHIVE} verified successfully"
-else
-  echo "==> FAIL: checksum mismatch for ${ARCHIVE}"
+if [[ "$EXPECTED" != "$ACTUAL" ]]; then
+  echo "==> FAIL: checksum mismatch for ${BASENAME}"
   echo "    expected: $EXPECTED"
   echo "    actual:   $ACTUAL"
   exit 1
 fi
+
+echo "==> OK: ${BASENAME} verified successfully"
