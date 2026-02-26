@@ -4,9 +4,7 @@ set -euo pipefail
 # generate-provenance.sh — generate a SLSA Provenance v1 predicate JSON
 #
 # Usage:
-#   ./scripts/generate-provenance.sh [ARTIFACTS_JSON]
-#
-# Default ARTIFACTS_JSON: dist/artifacts.json
+#   ./scripts/generate-provenance.sh
 #
 # Inputs (environment variables, all available on GitHub Actions):
 #   GITHUB_REPOSITORY   — owner/repo (e.g. tbckr/trident)
@@ -25,7 +23,6 @@ set -euo pipefail
 # Requirements:
 #   - jq
 
-ARTIFACTS_JSON="${1:-dist/artifacts.json}"
 OUTPUT="dist/provenance-predicate.json"
 
 # Validate required environment variables
@@ -49,11 +46,6 @@ for var in "${required_vars[@]}"; do
   fi
 done
 
-if [[ ! -f "$ARTIFACTS_JSON" ]]; then
-  echo "Error: artifacts file not found: $ARTIFACTS_JSON" >&2
-  exit 1
-fi
-
 if ! command -v jq &>/dev/null; then
   echo "Error: jq is required but not installed" >&2
   exit 1
@@ -64,20 +56,6 @@ fi
 WORKFLOW_FILE=$(echo "$GITHUB_WORKFLOW_REF" | sed 's|.*/.github/workflows/||' | sed 's|@.*||')
 
 STARTED_ON="$BUILD_STARTED_ON"
-
-# Build byproducts array from SBOM entries in artifacts.json.
-# Each SBOM entry has: name, extra.Checksum (format: "sha256:<hex>")
-BYPRODUCTS=$(jq -c '[
-  .[] |
-  select(.type == "SBOM") |
-  {
-    name: .name,
-    digest: {
-      sha256: (.extra.Checksum | ltrimstr("sha256:"))
-    },
-    mediaType: "application/vnd.cyclonedx+json"
-  }
-]' "$ARTIFACTS_JSON")
 
 FINISHED_ON=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -94,7 +72,6 @@ jq -n \
   --arg invocationId "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}" \
   --arg startedOn "$STARTED_ON" \
   --arg finishedOn "$FINISHED_ON" \
-  --argjson byproducts "$BYPRODUCTS" \
   '{
     buildDefinition: {
       buildType: "https://github.com/tbckr/trident/build/goreleaser@v1",
@@ -125,8 +102,7 @@ jq -n \
         invocationId: $invocationId,
         startedOn: $startedOn,
         finishedOn: $finishedOn
-      },
-      byproducts: $byproducts
+      }
     }
   }' > "$OUTPUT"
 

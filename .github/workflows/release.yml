@@ -39,7 +39,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate SLSA provenance
-        run: ./scripts/generate-provenance.sh dist/artifacts.json
+        run: ./scripts/generate-provenance.sh
 
       - name: Sign provenance attestation
         run: |
