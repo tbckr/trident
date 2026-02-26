@@ -70,6 +70,8 @@ go build -o trident ./cmd/trident
 
 ## Verify Release Artifacts
 
+> **Note:** SLSA provenance attestation is available starting with **v0.8.0**. Verification will fail for earlier releases.
+
 Every release is signed with [cosign](https://docs.sigstore.dev/cosign/system_config/installation/)
 using keyless signing via GitHub Actions OIDC. The release pipeline produces:
 
