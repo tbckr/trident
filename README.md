@@ -88,7 +88,7 @@ sha256sum --check               →  individual archive integrity
 ### Manual verification
 
 ```bash
-VERSION=v0.5.0
+VERSION=v0.9.0
 ARCHIVE=trident_Linux_x86_64.tar.gz
 
 # Download verification files
@@ -116,7 +116,7 @@ shasum -a 256 --check --ignore-missing checksums.txt
 
 ```bash
 # Download the archive from the releases page first, then:
-./scripts/verify-release.sh v0.5.0 trident_Linux_x86_64.tar.gz
+./scripts/verify-release.sh v0.9.0 trident_Linux_x86_64.tar.gz
 ```
 
 The script downloads the checksums and SLSA provenance bundle, runs `cosign verify-blob-attestation`, checks the archive hash, and exits non-zero on any failure. It requires `cosign` v2+ and `curl`.
