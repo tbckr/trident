@@ -50,7 +50,6 @@ var configKeys = map[string]configKeyMeta{
 	"concurrency":          {typ: keyTypeInt},
 	"detect_patterns.url":  {typ: keyTypeString},
 	"detect_patterns.file": {typ: keyTypeString},
-	"tls_fingerprint":      {typ: keyTypeString, allowed: []string{"chrome", "firefox", "edge", "safari", "ios", "android", "randomized"}},
 }
 
 // ValidKeys returns every recognised config key in sorted order.
@@ -142,7 +141,6 @@ type Config struct {
 	Concurrency    int                  `mapstructure:"concurrency"`     // default 10
 	Aliases        map[string]string    `mapstructure:"alias"`           // file-only; no flag/env binding
 	DetectPatterns DetectPatternsConfig `mapstructure:"detect_patterns"` // detect patterns configuration
-	TLSFingerprint string               `mapstructure:"tls_fingerprint"` // uTLS fingerprint (chrome, firefox, …)
 }
 
 // RegisterFlags defines all persistent CLI flags on the given FlagSet.
@@ -152,13 +150,12 @@ func RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolP("verbose", "v", false, "enable verbose (debug) logging")
 	flags.StringP("output", "o", "table", "output format: table, json, or text")
 	flags.String("proxy", "", "proxy URL (http://, https://, or socks5://)")
-	flags.String("user-agent", "", "HTTP User-Agent: preset name (chrome, firefox, safari, edge, ios, android) or custom string (default: trident/<version>)")
+	flags.String("user-agent", "", "HTTP User-Agent header (default: trident/<version>)")
 	flags.String("pap-limit", "white", "PAP limit: white, green, amber, or red")
 	flags.Bool("defang", false, "defang text/plain output (dots → [.], http → hxxp)")
 	flags.Bool("no-defang", false, "disable defanging even if enabled in config")
 	flags.IntP("concurrency", "c", 10, "parallel workers for bulk stdin input")
 	flags.String("patterns-file", "", "custom detect patterns file (overrides detect.yaml search)")
-	flags.String("tls-fingerprint", "", "TLS client hello fingerprint (chrome, firefox, edge, safari, ios, android, randomized)")
 }
 
 // Load initializes Viper with the full precedence chain:
@@ -190,7 +187,6 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	_ = v.BindPFlag("no_defang", flags.Lookup("no-defang"))
 	_ = v.BindPFlag("concurrency", flags.Lookup("concurrency"))
 	_ = v.BindPFlag("detect_patterns.file", flags.Lookup("patterns-file"))
-	_ = v.BindPFlag("tls_fingerprint", flags.Lookup("tls-fingerprint"))
 
 	// Config file resolution.
 	configFile, _ := flags.GetString("config")

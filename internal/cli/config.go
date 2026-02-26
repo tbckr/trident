@@ -72,7 +72,10 @@ func effectiveValue(d *deps, key string) string {
 	case "proxy":
 		return httpclient.ResolveProxy(d.cfg.Proxy)
 	case "user_agent":
-		return httpclient.ResolveUserAgent(d.cfg.UserAgent, d.cfg.TLSFingerprint)
+		if d.cfg.UserAgent != "" {
+			return d.cfg.UserAgent
+		}
+		return httpclient.DefaultUserAgent
 	case "pap_limit":
 		return d.cfg.PAPLimit
 	case "defang":
@@ -85,8 +88,6 @@ func effectiveValue(d *deps, key string) string {
 		return d.cfg.DetectPatterns.URL
 	case "detect_patterns.file":
 		return providers.ResolvePatternFile(d.cfg.DetectPatterns.File)
-	case "tls_fingerprint":
-		return httpclient.ResolveTLSFingerprint(d.cfg.UserAgent, d.cfg.TLSFingerprint)
 	default:
 		return ""
 	}
@@ -102,23 +103,9 @@ func newConfigShowCmd(d *deps) *cobra.Command {
 Values reflect the fully resolved configuration — defaults, config file, environment
 variables, and flags are all merged before display.
 
-user_agent and tls_fingerprint are bidirectionally linked via browser presets
-(chrome, firefox, safari, edge, ios, android):
-  --user-agent=chrome      → Chrome TLS fingerprint derived
-  --tls-fingerprint=chrome → Chrome TLS fingerprint + matching browser profile
-  chrome, firefox, and safari set a full browser profile (TLS, HTTP/2, User-Agent).
-  edge, ios, and android set the TLS fingerprint only.
-  Explicit custom strings always win; custom values disable derivation.
-
-user_agent: shows the configured User-Agent.
-For chrome, firefox, and safari the preset name is shown; the browser profile
-manages the actual User-Agent string. For all other cases the effective string is shown.
+user_agent: shows the configured User-Agent string.
 If not explicitly configured, the built-in default is used:
   trident/<version> (+https://github.com/tbckr/trident)
-
-tls_fingerprint: shows the resolved TLS fingerprint that will actually be used.
-If user_agent is a preset name and no explicit fingerprint is set, the matching
-fingerprint is derived and displayed here.
 
 proxy: shows the resolved proxy configuration that will actually be used.
 If not explicitly configured, standard environment variables are honoured:

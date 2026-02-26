@@ -175,9 +175,7 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 
 **Adding a persistent config flag** — 6 coordinated changes: (1) entry in `configKeys` map, (2) field in `Config` struct with `mapstructure` tag, (3) flag in `RegisterFlags`, (4) `BindPFlag` in `Load`, (5) completion func in `root.go` for enum keys, (6) `case` in `effectiveValue()` in `internal/cli/config.go` (omitting causes `config show`/`config get` to silently return empty). Tests: add to `TestParseValue` table + a `TestLoad_*` func.
 
-**UA/TLS preset bidirectional linking** — two unexported maps in `httpclient`: `impersonatePresets` (`chrome`, `firefox`, `safari`) and `tlsFingerprintPresets` (all 7 including `edge`, `ios`, `android`, `randomized`). `ImpersonateChrome/Firefox/Safari()` sets the full browser profile (TLS, HTTP/2, User-Agent); `SetTLSFingerprintXxx()` for the rest (TLS only, `DefaultUserAgent` used). `ResolveUserAgent(ua, tls)` returns the preset name for impersonate presets, `DefaultUserAgent` for TLS-only presets, or a custom string as-is. `ResolveTLSFingerprint(ua, tls)` derives TLS from any preset UA name. Custom UA strings override impersonate UA via `SetUserAgent()` after `ImpersonateXxx()`. Shell completion for `--user-agent` returns `httpclient.PresetNames()` (sorted, excludes `"randomized"`). `config show` displays preset names for impersonate presets, not full UA strings.
-
-**Resolve functions in domain packages** — `httpclient.ResolveProxy(proxy)` (env-var scanning), `httpclient.ResolveUserAgent(ua, tls)`, `httpclient.ResolveTLSFingerprint(ua, tls)`, `detect.ResolvePatternFile(file)` (file-existence scanning). `effectiveValue()` in `cli/config.go` calls these directly — no CLI wrapper functions.
+**Resolve functions in domain packages** — `httpclient.ResolveProxy(proxy)` (env-var scanning), `detect.ResolvePatternFile(file)` (file-existence scanning). `effectiveValue()` in `cli/config.go` calls these directly — no CLI wrapper functions.
 
 ## Tech Stack
 

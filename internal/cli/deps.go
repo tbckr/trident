@@ -94,7 +94,7 @@ func warnDNSLeak(proxy string, logger *slog.Logger) {
 // newHTTPClient creates a new HTTP client configured with the proxy, user-agent,
 // logger, and verbosity from the resolved config.
 func (d *deps) newHTTPClient() (*req.Client, error) {
-	client, err := httpclient.New(d.cfg.Proxy, d.cfg.UserAgent, d.cfg.TLSFingerprint, d.logger, d.cfg.Verbose)
+	client, err := httpclient.New(d.cfg.Proxy, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
 	if err != nil {
 		return nil, fmt.Errorf("creating HTTP client: %w", err)
 	}
