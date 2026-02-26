@@ -27,6 +27,9 @@ jobs:
 
       - uses: anchore/sbom-action/download-syft@28d71544de8eaf1b958d335707167c5f783590ad  # v0.22.2
 
+      - name: Record build start time
+        run: echo "BUILD_STARTED_ON=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_ENV"
+
       - uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29  # v7.0.0
         with:
           distribution: goreleaser
@@ -34,3 +37,23 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate SLSA provenance
+        run: ./scripts/generate-provenance.sh dist/artifacts.json
+
+      - name: Sign provenance attestation
+        run: |
+          cosign attest-blob \
+            --bundle dist/checksums.txt.slsa-provenance.sigstore.json \
+            --predicate dist/provenance-predicate.json \
+            --type slsaprovenance1 \
+            dist/checksums.txt \
+            --yes
+
+      - name: Upload provenance attestation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            dist/checksums.txt.slsa-provenance.sigstore.json

@@ -30,10 +30,20 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 CHECKSUMS="$TMPDIR/checksums.txt"
 BUNDLE="$TMPDIR/checksums.txt.sigstore.json"
+PROVENANCE_BUNDLE="$TMPDIR/checksums.txt.slsa-provenance.sigstore.json"
 
 echo "==> Downloading checksums for ${VERSION}..."
 curl -fsSL "${BASE_URL}/${VERSION}/checksums.txt" -o "$CHECKSUMS"
 curl -fsSL "${BASE_URL}/${VERSION}/checksums.txt.sigstore.json" -o "$BUNDLE"
+curl -fsSL "${BASE_URL}/${VERSION}/checksums.txt.slsa-provenance.sigstore.json" -o "$PROVENANCE_BUNDLE"
+
+echo "==> Verifying SLSA provenance..."
+cosign verify-blob-attestation \
+  --bundle "$PROVENANCE_BUNDLE" \
+  --type slsaprovenance1 \
+  --certificate-identity "https://github.com/${REPO}/.github/workflows/release.yml@refs/tags/${VERSION}" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  "$CHECKSUMS"
 
 echo "==> Verifying cosign signature..."
 cosign verify-blob \
@@ -49,10 +59,10 @@ if [[ ! -f "$ARCHIVE" ]]; then
 fi
 
 if command -v sha256sum &>/dev/null; then
-  EXPECTED=$(grep "$ARCHIVE" "$CHECKSUMS" | awk '{print $1}')
+  EXPECTED=$(grep "  ${ARCHIVE}$" "$CHECKSUMS" | awk '{print $1}')
   ACTUAL=$(sha256sum "$ARCHIVE" | awk '{print $1}')
 else
-  EXPECTED=$(grep "$ARCHIVE" "$CHECKSUMS" | awk '{print $1}')
+  EXPECTED=$(grep "  ${ARCHIVE}$" "$CHECKSUMS" | awk '{print $1}')
   ACTUAL=$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')
 fi
 
