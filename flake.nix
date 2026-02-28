@@ -11,6 +11,9 @@
       let
         pkgs = import nixpkgs { inherit system; };
         version = if (self ? shortRev) then self.shortRev else "dev";
+        commit = self.shortRev or "none";
+        lmd = self.lastModifiedDate or "19700101000000";
+        date = "${builtins.substring 0 4 lmd}-${builtins.substring 4 2 lmd}-${builtins.substring 6 2 lmd}T${builtins.substring 8 2 lmd}:${builtins.substring 10 2 lmd}:${builtins.substring 12 2 lmd}Z";
       in
       {
         packages.default = pkgs.buildGo126Module {
@@ -21,8 +24,8 @@
 
           ldflags = [
             "-s" "-w"
-            "-X github.com/tbckr/trident/internal/version.Version=${version}"
-            "-X github.com/tbckr/trident/internal/version.Commit=${self.shortRev or "none"}"
+            "-X github.com/tbckr/trident/internal/version.Commit=${commit}"
+            "-X github.com/tbckr/trident/internal/version.Date=${date}"
           ];
 
           nativeBuildInputs = [ pkgs.installShellFiles ];

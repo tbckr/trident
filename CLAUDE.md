@@ -225,4 +225,6 @@ All `uses:` lines are SHA-pinned. Dependabot covers github-actions only (not gom
 
 **`nix build` requires staged files** — new/modified files must be `git add`-ed before `nix build` (flakes only see git-tracked content).
 
+**Nix flake ldflags** — only `Commit` and `Date` are set via ldflags; `Version` is intentionally omitted (defaults to `"dev"`) because flakes can't access git tags. `self.lastModifiedDate` provides the build timestamp (sliced to ISO 8601). The `version` binding (shortRev) is still used for the Nix store path and man page Source field.
+
 **`postBuild` runs `cmd/docgen`** — generates man pages into `$TMPDIR/docs/man/`; `postInstall` installs them via `installManPage`. Changes to `cmd/docgen` or cobra command structure affect man page output in both GoReleaser and Nix.
