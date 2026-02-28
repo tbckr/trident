@@ -9,6 +9,8 @@ on:
       - 'go.sum'
       - '.github/workflows/ci.yml'
       - '.golangci.yml'
+      - 'flake.nix'
+      - 'flake.lock'
   pull_request:
     branches: [main]
     paths:
@@ -17,6 +19,8 @@ on:
       - 'go.sum'
       - '.github/workflows/ci.yml'
       - '.golangci.yml'
+      - 'flake.nix'
+      - 'flake.lock'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -115,3 +119,16 @@ jobs:
           run: >
             go run github.com/google/go-licenses/v2@latest check github.com/tbckr/trident/... \
               --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,GPL-3.0,GPL-3.0-only
+
+  nix:
+    name: Nix Flake Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd  # v31.9.1
+
+      - name: Flake check
+        run: nix flake check

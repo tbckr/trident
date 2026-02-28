@@ -61,6 +61,16 @@ go install github.com/tbckr/trident/cmd/trident@latest
 
 **Pre-built binaries** — download for Linux, macOS, or Windows (amd64/arm64) from the [releases page](https://github.com/tbckr/trident/releases). Linux packages (`.deb`, `.rpm`, `.apk`, `pkg.tar.zst`) are included.
 
+**Nix** — run without installing or add to your system profile:
+
+```bash
+# Run directly
+nix run github:tbckr/trident -- dns example.com
+
+# Install to profile
+nix profile install github:tbckr/trident
+```
+
 **Build from source:**
 
 ```bash
@@ -608,6 +618,14 @@ trident alias delete asn
 
 - Go 1.26+ (`go version`)
 - [golangci-lint](https://golangci-lint.run/) v2 (`golangci-lint version`)
+
+### Nix Dev Shell
+
+If you use [Nix](https://nixos.org/), `nix develop` provides Go, golangci-lint, and goreleaser:
+
+```bash
+nix develop
+```
 
 ### Build & Test
 
