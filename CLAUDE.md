@@ -24,6 +24,7 @@ go mod tidy
 
 ```
 cmd/trident/        # main.go → run()
+cmd/docgen/         # man pages + shell completions generator (cobra/doc); used by GoReleaser & Nix flake
 internal/
   cli/              # Cobra root, global flags, output; deps.go has deps struct + factory methods
   config/           # Viper config (~/.config/trident/config.yaml)
@@ -213,3 +214,5 @@ All `uses:` lines are SHA-pinned. Dependabot covers github-actions only (not gom
 **`buildGo126Module`** — pinned to Go 1.26; bump to `buildGo1XXModule` when `go.mod` version changes. Dev shell uses `go_1_26` correspondingly.
 
 **`nix build` requires staged files** — new/modified files must be `git add`-ed before `nix build` (flakes only see git-tracked content).
+
+**`postBuild` runs `cmd/docgen`** — generates man pages into `$TMPDIR/docs/man/`; `postInstall` installs them via `installManPage`. Changes to `cmd/docgen` or cobra command structure affect man page output in both GoReleaser and Nix.

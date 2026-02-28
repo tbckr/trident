@@ -26,7 +26,15 @@
           ];
 
           nativeBuildInputs = [ pkgs.installShellFiles ];
+
+          postBuild = ''
+            go build -o $TMPDIR/docgen ./cmd/docgen
+            $TMPDIR/docgen --version=${version} --output-dir=$TMPDIR/docs
+          '';
+
           postInstall = ''
+            installManPage $TMPDIR/docs/man/*.1
+
             installShellCompletion --cmd trident \
               --bash <($out/bin/trident completion bash) \
               --zsh  <($out/bin/trident completion zsh) \
