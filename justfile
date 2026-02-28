@@ -49,7 +49,7 @@ flake-check:
     nix flake check
 
 # Run all CI checks locally
-ci: build test coverage lint vuln flake-check
+ci: tidy-check build test coverage lint vuln license-check flake-check
 
 # Release: tag next version with svu and push
 release:
