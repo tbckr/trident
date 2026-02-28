@@ -59,14 +59,14 @@ ci: tidy-check build test coverage lint vuln license-check flake-check
 alias r := release
 
 # Release: tag next version with svu and push
-release:
+@release:
     #!/usr/bin/env bash
     set -euo pipefail
     next=$(svu next)
     git tag "${next}"
     git push
     git push --tags
-    @echo "Released ${next}"
+    echo "Released ${next}"
 
 # Validate .goreleaser.yaml config
 goreleaser-check:
