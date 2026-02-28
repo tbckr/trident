@@ -23,6 +23,12 @@ go mod tidy
 ## justfile Targets
 - `just release` — `svu next` → `git tag` → `git push` + `git push --tags`
 - `just flake-update` — `nix flake update` (refreshes `flake.lock`)
+- `just build` / `just test` / `just lint` — standard build, test, lint
+- `just coverage` — check service coverage meets 80% threshold
+- `just ci` — run all CI checks locally (build → test → coverage → lint → vuln → flake-check)
+- `just test-pkg <pkg>` — verbose tests for a specific package
+- `just tidy` / `just tidy-check` — tidy modules / verify they're clean
+- `just vuln` / `just license-check` / `just flake-check` — govulncheck, license audit, nix check
 
 ## Architecture
 
