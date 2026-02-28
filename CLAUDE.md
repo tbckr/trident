@@ -20,6 +20,10 @@ golangci-lint run
 go mod tidy
 ```
 
+## justfile Targets
+- `just release` — `svu next` → `git tag` → `git push` + `git push --tags`
+- `just flake-update` — `nix flake update` (refreshes `flake.lock`)
+
 ## Architecture
 
 ```
