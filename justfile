@@ -33,6 +33,7 @@ tidy-check:
     #!/usr/bin/env bash
     set -euo pipefail
     go mod tidy
+    go mod verify
     git diff --exit-code go.mod go.sum
 
 # Run govulncheck
@@ -43,6 +44,10 @@ vuln:
 license-check:
     go run github.com/google/go-licenses/v2@latest check github.com/tbckr/trident/... \
         --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,GPL-3.0,GPL-3.0-only
+
+# Build the Nix package locally
+flake-build:
+    nix build
 
 # Run Nix flake check
 flake-check:
@@ -60,6 +65,15 @@ release:
     git push
     git push --tags
     @echo "Released ${next}"
+
+# Validate .goreleaser.yaml config
+goreleaser-check:
+    goreleaser check
+
+# Upgrade all direct dependencies and run tests (mirrors latest-deps.yml)
+upgrade-deps:
+    ./scripts/upgrade-deps.sh
+    go test ./...
 
 # Update Nix flake inputs
 flake-update:

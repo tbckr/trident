@@ -24,21 +24,26 @@ Thank you for your interest in contributing to trident! This guide will help you
 
 ## Development Workflow
 
+A [justfile](https://github.com/casey/just) wraps common tasks. Install `just` and run:
+
 ```bash
-# Build
+just build       # Build all packages
+just test        # Run all tests with coverage
+just lint        # Run golangci-lint
+just tidy        # Tidy and verify modules
+just ci          # Run all CI checks locally (build, test, coverage, lint, vuln, license, flake)
+```
+
+Or use the underlying Go commands directly:
+
+```bash
 go build ./...
-
-# Run tests
 go test ./...
-
-# Lint
 golangci-lint run
-
-# Tidy dependencies
 go mod tidy
 ```
 
-All four commands must pass before submitting a pull request.
+All checks must pass before submitting a pull request. Run `just ci` to verify everything at once.
 
 ## Code Standards
 

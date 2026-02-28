@@ -627,6 +627,27 @@ If you use [Nix](https://nixos.org/), `nix develop` provides Go, golangci-lint, 
 nix develop
 ```
 
+### justfile
+
+A [justfile](https://github.com/casey/just) provides convenient targets for common tasks:
+
+```bash
+just build              # Build all packages
+just test               # Run all tests with coverage
+just test-pkg ./internal/services/dns/...  # Test a specific package
+just lint               # Run golangci-lint
+just tidy               # Tidy and verify modules
+just coverage           # Check service coverage meets 80% threshold
+just vuln               # Run govulncheck
+just ci                 # Run all CI checks locally
+just goreleaser-check   # Validate .goreleaser.yaml config
+just upgrade-deps       # Upgrade direct dependencies and run tests
+just flake-build        # Build the Nix package locally
+just flake-check        # Run Nix flake check
+just flake-update       # Update Nix flake inputs
+just release            # Tag next version with svu and push
+```
+
 ### Build & Test
 
 ```bash
