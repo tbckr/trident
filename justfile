@@ -56,6 +56,8 @@ flake-check:
 # Run all CI checks locally
 ci: tidy-check build test coverage lint vuln license-check flake-check
 
+alias r := release
+
 # Release: tag next version with svu and push
 release:
     #!/usr/bin/env bash
