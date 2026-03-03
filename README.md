@@ -4,7 +4,6 @@
 [![Latest Release](https://img.shields.io/github/v/release/tbckr/trident)](https://github.com/tbckr/trident/releases)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/tbckr/trident)](https://github.com/tbckr/trident/blob/main/go.mod)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tbckr/trident)](https://goreportcard.com/report/github.com/tbckr/trident)
-[![License: GPL-3.0](https://img.shields.io/github/license/tbckr/trident)](LICENSE.md)
 
 **Fast, keyless OSINT in a single binary.** DNS lookups, Cymru ASN info, certificate transparency, threat intelligence, PGP key search, and CDN/provider detection — no API keys, no registration, no configuration required.
 
