@@ -123,7 +123,7 @@ PAP level: AMBER (makes an outbound HTTPS request).`,
 			if err := tmp.Close(); err != nil {
 				return fmt.Errorf("closing temp file: %w", err)
 			}
-			if err := os.Rename(tmpName, path); err != nil { //nolint:gosec // tmpName is created by os.CreateTemp in the same controlled dir
+			if err := os.Rename(tmpName, path); err != nil {
 				return fmt.Errorf("installing detect patterns: %w", err)
 			}
 
