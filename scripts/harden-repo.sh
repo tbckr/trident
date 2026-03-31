@@ -42,7 +42,7 @@ echo ""
 # --------------------------------------------------------------------------- #
 # 1. Repository settings                                                      #
 # --------------------------------------------------------------------------- #
-echo "[1/8] Repository settings..."
+echo "[1/9] Repository settings..."
 gh_api "repos/$REPO" -X PATCH \
   -f has_wiki=false \
   -f has_projects=false \
@@ -59,7 +59,7 @@ echo "  - Delete branch on merge: enabled"
 # --------------------------------------------------------------------------- #
 # 2. Vulnerability alerts + secret scanning                                   #
 # --------------------------------------------------------------------------- #
-echo "[2/8] Security features..."
+echo "[2/9] Security features..."
 gh_api "repos/$REPO/vulnerability-alerts" -X PUT --silent 2>/dev/null || true
 echo "  - Dependabot alerts: enabled"
 
@@ -78,14 +78,57 @@ fi
 # --------------------------------------------------------------------------- #
 # 3. Private vulnerability reporting                                          #
 # --------------------------------------------------------------------------- #
-echo "[3/8] Private vulnerability reporting..."
+echo "[3/9] Private vulnerability reporting..."
 gh_api "repos/$REPO/private-vulnerability-reporting" -X PUT --silent 2>/dev/null || true
 echo "  - Private vulnerability reporting: enabled"
 
 # --------------------------------------------------------------------------- #
-# 4. Branch ruleset on main                                                   #
+# 4. Branch integrity ruleset (enforced for everyone, including admins)        #
 # --------------------------------------------------------------------------- #
-echo "[4/8] Branch ruleset on '$BRANCH'..."
+echo "[4/9] Branch integrity ruleset on '$BRANCH' (no bypass)..."
+
+INTEGRITY_NAME="main-branch-integrity"
+INTEGRITY_ID=$(gh_api "repos/$REPO/rulesets" \
+  --jq ".[] | select(.name == \"$INTEGRITY_NAME\") | .id" 2>/dev/null || echo "")
+
+if [ -n "$INTEGRITY_ID" ]; then
+  INTEGRITY_METHOD="-X PUT"
+  INTEGRITY_URL="repos/$REPO/rulesets/$INTEGRITY_ID"
+  INTEGRITY_ACTION="updated (id: $INTEGRITY_ID)"
+else
+  INTEGRITY_METHOD="-X POST"
+  INTEGRITY_URL="repos/$REPO/rulesets"
+  INTEGRITY_ACTION="created"
+fi
+
+# shellcheck disable=SC2086
+gh_api "$INTEGRITY_URL" $INTEGRITY_METHOD --input - --silent <<'PAYLOAD'
+{
+  "name": "main-branch-integrity",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "required_signatures" },
+    { "type": "required_linear_history" }
+  ]
+}
+PAYLOAD
+echo "  - Ruleset '$INTEGRITY_NAME': $INTEGRITY_ACTION"
+echo "  - Bypass: none (enforced for everyone)"
+echo "  - Signed commits: required"
+echo "  - Linear history: required"
+
+# --------------------------------------------------------------------------- #
+# 5. Branch protection ruleset (admins may bypass)                             #
+# --------------------------------------------------------------------------- #
+echo "[5/9] Branch protection ruleset on '$BRANCH' (admin bypass)..."
 
 RULESET_NAME="main-branch-protection"
 RULESET_ID=$(gh_api "repos/$REPO/rulesets" \
@@ -123,8 +166,6 @@ gh_api "$RULESET_URL" $RULESET_METHOD --input - --silent <<'PAYLOAD'
   "rules": [
     { "type": "deletion" },
     { "type": "non_fast_forward" },
-    { "type": "required_linear_history" },
-    { "type": "required_signatures" },
     {
       "type": "pull_request",
       "parameters": {
@@ -162,8 +203,6 @@ echo "  - Dismiss stale reviews on push: yes"
 echo "  - Require last push approval: yes"
 echo "  - Require conversation resolution: yes"
 echo "  - Allowed merge methods: rebase, squash"
-echo "  - Signed commits: required"
-echo "  - Linear history: required"
 echo "  - Force push: blocked"
 echo "  - Branch deletion: blocked"
 
@@ -172,9 +211,9 @@ gh_api "repos/$REPO/branches/$BRANCH/protection" -X DELETE --silent 2>/dev/null 
 echo "  - Legacy branch protection rule: removed"
 
 # --------------------------------------------------------------------------- #
-# 5. Tag protection ruleset                                                   #
+# 6. Tag protection ruleset (enforced for everyone, including admins)          #
 # --------------------------------------------------------------------------- #
-echo "[5/8] Tag protection ruleset..."
+echo "[6/9] Tag protection ruleset (no bypass)..."
 
 TAG_RULESET_NAME="release-tag-protection"
 TAG_RULESET_ID=$(gh_api "repos/$REPO/rulesets" \
@@ -196,13 +235,7 @@ gh_api "$TAG_URL" $TAG_METHOD --input - --silent <<'PAYLOAD'
   "name": "release-tag-protection",
   "target": "tag",
   "enforcement": "active",
-  "bypass_actors": [
-    {
-      "actor_id": 5,
-      "actor_type": "RepositoryRole",
-      "bypass_mode": "always"
-    }
-  ],
+  "bypass_actors": [],
   "conditions": {
     "ref_name": {
       "include": ["refs/tags/v*"],
@@ -218,15 +251,15 @@ gh_api "$TAG_URL" $TAG_METHOD --input - --silent <<'PAYLOAD'
 PAYLOAD
 echo "  - Ruleset '$TAG_RULESET_NAME': $TAG_ACTION"
 echo "  - Protected tags: v*"
-echo "  - Bypass: repository admins"
+echo "  - Bypass: none (enforced for everyone)"
 echo "  - Tag deletion: blocked"
 echo "  - Tag overwrite: blocked"
 echo "  - Signed tags: required"
 
 # --------------------------------------------------------------------------- #
-# 6. Actions permissions                                                      #
+# 7. Actions permissions                                                      #
 # --------------------------------------------------------------------------- #
-echo "[6/8] Actions permissions..."
+echo "[7/9] Actions permissions..."
 gh_api "repos/$REPO/actions/permissions" -X PUT \
   --input - --silent <<'PERMS'
 {
@@ -260,9 +293,9 @@ gh_api "repos/$REPO/actions/permissions/access" -X PUT \
 echo "  - Fork PR workflows: require approval"
 
 # --------------------------------------------------------------------------- #
-# 7. Default workflow permissions                                             #
+# 8. Default workflow permissions                                             #
 # --------------------------------------------------------------------------- #
-echo "[7/8] Default workflow permissions..."
+echo "[8/9] Default workflow permissions..."
 gh_api "repos/$REPO/actions/permissions/workflow" -X PUT \
   --input - --silent <<'PAYLOAD'
 {
@@ -274,9 +307,9 @@ echo "  - Default token permissions: read-only"
 echo "  - Workflow PR approval: disabled"
 
 # --------------------------------------------------------------------------- #
-# 8. Immutable releases                                                       #
+# 9. Immutable releases                                                       #
 # --------------------------------------------------------------------------- #
-echo "[8/8] Immutable releases..."
+echo "[9/9] Immutable releases..."
 gh_api "repos/$REPO/immutable-releases" -X PUT \
   -H "X-GitHub-Api-Version: 2026-03-10" \
   --silent
