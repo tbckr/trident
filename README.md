@@ -86,17 +86,7 @@ go build -o trident ./cmd/trident
 
 > **Note:** Starting with **v0.10.0**, releases use [GitHub Artifact Attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds) for provenance. Previous releases (v0.9.x) used `cosign attest-blob`; releases before v0.8.0 used `cosign sign-blob`.
 
-Every release is attested via GitHub Artifact Attestation using [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance). The release pipeline produces:
-
-1. **Build provenance attestation** — GitHub signs a provenance statement for every artifact listed in `checksums.txt`, proving it was built by the official release workflow
-2. **Archive checksums** — every release archive's SHA-256 hash is listed in `checksums.txt`
-
-Full verification chain:
-
-```
-gh attestation verify  →  proves the artifact was built by the official release workflow
-sha256sum --check      →  individual archive integrity
-```
+Every release is attested via GitHub Artifact Attestation using [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance). GitHub signs a provenance statement for every artifact listed in `checksums.txt`, proving it was built by the official release workflow. The attestation includes the artifact's SHA-256 digest, so a single `gh attestation verify` call proves both provenance and integrity.
 
 ### Manual verification
 
@@ -105,24 +95,18 @@ ARCHIVE=trident_Linux_x86_64.tar.gz
 
 # Download the archive from the releases page, then verify attestation
 gh attestation verify "$ARCHIVE" --repo tbckr/trident
-
-# Verify the archive checksum (Linux)
-sha256sum --check --ignore-missing checksums.txt
-
-# Verify the archive checksum (macOS)
-shasum -a 256 --check --ignore-missing checksums.txt
 ```
 
 ### Script
 
-`scripts/verify-release.sh` automates the steps above and works on both Linux and macOS:
+`scripts/verify-release.sh` automates the step above:
 
 ```bash
 # Download the archive from the releases page first, then:
-./scripts/verify-release.sh v0.10.0 trident_Linux_x86_64.tar.gz
+./scripts/verify-release.sh trident_Linux_x86_64.tar.gz
 ```
 
-The script downloads the checksums, runs `gh attestation verify`, checks the archive hash, and exits non-zero on any failure. It requires the [GitHub CLI](https://cli.github.com/) (2.49+) and `curl`.
+The script runs `gh attestation verify` and exits non-zero on failure. It requires the [GitHub CLI](https://cli.github.com/) (2.49+).
 
 ### Checksum-only (without gh CLI)
 
@@ -649,7 +633,7 @@ just flake-update       # Update Nix flake inputs
 # Release
 just release            # Tag next version with svu and push
 just goreleaser-check   # Validate .goreleaser.yaml config
-just verify-release v0.10.0 trident_Linux_x86_64.tar.gz  # Verify release artifact
+just verify-release trident_Linux_x86_64.tar.gz  # Verify release artifact
 
 # Maintenance
 just upgrade-deps       # Upgrade direct dependencies and run tests

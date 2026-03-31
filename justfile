@@ -93,9 +93,9 @@ upgrade-deps:
 harden-repo *args:
     ./scripts/harden-repo.sh {{ args }}
 
-# Verify a release artifact's attestation and checksum
-verify-release version archive:
-    ./scripts/verify-release.sh {{ version }} {{ archive }}
+# Verify a release artifact's attestation
+verify-release archive:
+    ./scripts/verify-release.sh {{ archive }}
 
 # Check pinned Go tool versions for updates
 check-tool-versions:

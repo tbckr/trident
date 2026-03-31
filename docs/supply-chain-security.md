@@ -153,16 +153,12 @@ Users can verify any release artifact using [`scripts/verify-release.sh`](../scr
 
 ```bash
 # Download your archive first, then:
-./scripts/verify-release.sh v0.10.0 trident_Linux_x86_64.tar.gz
+./scripts/verify-release.sh trident_Linux_x86_64.tar.gz
 ```
 
-This script:
+This script verifies the build provenance attestation with `gh attestation verify`, which proves both provenance (built by the official release workflow) and integrity (SHA-256 digest match).
 
-1. Downloads `checksums.txt` from the release.
-2. Verifies the build provenance attestation with `gh attestation verify`.
-3. Validates the archive's SHA-256 checksum against `checksums.txt`.
-
-Requirements: [GitHub CLI](https://cli.github.com/) (2.49+) and `curl`.
+Requirements: [GitHub CLI](https://cli.github.com/) (2.49+).
 
 ## Tool Version Monitoring
 

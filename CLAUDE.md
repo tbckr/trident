@@ -36,7 +36,7 @@ go mod tidy
 - `just vuln` / `just license-check` / `just flake-check` — govulncheck, license audit, nix check
 - `just flake-build` — build the Nix package locally
 - `just goreleaser-check` — validate `.goreleaser.yaml` config
-- `just verify-release <version> <archive>` — verify release artifact attestation + checksum
+- `just verify-release <archive>` — verify release artifact attestation
 - `just upgrade-deps` — upgrade direct dependencies and run tests
 - `just harden-repo` — apply repository hardening settings via `gh` API
 - `just check-tool-versions` — check pinned Go tool versions for updates
@@ -226,7 +226,7 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 - `ci.yml` — test + lint + govulncheck + license-check + nix flake check (push/PR)
 - `release.yml` — GoReleaser + SBOM + GitHub Artifact Attestation (tag push); permissions scoped to job level (`contents: write`, `id-token: write`, `attestations: write`)
   - `actions/attest-build-provenance` attests every artifact in `checksums.txt` via GitHub Artifact Attestation (recognized by OpenSSF Scorecard)
-  - Verification script: `scripts/verify-release.sh <VERSION> <ARCHIVE>` — runs `gh attestation verify`, checks SHA-256
+  - Verification script: `scripts/verify-release.sh <ARCHIVE>` — runs `gh attestation verify`
 - `goreleaser-lint.yml` — `goreleaser check` on `.goreleaser.yaml` changes (push/PR)
 - `vuln-schedule.yml` — daily (06:00 UTC): govulncheck in sandboxed step
 - `codeql.yml` — CodeQL SAST analysis for Go (push/PR to main + weekly Mon 06:00 UTC)
