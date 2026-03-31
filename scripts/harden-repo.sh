@@ -59,8 +59,8 @@ gh_api "repos/$REPO/vulnerability-alerts" -X PUT --silent 2>/dev/null || true
 echo "  - Dependabot alerts: enabled"
 
 gh_api "repos/$REPO" -X PATCH \
-  -f security_and_analysis[secret_scanning][status]=enabled \
-  -f security_and_analysis[secret_scanning_push_protection][status]=enabled \
+  -f 'security_and_analysis[secret_scanning][status]=enabled' \
+  -f 'security_and_analysis[secret_scanning_push_protection][status]=enabled' \
   --silent 2>/dev/null || echo "  - Secret scanning: skipped (may require GitHub Advanced Security)"
 echo "  - Secret scanning: enabled"
 echo "  - Push protection: enabled"
