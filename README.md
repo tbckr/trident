@@ -4,6 +4,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/tbckr/trident)](https://github.com/tbckr/trident/releases)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/tbckr/trident)](https://github.com/tbckr/trident/blob/main/go.mod)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tbckr/trident)](https://goreportcard.com/report/github.com/tbckr/trident)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/tbckr/trident/badge)](https://securityscorecards.dev/viewer/?uri=github.com/tbckr/trident)
 
 **Fast, keyless OSINT in a single binary.** DNS lookups, Cymru ASN info, certificate transparency, threat intelligence, PGP key search, and CDN/provider detection — no API keys, no registration, no configuration required.
 
@@ -714,6 +715,8 @@ server operators can recognise and control its traffic.
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and the pull request process.
 
 ## Security
+
+For details on supply chain hardening, release signing, and verification, see [docs/supply-chain-security.md](docs/supply-chain-security.md).
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
