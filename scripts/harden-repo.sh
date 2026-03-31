@@ -90,7 +90,7 @@ gh_api "repos/$REPO/branches/$BRANCH/protection" -X PUT \
       {"context": "Nix Flake Check", "app_id": 15368}
     ]
   },
-  "enforce_admins": true,
+  "enforce_admins": false,
   "required_pull_request_reviews": {
     "required_approving_review_count": 0,
     "dismiss_stale_reviews": true
@@ -104,7 +104,7 @@ gh_api "repos/$REPO/branches/$BRANCH/protection" -X PUT \
 }
 PAYLOAD
 echo "  - Require status checks (strict, source: GitHub Actions app_id=15368): Test, Lint, Vulnerability Check, License Check, GoReleaser Lint, Nix Flake Check"
-echo "  - Enforce admins: yes"
+echo "  - Enforce admins: no (owner can bypass)"
 echo "  - Require PR reviews: yes (0 approvals — sole maintainer)"
 echo "  - Dismiss stale reviews: yes"
 echo "  - Linear history: required"
