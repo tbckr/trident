@@ -23,7 +23,7 @@ Applied via [`scripts/harden-repo.sh`](../scripts/harden-repo.sh) (idempotent, r
 
 ## Branch Protection (`main`)
 
-- **Required status checks** (strict): Test, Lint, Vulnerability Check, License Check, Nix Flake Check.
+- **Required status checks** (strict, source-pinned to GitHub Actions): Test, Lint, Vulnerability Check, License Check, GoReleaser Lint, Nix Flake Check. Each check is pinned to the GitHub Actions app (`app_id: 15368`) so that only checks reported by Actions workflows — not third-party apps or external services — can satisfy the requirement.
 - **Enforce admins**: yes (no bypass, even for repository owners).
 - **PR reviews required** with stale review dismissal.
 - **Linear history** required (no merge commits).

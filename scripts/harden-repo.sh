@@ -81,13 +81,13 @@ gh_api "repos/$REPO/branches/$BRANCH/protection" -X PUT \
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": [
-      "Test",
-      "Lint",
-      "Vulnerability Check",
-      "License Check",
-      "GoReleaser Lint",
-      "Nix Flake Check"
+    "checks": [
+      {"context": "Test", "app_id": 15368},
+      {"context": "Lint", "app_id": 15368},
+      {"context": "Vulnerability Check", "app_id": 15368},
+      {"context": "License Check", "app_id": 15368},
+      {"context": "GoReleaser Lint", "app_id": 15368},
+      {"context": "Nix Flake Check", "app_id": 15368}
     ]
   },
   "enforce_admins": true,
@@ -103,7 +103,7 @@ gh_api "repos/$REPO/branches/$BRANCH/protection" -X PUT \
   "required_conversation_resolution": true
 }
 PAYLOAD
-echo "  - Require status checks (strict): Test, Lint, Vulnerability Check, License Check, GoReleaser Lint, Nix Flake Check"
+echo "  - Require status checks (strict, source: GitHub Actions app_id=15368): Test, Lint, Vulnerability Check, License Check, GoReleaser Lint, Nix Flake Check"
 echo "  - Enforce admins: yes"
 echo "  - Require PR reviews: yes (0 approvals — sole maintainer)"
 echo "  - Dismiss stale reviews: yes"
