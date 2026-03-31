@@ -63,7 +63,7 @@ alias r := release
     #!/usr/bin/env bash
     set -euo pipefail
     next=$(svu next)
-    git tag "${next}"
+    git tag -s "${next}" -m "${next}"
     git push
     git push --tags
     echo "Released ${next}"
