@@ -73,44 +73,92 @@ gh_api "repos/$REPO/private-vulnerability-reporting" -X PUT --silent 2>/dev/null
 echo "  - Private vulnerability reporting: enabled"
 
 # --------------------------------------------------------------------------- #
-# 4. Branch protection on main                                                #
+# 4. Branch ruleset on main                                                   #
 # --------------------------------------------------------------------------- #
-echo "[4/6] Branch protection on '$BRANCH'..."
-gh_api "repos/$REPO/branches/$BRANCH/protection" -X PUT \
-  --input - --silent <<'PAYLOAD'
+echo "[4/6] Branch ruleset on '$BRANCH'..."
+
+RULESET_NAME="main-branch-protection"
+RULESET_ID=$(gh_api "repos/$REPO/rulesets" \
+  --jq ".[] | select(.name == \"$RULESET_NAME\") | .id" 2>/dev/null || echo "")
+
+if [ -n "$RULESET_ID" ]; then
+  RULESET_METHOD="-X PUT"
+  RULESET_URL="repos/$REPO/rulesets/$RULESET_ID"
+  RULESET_ACTION="updated (id: $RULESET_ID)"
+else
+  RULESET_METHOD="-X POST"
+  RULESET_URL="repos/$REPO/rulesets"
+  RULESET_ACTION="created"
+fi
+
+# shellcheck disable=SC2086
+gh_api "$RULESET_URL" $RULESET_METHOD --input - --silent <<'PAYLOAD'
 {
-  "required_status_checks": {
-    "strict": true,
-    "checks": [
-      {"context": "Test", "app_id": 15368},
-      {"context": "Lint", "app_id": 15368},
-      {"context": "Vulnerability Check", "app_id": 15368},
-      {"context": "License Check", "app_id": 15368},
-      {"context": "GoReleaser Lint", "app_id": 15368},
-      {"context": "Nix Flake Check", "app_id": 15368}
-    ]
+  "name": "main-branch-protection",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [
+    {
+      "actor_id": 5,
+      "actor_type": "RepositoryRole",
+      "bypass_mode": "always"
+    }
+  ],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main"],
+      "exclude": []
+    }
   },
-  "enforce_admins": false,
-  "required_pull_request_reviews": {
-    "required_approving_review_count": 0,
-    "dismiss_stale_reviews": true
-  },
-  "restrictions": null,
-  "required_linear_history": true,
-  "allow_force_pushes": false,
-  "allow_deletions": false,
-  "block_creations": false,
-  "required_conversation_resolution": true
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    { "type": "required_linear_history" },
+    { "type": "required_signatures" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": true,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": true,
+        "allowed_merge_methods": ["rebase", "squash"]
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          { "context": "Test", "integration_id": 15368 },
+          { "context": "Lint", "integration_id": 15368 },
+          { "context": "Vulnerability Check", "integration_id": 15368 },
+          { "context": "License Check", "integration_id": 15368 },
+          { "context": "GoReleaser Lint", "integration_id": 15368 },
+          { "context": "Nix Flake Check", "integration_id": 15368 }
+        ]
+      }
+    }
+  ]
 }
 PAYLOAD
-echo "  - Require status checks (strict, source: GitHub Actions app_id=15368): Test, Lint, Vulnerability Check, License Check, GoReleaser Lint, Nix Flake Check"
-echo "  - Enforce admins: no (owner can bypass)"
-echo "  - Require PR reviews: yes (0 approvals — sole maintainer)"
-echo "  - Dismiss stale reviews: yes"
+echo "  - Ruleset '$RULESET_NAME': $RULESET_ACTION"
+echo "  - Bypass: repository admins (owner can push directly)"
+echo "  - Require status checks (strict, GitHub Actions): Test, Lint, Vulnerability Check, License Check, GoReleaser Lint, Nix Flake Check"
+echo "  - Require PR reviews: 1 approval (owner bypasses)"
+echo "  - Require code owner review: yes"
+echo "  - Dismiss stale reviews on push: yes"
+echo "  - Require conversation resolution: yes"
+echo "  - Allowed merge methods: rebase, squash"
+echo "  - Signed commits: required"
 echo "  - Linear history: required"
 echo "  - Force push: blocked"
 echo "  - Branch deletion: blocked"
-echo "  - Require conversation resolution: yes"
+
+# Remove legacy branch protection rule (idempotent — 404 ignored)
+gh_api "repos/$REPO/branches/$BRANCH/protection" -X DELETE --silent 2>/dev/null || true
+echo "  - Legacy branch protection rule: removed"
 
 # --------------------------------------------------------------------------- #
 # 5. Actions permissions                                                      #
