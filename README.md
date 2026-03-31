@@ -83,38 +83,27 @@ go build -o trident ./cmd/trident
 
 ## Verify Release Artifacts
 
-> **Note:** Starting with **v0.9.0**, SLSA provenance is the only verification method. The previous `cosign sign-blob` signature (`checksums.txt.sigstore.json`) has been removed — SLSA provenance is a strict superset that provides the same trust chain plus structured build metadata. Releases **v0.8.0** and **v0.8.x** support both methods; releases before **v0.8.0** only support `cosign sign-blob` verification (`checksums.txt.sigstore.json`).
+> **Note:** Starting with **v0.10.0**, releases use [GitHub Artifact Attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds) for provenance. Previous releases (v0.9.x) used `cosign attest-blob`; releases before v0.8.0 used `cosign sign-blob`.
 
-Every release is signed with [cosign](https://docs.sigstore.dev/cosign/system_config/installation/)
-using keyless signing via GitHub Actions OIDC. The release pipeline produces:
+Every release is attested via GitHub Artifact Attestation using [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance). The release pipeline produces:
 
-1. **SLSA Provenance v1 attestation** — a structured document proving *how* and *where* the release was built, signed with `cosign attest-blob` → `checksums.txt.slsa-provenance.sigstore.json`
+1. **Build provenance attestation** — GitHub signs a provenance statement for every artifact listed in `checksums.txt`, proving it was built by the official release workflow
 2. **Archive checksums** — every release archive's SHA-256 hash is listed in `checksums.txt`
 
 Full verification chain:
 
 ```
-cosign verify-blob-attestation  →  provenance attests checksums.txt (build origin + integrity)
-sha256sum --check               →  individual archive integrity
+gh attestation verify  →  proves the artifact was built by the official release workflow
+sha256sum --check      →  individual archive integrity
 ```
 
 ### Manual verification
 
 ```bash
-VERSION=v0.9.0
 ARCHIVE=trident_Linux_x86_64.tar.gz
 
-# Download verification files
-curl -fsSL "https://github.com/tbckr/trident/releases/download/${VERSION}/checksums.txt" -o checksums.txt
-curl -fsSL "https://github.com/tbckr/trident/releases/download/${VERSION}/checksums.txt.slsa-provenance.sigstore.json" -o checksums.txt.slsa-provenance.sigstore.json
-
-# Verify SLSA provenance attestation (proves build origin + integrity)
-cosign verify-blob-attestation \
-  --bundle checksums.txt.slsa-provenance.sigstore.json \
-  --type slsaprovenance1 \
-  --certificate-identity "https://github.com/tbckr/trident/.github/workflows/release.yml@refs/tags/${VERSION}" \
-  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  checksums.txt
+# Download the archive from the releases page, then verify attestation
+gh attestation verify "$ARCHIVE" --repo tbckr/trident
 
 # Verify the archive checksum (Linux)
 sha256sum --check --ignore-missing checksums.txt
@@ -129,14 +118,14 @@ shasum -a 256 --check --ignore-missing checksums.txt
 
 ```bash
 # Download the archive from the releases page first, then:
-./scripts/verify-release.sh v0.9.0 trident_Linux_x86_64.tar.gz
+./scripts/verify-release.sh v0.10.0 trident_Linux_x86_64.tar.gz
 ```
 
-The script downloads the checksums and SLSA provenance bundle, runs `cosign verify-blob-attestation`, checks the archive hash, and exits non-zero on any failure. It requires `cosign` v2+ and `curl`.
+The script downloads the checksums, runs `gh attestation verify`, checks the archive hash, and exits non-zero on any failure. It requires the [GitHub CLI](https://cli.github.com/) (2.49+) and `curl`.
 
-### Checksum-only (without cosign)
+### Checksum-only (without gh CLI)
 
-If you do not have cosign installed, you can still verify the archive hash against `checksums.txt` after downloading it from the releases page:
+If you do not have the GitHub CLI installed, you can still verify the archive hash against `checksums.txt` after downloading it from the releases page:
 
 ```bash
 # Linux

@@ -30,12 +30,7 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003  # v4.1.1
-
       - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610  # v0.24.0
-
-      - name: Record build start time
-        run: echo "BUILD_STARTED_ON=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_ENV"
 
       - uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29  # v7.0.0
         with:
@@ -49,26 +44,6 @@ jobs:
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
         with:
           subject-checksums: dist/checksums.txt
-
-      - name: Generate SLSA provenance
-        run: ./scripts/generate-provenance.sh
-
-      - name: Sign provenance attestation
-        run: |
-          cosign attest-blob \
-            --bundle dist/checksums.txt.slsa-provenance.sigstore.json \
-            --predicate dist/provenance-predicate.json \
-            --type slsaprovenance1 \
-            dist/checksums.txt \
-            --yes
-
-      - name: Upload provenance attestation
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          gh release upload "$RELEASE_TAG" \
-            dist/checksums.txt.slsa-provenance.sigstore.json
 
       - name: Publish release
         env:

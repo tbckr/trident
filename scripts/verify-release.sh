@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# verify-release.sh — verify a trident release artifact using cosign + checksums
+# verify-release.sh — verify a trident release artifact using GitHub attestation + checksums
 #
 # Usage:
 #   ./scripts/verify-release.sh <VERSION> <ARCHIVE>
@@ -10,7 +10,7 @@ set -euo pipefail
 #   ./scripts/verify-release.sh v0.5.0 trident_Linux_x86_64.tar.gz
 #
 # Requirements:
-#   - cosign v2+ (https://docs.sigstore.dev/cosign/system_config/installation/)
+#   - gh CLI 2.49+ (https://cli.github.com/)
 #   - curl
 
 REPO="tbckr/trident"
@@ -25,30 +25,23 @@ if [[ -z "$VERSION" || -z "$ARCHIVE" ]]; then
   exit 1
 fi
 
-TMPDIR=$(mktemp -d)
-trap 'rm -rf "$TMPDIR"' EXIT
-
-CHECKSUMS="$TMPDIR/checksums.txt"
-PROVENANCE_BUNDLE="$TMPDIR/checksums.txt.slsa-provenance.sigstore.json"
-
-echo "==> Downloading checksums for ${VERSION}..."
-curl -fsSL "${BASE_URL}/${VERSION}/checksums.txt" -o "$CHECKSUMS"
-curl -fsSL "${BASE_URL}/${VERSION}/checksums.txt.slsa-provenance.sigstore.json" -o "$PROVENANCE_BUNDLE"
-
-echo "==> Verifying SLSA provenance..."
-cosign verify-blob-attestation \
-  --bundle "$PROVENANCE_BUNDLE" \
-  --type slsaprovenance1 \
-  --certificate-identity "https://github.com/${REPO}/.github/workflows/release.yml@refs/tags/${VERSION}" \
-  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  "$CHECKSUMS"
-
-echo "==> Verifying archive checksum..."
 if [[ ! -f "$ARCHIVE" ]]; then
   echo "Archive not found: $ARCHIVE"
   exit 1
 fi
 
+TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"' EXIT
+
+CHECKSUMS="$TMPDIR/checksums.txt"
+
+echo "==> Downloading checksums for ${VERSION}..."
+curl -fsSL "${BASE_URL}/${VERSION}/checksums.txt" -o "$CHECKSUMS"
+
+echo "==> Verifying GitHub attestation..."
+gh attestation verify "$ARCHIVE" --repo "$REPO"
+
+echo "==> Verifying archive checksum..."
 BASENAME=$(basename "$ARCHIVE")
 
 EXPECTED=$(grep "  ${BASENAME}$" "$CHECKSUMS" | awk '{print $1}')

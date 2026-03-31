@@ -278,7 +278,6 @@ gh_api "repos/$REPO/actions/permissions/selected-actions" -X PUT \
     "cachix/install-nix-action@*",
     "golangci/golangci-lint-action@*",
     "geomys/sandboxed-step@*",
-    "sigstore/cosign-installer@*",
     "anchore/sbom-action/*@*",
     "ossf/scorecard-action@*"
   ]
