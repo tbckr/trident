@@ -5,6 +5,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/tbckr/trident)](https://github.com/tbckr/trident/blob/main/go.mod)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tbckr/trident)](https://goreportcard.com/report/github.com/tbckr/trident)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/tbckr/trident/badge)](https://securityscorecards.dev/viewer/?uri=github.com/tbckr/trident)
+[![CodeQL](https://github.com/tbckr/trident/actions/workflows/codeql.yml/badge.svg)](https://github.com/tbckr/trident/actions/workflows/codeql.yml)
 
 **Fast, keyless OSINT in a single binary.** DNS lookups, Cymru ASN info, certificate transparency, threat intelligence, PGP key search, and CDN/provider detection — no API keys, no registration, no configuration required.
 
@@ -621,20 +622,39 @@ nix develop
 A [justfile](https://github.com/casey/just) provides convenient targets for common tasks:
 
 ```bash
+# Build & Test
 just build              # Build all packages
 just test               # Run all tests with coverage
 just test-pkg ./internal/services/dns/...  # Test a specific package
+just test-race          # Run all tests with race detector
+just fuzz ./internal/output/...            # Run fuzz tests for a package
+just coverage           # Check service coverage meets 80% threshold
+
+# Code Quality
+just fmt                # Format all Go files with gofmt
 just lint               # Run golangci-lint
 just tidy               # Tidy and verify modules
-just coverage           # Check service coverage meets 80% threshold
+just tidy-check         # Verify modules are tidy (fails if dirty)
 just vuln               # Run govulncheck
+just license-check      # Check dependency licenses against allowlist
+
+# CI
 just ci                 # Run all CI checks locally
-just goreleaser-check   # Validate .goreleaser.yaml config
-just upgrade-deps       # Upgrade direct dependencies and run tests
+
+# Nix
 just flake-build        # Build the Nix package locally
 just flake-check        # Run Nix flake check
 just flake-update       # Update Nix flake inputs
+
+# Release
 just release            # Tag next version with svu and push
+just goreleaser-check   # Validate .goreleaser.yaml config
+just verify-release v0.10.0 trident_Linux_x86_64.tar.gz  # Verify release artifact
+
+# Maintenance
+just upgrade-deps       # Upgrade direct dependencies and run tests
+just harden-repo        # Apply repository hardening settings
+just check-tool-versions  # Check pinned tool versions for updates
 ```
 
 ### Build & Test
@@ -710,7 +730,17 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 
 ## Security
 
-For details on supply chain hardening, release signing, and verification, see [docs/supply-chain-security.md](docs/supply-chain-security.md).
+trident follows a defense-in-depth approach to supply chain security:
+
+- **Static analysis** — CodeQL SAST on every push/PR and weekly scans
+- **Vulnerability scanning** — govulncheck on every push/PR and daily scheduled scans
+- **OpenSSF Scorecard** — weekly independent assessment of security posture
+- **Release provenance** — GitHub Artifact Attestation (SLSA) for every release artifact
+- **SBOM** — CycloneDX software bill of materials included with every release
+- **Hardened CI** — SHA-pinned GitHub Actions, least-privilege permissions, sandboxed steps
+- **Repository protection** — GitHub Rulesets for branch and tag integrity
+
+For full details, see [docs/supply-chain-security.md](docs/supply-chain-security.md).
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
 

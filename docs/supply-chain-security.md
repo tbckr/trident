@@ -6,11 +6,11 @@ This document describes the supply chain hardening measures in place for trident
 
 | Layer | Measure | Status |
 |-------|---------|--------|
-| Repository | Branch protection, action restrictions, immutable releases | `harden-repo.sh` |
+| Repository | Branch & tag rulesets, CODEOWNERS, action restrictions, immutable releases | `harden-repo.sh` |
 | CI | SHA-pinned actions, least-privilege permissions, sandboxed steps | `ci.yml` |
 | Dependencies | govulncheck (daily + per-PR), Dependabot, license audit | `ci.yml`, `vuln-schedule.yml` |
 | Release | Reproducible builds, SBOM, GitHub Artifact Attestation | `release.yml` |
-| Monitoring | OpenSSF Scorecard, secret scanning, push protection, tool version checks | `scorecard.yml`, `tool-versions.yml`, repo settings |
+| Monitoring | CodeQL SAST, OpenSSF Scorecard, secret scanning, push protection, tool version checks | `codeql.yml`, `scorecard.yml`, `tool-versions.yml`, repo settings |
 
 ## Repository Settings
 
@@ -20,15 +20,36 @@ Applied via [`scripts/harden-repo.sh`](../scripts/harden-repo.sh) (idempotent, r
 - **Auto-merge** disabled (all merges require manual action).
 - **Delete branch on merge** enabled (prevents stale branch accumulation).
 - **Immutable releases** enabled (tags locked to commit after publication; assets protected from modification or deletion).
+- **CODEOWNERS** (`.github/CODEOWNERS`) enforces code review routing — all files require review from the repository owner.
 
-## Branch Protection (`main`)
+## Branch Rulesets (`main`)
 
-- **Required status checks** (strict, source-pinned to GitHub Actions): Test, Lint, Vulnerability Check, License Check, GoReleaser Lint, Nix Flake Check. Each check is pinned to the GitHub Actions app (`app_id: 15368`) so that only checks reported by Actions workflows — not third-party apps or external services — can satisfy the requirement.
-- **Enforce admins**: yes (no bypass, even for repository owners).
-- **PR reviews required** with stale review dismissal.
+Branch protection uses two GitHub Rulesets (migrated from legacy branch protection):
+
+### `main-branch-integrity` (no bypass — enforced for everyone, including admins)
+
+- **Signed commits** required.
 - **Linear history** required (no merge commits).
-- **Force push and branch deletion** blocked.
+
+### `main-branch-protection` (admin bypass)
+
+- **Required status checks** (strict, pinned to GitHub Actions `app_id: 15368`): Test, Lint, Vulnerability Check, License Check, GoReleaser Lint, Nix Flake Check.
+- **PR reviews**: 1 approval required, stale reviews dismissed on push, code owner review required, last push approval required.
 - **Conversation resolution** required before merge.
+- **Merge methods**: rebase and squash only.
+- **Force push and branch deletion** blocked.
+
+The legacy branch protection rule is removed automatically by `harden-repo.sh`.
+
+## Tag Rulesets
+
+### `release-tag-protection` (no bypass — enforced for everyone, including admins)
+
+Protects all tags matching `v*`:
+
+- **Tag deletion** blocked.
+- **Tag overwrite** (non-fast-forward) blocked.
+- **Signed tags** required.
 
 ## GitHub Actions Hardening
 
@@ -40,6 +61,8 @@ All workflows use **least-privilege `permissions`** blocks:
 - `release.yml`: `contents: write` + `id-token: write` + `attestations: write` (needed for GitHub Artifact Attestation).
 - `vuln-schedule.yml`: `contents: read` only.
 - `scorecard.yml`: `read-all` at workflow level; `security-events: write` + `id-token: write` at job level.
+- `codeql.yml`: `contents: read` at workflow level; `security-events: write` at job level.
+- `tool-versions.yml`: `contents: read` at workflow level; `issues: write` at job level.
 
 ### Action Restrictions
 
@@ -146,6 +169,10 @@ Requirements: [GitHub CLI](https://cli.github.com/) (2.49+) and `curl`.
 Go tools pinned in workflow files (govulncheck, go-licenses, golangci-lint, goreleaser) are not covered by Dependabot. The `tool-versions.yml` workflow runs weekly (Mondays at 06:00 UTC) and uses [`scripts/check-tool-versions.sh`](../scripts/check-tool-versions.sh) to compare pinned versions against the latest releases (via the Go module proxy and GitHub API). When updates are available, it creates or updates a GitHub issue with a summary table.
 
 The script parses versions directly from workflow files — there is no separate version manifest to keep in sync.
+
+## CodeQL SAST Analysis
+
+[CodeQL](https://codeql.github.com/) runs on every push and pull request to `main`, plus weekly (Monday 06:00 UTC) via `codeql.yml`. It performs semantic code analysis for Go, detecting security vulnerabilities such as injection flaws, path traversals, and unsafe operations. Results are uploaded to GitHub's Security tab as SARIF reports.
 
 ## OpenSSF Scorecard
 

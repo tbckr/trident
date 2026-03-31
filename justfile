@@ -72,10 +72,34 @@ alias r := release
 goreleaser-check:
     goreleaser check
 
+# Format all Go files
+fmt:
+    gofmt -l -w .
+
+# Run tests with race detector
+test-race:
+    go test -race ./...
+
+# Run fuzz tests for a package (e.g., just fuzz ./internal/output/...)
+fuzz pkg *args:
+    go test -fuzz=. -fuzztime=30s {{ pkg }} {{ args }}
+
 # Upgrade all direct dependencies and run tests (mirrors latest-deps.yml)
 upgrade-deps:
     ./scripts/upgrade-deps.sh
     go test ./...
+
+# Apply repository hardening settings via GitHub API
+harden-repo *args:
+    ./scripts/harden-repo.sh {{ args }}
+
+# Verify a release artifact's attestation and checksum
+verify-release version archive:
+    ./scripts/verify-release.sh {{ version }} {{ archive }}
+
+# Check pinned Go tool versions for updates
+check-tool-versions:
+    ./scripts/check-tool-versions.sh
 
 # Update Nix flake inputs
 flake-update:
