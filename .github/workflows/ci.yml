@@ -82,7 +82,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20  # v9.2.0
         with:
-          version: latest
+          version: v2.11.4
 
   vuln:
     name: Vulnerability Check
@@ -99,7 +99,7 @@ jobs:
 
       - uses: geomys/sandboxed-step@7d75eb49d17fdeeb3656b3a57d35932d205bcfb9  # v1.2.1
         with:
-          run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+          run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
 
   license-check:
     name: License Check
@@ -117,7 +117,7 @@ jobs:
       - uses: geomys/sandboxed-step@7d75eb49d17fdeeb3656b3a57d35932d205bcfb9  # v1.2.1
         with:
           run: >
-            go run github.com/google/go-licenses/v2@latest check github.com/tbckr/trident/... \
+            go run github.com/google/go-licenses/v2@v2.0.1 check github.com/tbckr/trident/... \
               --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,GPL-3.0,GPL-3.0-only
 
   nix:

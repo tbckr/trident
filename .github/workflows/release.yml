@@ -4,6 +4,10 @@ on:
   push:
     tags: ["v*"]
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 permissions:
   contents: write
   id-token: write
@@ -33,7 +37,7 @@ jobs:
       - uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29  # v7.0.0
         with:
           distribution: goreleaser
-          version: "~> v2"
+          version: "v2.15.1"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -57,3 +61,9 @@ jobs:
         run: |
           gh release upload "$RELEASE_TAG" \
             dist/checksums.txt.slsa-provenance.sigstore.json
+
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release edit "$RELEASE_TAG" --draft=false

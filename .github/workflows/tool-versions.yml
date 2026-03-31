@@ -1,0 +1,74 @@
+name: Check Tool Versions
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-tool-versions:
+    name: Check Tool Versions
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Check for tool updates
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT_FILE: ${{ runner.temp }}/tool-updates.json
+        run: |
+          if ./scripts/check-tool-versions.sh; then
+            echo "updates=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "updates=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update issue
+        if: steps.check.outputs.updates == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT_FILE: ${{ runner.temp }}/tool-updates.json
+        run: |
+          LABEL="tool-update"
+          TITLE="chore(deps): Go tool version updates available"
+
+          BODY="## Go Tool Version Updates
+
+          The following pinned Go tools have newer versions available:
+
+          | Tool | Current | Latest | Files |
+          |------|---------|--------|-------|"
+
+          while IFS= read -r line; do
+            name=$(echo "$line" | jq -r '.name')
+            current=$(echo "$line" | jq -r '.current')
+            latest=$(echo "$line" | jq -r '.latest')
+            files=$(echo "$line" | jq -r '.files')
+            BODY="${BODY}
+          | ${name} | \`${current}\` | \`${latest}\` | \`${files}\` |"
+          done < <(jq -c '.[]' "$REPORT_FILE")
+
+          BODY="${BODY}
+
+          ### Update instructions
+          Update the version in the listed workflow file(s), then test locally with \`just ci\`.
+
+          _Automatically created by the [Check Tool Versions](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/tool-versions.yml) workflow._"
+
+          EXISTING=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+            echo "Updated existing issue #${EXISTING}"
+          else
+            gh label create "$LABEL" --description "Automated tool version update notification" --color "0E8A16" 2>/dev/null || true
+            gh issue create --title "$TITLE" --body "$BODY" --label "$LABEL"
+          fi

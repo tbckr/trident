@@ -347,3 +347,4 @@ secring.*
 .idea/
 .claude/plans/
 .build/
+.remember/
