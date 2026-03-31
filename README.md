@@ -658,6 +658,7 @@ golangci-lint run
 
 ```
 cmd/trident/        # Entry point — delegates to cli.Execute()
+cmd/docgen/         # Man pages + shell completions generator (cobra/doc)
 internal/
   cli/              # Cobra command tree, global flags, output wiring
   config/           # Viper config loading and flag registration
@@ -678,8 +679,12 @@ internal/
     detect/         # Active provider detection via DNS lookups (PAP: GREEN)
     apex/           # Aggregate DNS recon via Quad9 DoH (PAP: AMBER)
     identify/       # Offline provider detection from known record values (PAP: RED)
+  appdir/           # OS config-dir helpers: ConfigDir(), EnsureFile()
+  apperr/           # Shared error sentinels (leaf; no internal imports)
+  detect/           # Provider detection: CDN/Email/DNS/TXT (pure, no I/O); patterns.yaml embedded
   output/           # Text (tablewriter), JSON, text formatters + defang
   testutil/         # Shared test helpers (mock resolver, nop logger)
+  version/          # Build version info (ldflags + BuildInfo fallback)
 ```
 
 ---

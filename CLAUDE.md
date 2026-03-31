@@ -42,6 +42,7 @@ internal/
   input/            # stdin line reader
   pap/              # PAP level constants + Allows()
   doh/              # DNS-over-HTTPS (RFC 8484, Quad9)
+  ratelimit/        # Token-bucket rate limiter with ±20% jitter
   resolver/         # *net.Resolver factory (SOCKS5 leak prevention)
   worker/           # Bounded goroutine pool
   services/         # One package per service; IsDomain() here
@@ -49,6 +50,8 @@ internal/
   apperr/           # Shared error sentinels (leaf; no internal imports)
   detect/           # Provider detection: CDN/Email/DNS/TXT (pure, no I/O); patterns.yaml embedded
   output/           # Table/JSON/text formatters + defang helpers
+  testutil/         # Shared test helpers (mock resolver, nop logger)
+  version/          # Build version info (ldflags + BuildInfo fallback)
 ```
 
 **Per-service file layout** (required for all new services):
