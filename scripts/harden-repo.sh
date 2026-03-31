@@ -86,6 +86,7 @@ gh_api "repos/$REPO/branches/$BRANCH/protection" -X PUT \
       "Lint",
       "Vulnerability Check",
       "License Check",
+      "GoReleaser Lint",
       "Nix Flake Check"
     ]
   },
@@ -102,7 +103,7 @@ gh_api "repos/$REPO/branches/$BRANCH/protection" -X PUT \
   "required_conversation_resolution": true
 }
 PAYLOAD
-echo "  - Require status checks (strict): Test, Lint, Vulnerability Check, License Check, Nix Flake Check"
+echo "  - Require status checks (strict): Test, Lint, Vulnerability Check, License Check, GoReleaser Lint, Nix Flake Check"
 echo "  - Enforce admins: yes"
 echo "  - Require PR reviews: yes (0 approvals — sole maintainer)"
 echo "  - Dismiss stale reviews: yes"
