@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 Go-based OSINT CLI tool (port of Python's [Harpoon](https://github.com/Te-k/harpoon)). Services: DNS, Cymru, crt.sh, ThreatMiner, PGP, Quad9, detect, identify.
 
 **Naming:** Always lowercase `trident` — never `Trident`.
@@ -24,11 +26,20 @@ go mod tidy
 - `just release` — `svu next` → `git tag` → `git push` + `git push --tags`
 - `just flake-update` — `nix flake update` (refreshes `flake.lock`)
 - `just build` / `just test` / `just lint` — standard build, test, lint
-- `just coverage` — check service coverage meets 80% threshold
-- `just ci` — run all CI checks locally (build → test → coverage → lint → vuln → flake-check)
+- `just test-race` — run all tests with race detector
 - `just test-pkg <pkg>` — verbose tests for a specific package
+- `just fuzz <pkg>` — run fuzz tests for a specific package
+- `just coverage` — check service coverage meets 80% threshold
+- `just fmt` — format all Go files with gofmt
+- `just ci` — run all CI checks locally (build → test → coverage → lint → vuln → flake-check)
 - `just tidy` / `just tidy-check` — tidy modules / verify they're clean
 - `just vuln` / `just license-check` / `just flake-check` — govulncheck, license audit, nix check
+- `just flake-build` — build the Nix package locally
+- `just goreleaser-check` — validate `.goreleaser.yaml` config
+- `just verify-release <version> <archive>` — verify release artifact attestation + checksum
+- `just upgrade-deps` — upgrade direct dependencies and run tests
+- `just harden-repo` — apply repository hardening settings via `gh` API
+- `just check-tool-versions` — check pinned Go tool versions for updates
 
 ## Architecture
 
