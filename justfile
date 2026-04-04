@@ -101,6 +101,13 @@ verify-release archive:
 check-tool-versions:
     ./scripts/check-tool-versions.sh
 
+# Remove build artifacts and coverage files
+clean:
+    rm -f coverage.out svc_coverage.out
+    rm -rf .build/ dist/
+    rm -f result result-*
+    go clean ./...
+
 # Update Nix flake inputs
 flake-update:
     nix flake update
