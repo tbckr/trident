@@ -5,6 +5,8 @@ before:
     - go mod tidy
     - go run github.com/google/go-licenses/v2@v2.0.1 save ./... --save_path=.build/third_party_licenses --force --ignore=github.com/tbckr/trident
     - go run ./cmd/docgen/main.go --version={{ .Version }} --output-dir=.build
+    # Pin version: keep in sync with ci.yml and vuln-schedule.yml
+    - sh -c 'go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 -format openvex ./... > .build/{{ .ProjectName }}-{{ .Version }}.openvex.json'
 
 metadata:
   mod_timestamp: "{{ .CommitTimestamp }}"
@@ -80,9 +82,13 @@ archives:
 
 release:
   draft: true
+  extra_files:
+    - glob: .build/{{ .ProjectName }}-{{ .Version }}.openvex.json
 
 checksum:
   name_template: "checksums.txt"
+  extra_files:
+    - glob: .build/{{ .ProjectName }}-{{ .Version }}.openvex.json
 
 source:
   enabled: true
@@ -90,7 +96,7 @@ source:
 sboms:
   - artifacts: source
     documents:
-      - "${artifact}.cdx.json"
+      - "{{ .ProjectName }}-{{ .Version }}.cdx.json"
     cmd: syft
     args:
       - scan

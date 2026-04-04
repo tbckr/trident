@@ -18,7 +18,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORKFLOWS="${REPO_ROOT}/.github/workflows"
 
 TOOLS=(
-  "govulncheck|goproxy|golang.org/x/vuln|govulncheck@(v[0-9.]+)|${WORKFLOWS}/"
+  "govulncheck|goproxy|golang.org/x/vuln|govulncheck@(v[0-9.]+)|${WORKFLOWS}/ ${REPO_ROOT}/.goreleaser.yaml"
   "go-licenses|goproxy|github.com/google/go-licenses/v2|go-licenses/v2@(v[0-9.]+)|${WORKFLOWS}/"
   "golangci-lint|github|golangci/golangci-lint|golangci-lint-action|${WORKFLOWS}/ci.yml"
   "goreleaser|github|goreleaser/goreleaser|goreleaser-action|${WORKFLOWS}/release.yml"
@@ -40,7 +40,7 @@ extract_version() {
       ;;
     *)
       # "go run module@vX.Y.Z" pattern
-      grep -rhoP "${pattern}" "$files" \
+      grep -rhoP "${pattern}" $files \
         | head -1 \
         | grep -oP 'v[0-9.]+$'
       ;;
@@ -69,10 +69,10 @@ find_locations() {
   local name="$1" pattern="$2" files="$3" current="$4"
   case "$name" in
     golangci-lint|goreleaser)
-      grep -rl "$pattern" "$files" 2>/dev/null | sed "s|${REPO_ROOT}/||g" | paste -sd ',' -
+      grep -rl "$pattern" $files 2>/dev/null | sed "s|${REPO_ROOT}/||g" | paste -sd ',' -
       ;;
     *)
-      grep -rl "${current}" "$files" 2>/dev/null | sed "s|${REPO_ROOT}/||g" | paste -sd ',' -
+      grep -rl "${current}" $files 2>/dev/null | sed "s|${REPO_ROOT}/||g" | paste -sd ',' -
       ;;
   esac
 }

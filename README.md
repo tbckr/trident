@@ -721,6 +721,7 @@ trident follows a defense-in-depth approach to supply chain security:
 - **OpenSSF Scorecard** — weekly independent assessment of security posture
 - **Release provenance** — GitHub Artifact Attestation (SLSA) for every release artifact
 - **SBOM** — CycloneDX software bill of materials included with every release
+- **VEX** — OpenVEX vulnerability assessment document included with every release (govulncheck reachability analysis)
 - **Hardened CI** — SHA-pinned GitHub Actions, least-privilege permissions, sandboxed steps
 - **Repository protection** — GitHub Rulesets for branch and tag integrity
 

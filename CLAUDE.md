@@ -224,7 +224,7 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 ## CI/CD
 
 - `ci.yml` — test + lint + govulncheck + license-check + nix flake check (push/PR)
-- `release.yml` — GoReleaser + SBOM + GitHub Artifact Attestation (tag push); permissions scoped to job level (`contents: write`, `id-token: write`, `attestations: write`)
+- `release.yml` — GoReleaser + SBOM + VEX + GitHub Artifact Attestation (tag push); permissions scoped to job level (`contents: write`, `id-token: write`, `attestations: write`)
   - `actions/attest-build-provenance` attests every artifact in `checksums.txt` via GitHub Artifact Attestation (recognized by OpenSSF Scorecard)
   - Verification script: `scripts/verify-release.sh <ARCHIVE>` — runs `gh attestation verify`
 - `goreleaser-lint.yml` — `goreleaser check` on `.goreleaser.yaml` changes (push/PR)
