@@ -97,10 +97,6 @@ For each file found: replace only `version: "v<current>"` → `version: "v<lates
 - **NEVER change the `# v7.0.0` comment** on the `uses:` line — that refers to the action version, not the tool version.
 - Only touch the `version:` input line inside the `with:` block.
 
-#### Known gap — goreleaser appears in two workflow files
-
-The script only reports `release.yml` for goreleaser, but `goreleaser-lint.yml` pins the same version. The `grep -rl` in Pattern B will catch both — make sure both are updated.
-
 ### Step 4 — Repo-wide safety net
 
 After all edits, grep for any remaining occurrences of the old version strings:
@@ -140,14 +136,11 @@ Print one `git add` + `git commit` block per updated tool. Use the Conventional 
 
 # goreleaser: v2.15.1 → v2.15.2
 git add .github/workflows/release.yml .github/workflows/goreleaser-lint.yml
-git commit -m "chore(deps): bump goreleaser from v2.15.1 to v2.15.2"
+git commit -m "chore(deps): bump goreleaser from v2.15.1 to v2.15.2" -m "Closes #<issue-id>"
 
-# govulncheck: v1.1.4 → v1.1.5
+# govulncheck: v1.1.4 → v1.1.5  (if multiple tools, only last commit needs Closes)
 git add .github/workflows/ci.yml .github/workflows/vuln-schedule.yml .goreleaser.yaml
 git commit -m "chore(deps): bump govulncheck from v1.1.4 to v1.1.5"
-
----
-Remember: add `Closes #<issue-id>` to the PR body so the issue closes on merge.
 ```
 
 List exactly the files that were changed for each tool. No more, no less.
@@ -171,7 +164,7 @@ List exactly the files that were changed for each tool. No more, no less.
 | `govulncheck` | go run | `golang.org/x/vuln/cmd/govulncheck` | `ci.yml`, `vuln-schedule.yml`, `.goreleaser.yaml` |
 | `go-licenses` | go run | `github.com/google/go-licenses/v2` | `ci.yml` |
 | `golangci-lint` | action input | `golangci/golangci-lint` | `ci.yml` |
-| `goreleaser` | action input | `goreleaser/goreleaser` | `release.yml`, `goreleaser-lint.yml` (gap in script) |
+| `goreleaser` | action input | `goreleaser/goreleaser` | `release.yml`, `goreleaser-lint.yml` |
 
 ## Common Mistakes
 

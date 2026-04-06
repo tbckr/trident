@@ -21,7 +21,7 @@ TOOLS=(
   "govulncheck|goproxy|golang.org/x/vuln|govulncheck@(v[0-9.]+)|${WORKFLOWS}/ ${REPO_ROOT}/.goreleaser.yaml"
   "go-licenses|goproxy|github.com/google/go-licenses/v2|go-licenses/v2@(v[0-9.]+)|${WORKFLOWS}/"
   "golangci-lint|github|golangci/golangci-lint|golangci-lint-action|${WORKFLOWS}/ci.yml"
-  "goreleaser|github|goreleaser/goreleaser|goreleaser-action|${WORKFLOWS}/release.yml"
+  "goreleaser|github|goreleaser/goreleaser|goreleaser-action|${WORKFLOWS}/release.yml ${WORKFLOWS}/goreleaser-lint.yml"
 )
 
 REPORT_FILE="${REPORT_FILE:-}"
