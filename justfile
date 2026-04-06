@@ -58,11 +58,11 @@ ci: tidy-check build test coverage lint vuln license-check flake-check
 
 alias r := release
 
-# Release: tag next version with svu and push
-@release:
+# Release: tag next version with svu and push (kind defaults to "next"; e.g. major/minor/patch/prerelease)
+@release kind="next":
     #!/usr/bin/env bash
     set -euo pipefail
-    next=$(svu next)
+    next=$(svu {{ kind }})
     git tag -s "${next}" -m "${next}"
     git push
     git push --tags

@@ -23,7 +23,7 @@ go mod tidy
 ```
 
 ## justfile Targets
-- `just release` — `svu next` → `git tag` → `git push` + `git push --tags`
+- `just release [kind]` — `svu <kind>` (default: `next`; e.g. `major`/`minor`/`patch`/`prerelease`) → `git tag` → `git push` + `git push --tags`
 - `just flake-update` — `nix flake update` (refreshes `flake.lock`)
 - `just build` / `just test` / `just lint` — standard build, test, lint
 - `just test-race` — run all tests with race detector
