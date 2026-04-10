@@ -244,6 +244,8 @@ All `uses:` lines are SHA-pinned. Dependabot covers github-actions only (not gom
 
 **`buildGo126Module`** — pinned to Go 1.26; bump to `buildGo1XXModule` when `go.mod` version changes. Dev shell uses `go_1_26` correspondingly.
 
+**Checking nixpkgs Go version** — `nix eval "github:NixOS/nixpkgs/nixos-unstable#go_1_26.version"` checks the latest channel (independent of local `flake.lock`). Nixpkgs typically lags Go releases by a few days to ~2 weeks.
+
 **`nix build` requires staged files** — new/modified files must be `git add`-ed before `nix build` (flakes only see git-tracked content).
 
 **Nix flake ldflags** — only `Commit` and `Date` are set via ldflags; `Version` is intentionally omitted (defaults to `"dev"`) because flakes can't access git tags. `self.lastModifiedDate` provides the build timestamp (sliced to ISO 8601). The `version` binding (shortRev) is still used for the Nix store path and man page Source field.
