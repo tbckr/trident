@@ -6,7 +6,7 @@ before:
     - go run github.com/google/go-licenses/v2@v2.0.1 save ./... --save_path=.build/third_party_licenses --force --ignore=github.com/tbckr/trident
     - go run ./cmd/docgen/main.go --version={{ .Version }} --output-dir=.build
     # Pin version: keep in sync with ci.yml and vuln-schedule.yml
-    - sh -c 'go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 -format openvex ./... > .build/{{ .ProjectName }}_{{ .Version }}.openvex.json'
+    - sh -c 'go run golang.org/x/vuln/cmd/govulncheck@v1.2.0 -format openvex ./... > .build/{{ .ProjectName }}_{{ .Version }}.openvex.json'
 
 metadata:
   mod_timestamp: "{{ .CommitTimestamp }}"
