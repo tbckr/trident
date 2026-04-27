@@ -33,8 +33,10 @@ extract_version() {
   local name="$1" pattern="$2" files="$3"
   case "$name" in
     golangci-lint|goreleaser)
-      # Action with "version:" input — grep for the action, then the version field
-      grep -A10 -r "$pattern" "$files" \
+      # Action with "version:" input — grep for the action, then the version field.
+      # $files is space-separated paths; intentionally unquoted for word-splitting.
+      # shellcheck disable=SC2086
+      grep -A10 -r "$pattern" $files \
         | grep -oP 'version:\s*"?\Kv[0-9.]+' \
         | head -1
       ;;
