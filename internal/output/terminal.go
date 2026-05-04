@@ -16,7 +16,7 @@ const defaultTermWidth = 80
 func TerminalWidth(w io.Writer) int {
 	type fder interface{ Fd() uintptr }
 	if f, ok := w.(fder); ok {
-		if width, _, err := term.GetSize(int(f.Fd())); err == nil && width > 0 { //nolint:gosec // uintptr→int is safe for file descriptors; they fit in int on all supported platforms
+		if width, _, err := term.GetSize(int(f.Fd())); err == nil && width > 0 {
 			return width
 		}
 	}

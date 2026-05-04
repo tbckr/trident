@@ -164,7 +164,7 @@ func resolveInputs(cmd *cobra.Command, args []string) ([]string, error) {
 		return args, nil
 	}
 	r := cmd.InOrStdin()
-	if f, ok := r.(*os.File); ok && term.IsTerminal(int(f.Fd())) { //nolint:gosec // uintptr→int is safe for file descriptors; they fit in int on all supported platforms
+	if f, ok := r.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
 		return nil, fmt.Errorf("no input: pass an argument or pipe stdin")
 	}
 	return input.Read(r)
