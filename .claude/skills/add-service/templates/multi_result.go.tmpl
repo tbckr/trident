@@ -1,0 +1,43 @@
+package <name>
+
+import (
+	"io"
+
+	"github.com/tbckr/trident/internal/output"
+	"github.com/tbckr/trident/internal/services"
+)
+
+// MultiResult holds <name> lookup results for multiple inputs.
+//
+// Initialization: do NOT use a composite literal that sets promoted fields
+// (won't compile). Instead:
+//
+//	m := &MultiResult{}
+//	m.Results = []*Result{r1, r2}
+//
+// JSON output is a bare array — MultiResultBase.MarshalJSON handles that.
+type MultiResult struct {
+	services.MultiResultBase[Result, *Result]
+}
+
+// WriteTable renders all results in a single combined table grouped by input.
+// Hierarchical column merging in NewGroupedWrappingTable is consecutive-only —
+// sort rows BEFORE Bulk if parallel queries may interleave records for the
+// same input.
+func (m *MultiResult) WriteTable(w io.Writer) error {
+	var rows [][]string
+	for _, r := range m.Results {
+		// One row per record, r.Input as the grouping column. Example:
+		//	for _, v := range r.Records {
+		//		rows = append(rows, []string{r.Input, "RECORD", v})
+		//	}
+		rows = append(rows, []string{r.Input})
+	}
+
+	table := output.NewGroupedWrappingTable(w, 20, 30)
+	table.Header([]string{"Input", "Type", "Value"})
+	if err := table.Bulk(rows); err != nil {
+		return err
+	}
+	return table.Render()
+}

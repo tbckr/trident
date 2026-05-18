@@ -1,0 +1,94 @@
+package <name>
+
+import (
+	"context"
+	"log/slog"
+
+	"github.com/imroc/req/v3"
+
+	"github.com/tbckr/trident/internal/output"
+	"github.com/tbckr/trident/internal/pap"
+	"github.com/tbckr/trident/internal/services"
+)
+
+const (
+	// Name is the service identifier (also the CLI subcommand name).
+	Name = "<name>"
+	// PAP is the PAP activity level for the <name> service.
+	// Set the correct level: RED = active/invasive, AMBER = leaks metadata,
+	// GREEN = passive lookup, WHITE = unrestricted. Most data-fetching services
+	// are AMBER.
+	PAP = pap.<PAP>
+
+	// If this service hits an HTTP API, define baseURL here. Use %% (double
+	// percent) inside fmt.Sprintf format strings to emit a literal %.
+	// baseURL = "https://api.example.com/v1/lookup?q=%s"
+)
+
+// Service performs <name> lookups against the upstream data source.
+type Service struct {
+	client *req.Client
+	logger *slog.Logger
+}
+
+// NewService creates a new <name> service.
+//
+// Constructors take dependencies as arguments — the CLI passes them in via
+// the deps factory methods (d.newHTTPClient, d.newResolver, d.loadPatterns).
+// Never instantiate req.Client, net.Resolver, or load patterns inside the
+// service: that breaks the proxy/UA configuration the CLI sets up.
+func NewService(client *req.Client, logger *slog.Logger) *Service {
+	return &Service{client: client, logger: logger}
+}
+
+// Name returns the service identifier.
+func (s *Service) Name() string { return Name }
+
+// PAP returns the PAP activity level.
+func (s *Service) PAP() pap.Level { return PAP }
+
+// AggregateResults combines per-input results into a MultiResult.
+// Required by services.AggregateService. For single-input services this
+// stub is still required by the interface but can simply collect Results.
+func (s *Service) AggregateResults(results []services.Result) services.Result {
+	mr := &MultiResult{}
+	for _, r := range results {
+		mr.Results = append(mr.Results, r.(*Result))
+	}
+	return mr
+}
+
+// Run executes a single <name> lookup for the given input.
+//
+// Patterns to follow when filling this in (CLAUDE.md "Key Gotchas"):
+//
+//   - Validate input early; on bad input return
+//     fmt.Errorf("%w: ...: %q", services.ErrInvalidInput, input).
+//   - HTTP: guard `resp.Response != nil` before touching resp.StatusCode /
+//     resp.Header — on transport errors *req.Response is non-nil but the
+//     embedded *http.Response is nil.
+//   - Check errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+//     before wrapping as services.ErrRequestFailed — return a partial/empty
+//     result on cancel rather than an error.
+//   - Single %w per fmt.Errorf. Use %v for the inner error.
+//   - 404 from upstream usually means "no data", not failure → return an
+//     empty Result, nil error.
+func (s *Service) Run(ctx context.Context, input string) (services.Result, error) {
+	clean := output.StripANSI(input)
+	result := &Result{Input: clean}
+
+	if !services.IsDomain(clean) {
+		// Replace with the validator that fits this service (IsDomain,
+		// net.ParseIP, services.IsIPv4, etc.). Delete this block if
+		// validation happens later.
+		return result, nil
+	}
+
+	// Implement the fetch. Reference implementations:
+	//   - HTTP API:   internal/services/threatminer/service.go
+	//   - DNS lookup: internal/services/dns/service.go
+	//   - DoH/RFC 8484: internal/services/quad9/service.go
+	_ = ctx
+	_ = s.logger
+	return result, nil
+}

@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.go) [ -f \"$f\" ] && gofmt -w \"$f\" ;; esac"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *go.sum|*/go.sum|*flake.lock|*/flake.lock|*/coverage*.out|*/dist/*|*/.build/*|dist/*|.build/*) printf 'blocked: %s is generated/managed by tooling (go mod tidy / flake-update / goreleaser / nix). Do not hand-edit.\\n' \"$f\" >&2; exit 2 ;; esac"
+          }
+        ]
+      }
+    ]
+  }
+}

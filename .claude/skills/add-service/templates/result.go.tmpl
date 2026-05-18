@@ -1,0 +1,63 @@
+package <name>
+
+import (
+	"io"
+
+	"github.com/tbckr/trident/internal/output"
+)
+
+// Result holds the <name> lookup data for a single input.
+//
+// Add fields for the record types this service returns. Use JSON tags with
+// ",omitempty" so empty slices don't appear in the JSON output. Examples:
+//
+//	Records    []string `json:"records,omitempty"`
+//	Subdomains []string `json:"subdomains,omitempty"`
+type Result struct {
+	Input string `json:"input"`
+}
+
+// IsEmpty reports whether the result contains no data.
+// Callers use this to decide whether to print "no results" for an input.
+func (r *Result) IsEmpty() bool {
+	// Return true iff every data field is zero-length.
+	return true
+}
+
+// WriteText renders the result as plain text, one record per line.
+// Suggested format: "TYPE value" (e.g. "A 1.2.3.4") — keep stable since
+// downstream tooling may parse it.
+func (r *Result) WriteText(w io.Writer) error {
+	// Example pattern:
+	//	for _, v := range r.Records {
+	//		if _, err := fmt.Fprintf(w, "RECORD %s\n", v); err != nil {
+	//			return err
+	//		}
+	//	}
+	_ = w
+	_ = r.Input
+	return nil
+}
+
+// WriteTable renders the result as an ASCII table for a single input.
+//
+// Trident-specific table API notes (tablewriter v1.1.3):
+//   - table.Header([]string{...}) is VOID — never assign or err-check it.
+//   - table.Bulk(rows) and table.Render() return error — always propagate.
+//   - Header() outputs ALL CAPS; test assertions must use "TYPE", not "Type".
+//   - Sort here (display-only), never in Run() — sorting in Run changes
+//     JSON/text output order across users.
+func (r *Result) WriteTable(w io.Writer) error {
+	var rows [][]string
+	// Example: append one row per record from the result fields.
+	//	for _, v := range r.Records {
+	//		rows = append(rows, []string{"RECORD", v})
+	//	}
+
+	table := output.NewGroupedWrappingTable(w, 20, 20)
+	table.Header([]string{"Type", "Value"})
+	if err := table.Bulk(rows); err != nil {
+		return err
+	}
+	return table.Render()
+}

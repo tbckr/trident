@@ -1,0 +1,84 @@
+package <name>_test
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"testing"
+
+	"github.com/imroc/req/v3"
+	"github.com/jarcoal/httpmock"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/tbckr/trident/internal/services"
+	"github.com/tbckr/trident/internal/services/<name>"
+	"github.com/tbckr/trident/internal/testutil"
+)
+
+// newTestClient wires an httpmock-backed *req.Client. Call .GetClient() to
+// reach the inner *http.Client — that is the surface httpmock can intercept.
+func newTestClient(t *testing.T) *req.Client {
+	t.Helper()
+	client := req.NewClient()
+	httpmock.ActivateNonDefault(client.GetClient())
+	t.Cleanup(httpmock.DeactivateAndReset)
+	return client
+}
+
+// TODO: replace example.com / fixture bodies with your real test inputs.
+
+func TestRun_HappyPath(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet,
+		"=~^https://api.example.com/v1/lookup", // regex match; baseURL stub
+		httpmock.NewStringResponder(http.StatusOK, `{"items":["foo","bar"]}`),
+	)
+
+	svc := <name>.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*<name>.Result)
+	require.True(t, ok, "expected *<name>.Result")
+	assert.Equal(t, "example.com", result.Input)
+	// TODO: assert the populated fields.
+}
+
+func TestRun_Empty(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet,
+		"=~^https://api.example.com/v1/lookup",
+		httpmock.NewStringResponder(http.StatusNotFound, ``),
+	)
+
+	svc := <name>.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err, "404 must be a non-error empty result, not an error")
+
+	result := raw.(*<name>.Result)
+	assert.True(t, result.IsEmpty())
+}
+
+func TestRun_TransportError(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet,
+		"=~^https://api.example.com/v1/lookup",
+		httpmock.NewErrorResponder(errors.New("simulated network failure")),
+	)
+
+	svc := <name>.NewService(client, testutil.NopLogger())
+	_, err := svc.Run(context.Background(), "example.com")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, services.ErrRequestFailed)
+}
+
+func TestRun_InvalidInput(t *testing.T) {
+	client := newTestClient(t)
+	svc := <name>.NewService(client, testutil.NopLogger())
+
+	// TODO: replace with an input that fails this service's validation.
+	_, err := svc.Run(context.Background(), "not a valid input")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, services.ErrInvalidInput)
+}
