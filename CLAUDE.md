@@ -90,6 +90,7 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 | `pgp` | AMBER | HKP MRINDEX; HTTP 404 → empty result; any HKP query accepted (email/name/`0x`-prefix) |
 | `quad9 resolve` | AMBER | RFC 8484 DoH; A, AAAA, NS, MX, TXT; partial result on context cancel |
 | `quad9 blocked` | AMBER | blocked = NXDOMAIN + empty authority section; genuine NXDOMAIN has SOA |
+| `apex` | AMBER | Aggregate service (`runAggregateCmd`); composes Quad9 DoH + Cymru ASN. Exports `MinPAP` alongside `PAP` |
 | `detect` | GREEN | CNAME/MX/NS/TXT; import detect pkg as `providers "...internal/detect"` to avoid name collision |
 | `identify` | RED | Pure pattern matching; custom Run signature; no `multi_result.go` |
 
