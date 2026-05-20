@@ -3,13 +3,12 @@ rules:
     languages: [go]
     severity: ERROR
     message: >-
-      Direct `httpclient.New(...)` calls are reserved for `internal/cli/deps.go`
-      and httpclient tests. Service/command code must use `d.newHTTPClient()`
-      from the deps factory to ensure consistent proxy, user-agent, and logging.
-      See CLAUDE.md "CLI / deps factory methods".
+      Don't call `httpclient.New(...)` from command or service code. Use the
+      deps factory `d.newHTTPClient()` so proxy, user-agent, and logging stay
+      consistent across the binary. The only legitimate direct callers are
+      `internal/cli/deps.go` (the factory itself) and `internal/httpclient/*_test.go`.
     metadata:
       category: convention
-      claude-md-ref: "CLI / deps factory methods"
       confidence: HIGH
     paths:
       exclude:

@@ -3,13 +3,11 @@ rules:
     languages: [go]
     severity: ERROR
     message: >-
-      Use the pre-computed `d.papLevel` field instead of re-parsing
-      `pap.MustParse(d.cfg.PAPLimit)` in command/service code. The deps factory
-      already computed this once during initialization.
-      See CLAUDE.md "CLI / deps factory methods".
+      Don't re-parse the PAP limit with `pap.MustParse(d.cfg.PAPLimit)` in
+      command/service code. The deps factory already computed the level once
+      during init — read `d.papLevel` directly.
     metadata:
       category: convention
-      claude-md-ref: "CLI / deps factory methods"
       confidence: HIGH
     paths:
       exclude:

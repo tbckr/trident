@@ -3,13 +3,12 @@ rules:
     languages: [go]
     severity: WARNING
     message: >-
-      Project is on Go 1.26 — use `wg.Go(func() { ... })` instead of the manual
-      `wg.Add(1)` + `go func() { defer wg.Done(); ... }()` pattern.
-      `sync.WaitGroup.Go` is available since Go 1.25.
-      See CLAUDE.md "Other > sync.WaitGroup.Go".
+      Don't write `wg.Add(1); go func() { defer wg.Done(); ... }()`. Project is
+      on Go 1.26 — use `wg.Go(func() { ... })` instead (`sync.WaitGroup.Go` is
+      available since Go 1.25). No `i := i` shadow needed either — auto-capture
+      has been the loop semantics since Go 1.22.
     metadata:
       category: modernization
-      claude-md-ref: "Other > sync.WaitGroup.Go"
       confidence: MEDIUM
     patterns:
       - pattern: |

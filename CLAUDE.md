@@ -102,16 +102,10 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 ## Key Gotchas
 
 ### CLI / deps factory methods
-**New commands must use `deps` factory methods** — never call `httpclient.New(d.cfg.Proxy, ...)`, `resolver.NewResolver(d.cfg.Proxy)`, or `providers.DefaultPatternPaths()+LoadPatterns()` directly in command files. Use `d.newHTTPClient()`, `d.newResolver()`, `d.loadPatterns()` instead. Use `d.papLevel` directly instead of `pap.MustParse(d.cfg.PAPLimit)`. All three factories + `papLevel` live in `internal/cli/deps.go`.
-
-**`httpclient.New` direct callers** — only `internal/cli/deps.go` (via `newHTTPClient`) and `internal/httpclient/*_test.go` call `New` directly. IDE may falsely flag service files on signature changes; `grep -rn "httpclient.New(" --include="*.go"` shows actual callers.
+**New commands must use `deps` factory methods** — use `d.newHTTPClient()`, `d.newResolver()`, `d.loadPatterns()`, and read `d.papLevel` directly. Factories + `papLevel` live in `internal/cli/deps.go`. (Semgrep enforces the `httpclient.New` / `resolver.NewResolver` / `pap.MustParse(d.cfg.PAPLimit)` cases — `loadPatterns` is not yet codified.)
 
 ### HTTP / req
-**`req.Response` nil guard** — transport-level error: `*req.Response` is non-nil but embedded `*http.Response` is nil. Always guard `resp.Response != nil` before accessing `StatusCode`/`Header`.
-
 **`req.Client` retry API** — client-level: `SetCommonRetryCount`, `AddCommonRetryCondition`, `SetCommonRetryInterval`. Bare `SetRetryCount`/`AddRetryCondition` are request-level only (`*req.Request`), not on `*req.Client`.
-
-**Mock HTTP in tests** via `httpmock.ActivateNonDefault(client.GetClient())` — must call `.GetClient()` to get the inner `*http.Client`.
 
 **httpmock patterns** — regex match: `"=~^"+baseURL`; transport failure (nil `resp.Response`): `httpmock.NewErrorResponder(err)` (not a 500 response).
 
@@ -171,22 +165,16 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 
 **`gofmt` alignment** — never manually align struct field types or map key→value pairs (lint fails). `const` blocks may be pre-aligned (gofmt preserves it). No trailing blank line before closing `)`.
 
-**Semgrep custom rules** — `.semgrep/` codifies project-specific gotchas as CI gates. Rule IDs: `trident-no-double-percent-w`, `trident-req-response-nil-guard`, `trident-no-direct-httpclient-new`, `trident-no-direct-resolver-new`, `trident-no-papmustparse-in-services`, `trident-httpmock-activate-scoped`, `trident-strings-index-url-slash`, `trident-waitgroup-use-go`. Bypass with inline `// nosemgrep: <rule-id> -- reason`. Registry packs `p/golang` + `p/gosec` also run; suppress justified findings the same way.
+**Semgrep custom rules** — `.semgrep/` is the single source of truth for project-specific gotchas that can be expressed as a pattern. When you encounter a new codifiable gotcha, add a rule in `.semgrep/` (rule message addressed to the AI assistant, with full rationale) rather than just documenting it here; this file should only describe things Semgrep cannot enforce. Existing rule IDs: `trident-no-double-percent-w`, `trident-req-response-nil-guard`, `trident-no-direct-httpclient-new`, `trident-no-direct-resolver-new`, `trident-no-papmustparse-in-services`, `trident-httpmock-activate-scoped`, `trident-strings-index-url-slash`, `trident-waitgroup-use-go`. Bypass with inline `// nosemgrep: <rule-id> -- reason`. Registry packs `p/golang` + `p/gosec` also run; suppress justified findings the same way.
 
 ### Other
-**`fmt.Errorf` single sentinel** — two `%w` verbs in one call create a multi-error (Go 1.20+); use `%v` for the inner error: `fmt.Errorf("%w: ...: %v", services.ErrXxx, err)`. Never two `%w` in the same error string.
-
 **Context cancel in HTTP services** — check `errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)` *before* wrapping as `ErrRequestFailed`; return a partial/empty result instead. Pattern: crtsh, quad9, threatminer, pgp.
 
 **`MultiResult` composite literal** — embeds `services.MultiResultBase[Result, *Result]`; init via field assignment (`m := &dns.MultiResult{}; m.Results = [...]`), not a composite literal (promoted fields cause compile error). `MarshalJSON` → bare JSON array, not envelope.
 
-**`sync.WaitGroup.Go`** — use `wg.Go(func() { ... })` (available since Go 1.25; project uses Go 1.26). No `i := i` needed (auto-capture since Go 1.22).
-
 **Error sentinels** — defined in `internal/apperr/` (leaf; no internal imports); re-exported from `services` for backward compat. Use `services.ErrInvalidInput/ErrRequestFailed/ErrPAPBlocked` in service code. `doh` imports `apperr` directly to avoid the `doh → services` cycle. Wrap: `fmt.Errorf("%w: ...: %q", services.ErrInvalidInput, input)`. Never define per-service variants.
 
 **`config.DefaultPatternsURL`** — built-in patterns download URL lives in `internal/config` (not `detect`). **`config.NormalizeKey`** — exported; converts `"pap-limit"` → `"pap_limit"`; don't duplicate locally.
-
-**`DefangURL` host extraction** — never use `strings.Index(s, "/")` to find host/path boundary (hits first `/` in `://`). Find `://` first, skip 3 bytes, then search from there.
 
 **PGP testdata workaround** — a pre-tool-use hook blocks `.txt` in `testdata/`; inline MRINDEX fixtures as `const` strings in `service_test.go`.
 

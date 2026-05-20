@@ -3,13 +3,12 @@ rules:
     languages: [go]
     severity: ERROR
     message: >-
-      Two `%w` verbs in one fmt.Errorf create a Go 1.20+ multi-error. Project
-      convention: wrap one sentinel with `%w` and format the inner error with `%v`.
-      Pattern: `fmt.Errorf("%w: ...: %v", services.ErrXxx, err)`.
-      See CLAUDE.md "Other > fmt.Errorf single sentinel".
+      Don't put two `%w` verbs in a single `fmt.Errorf`. Since Go 1.20 that
+      creates a multi-error, which is not what services in this project want.
+      Wrap exactly one sentinel with `%w` and format the inner error with `%v`.
+      Example: `fmt.Errorf("%w: ...: %v", services.ErrXxx, err)`.
     metadata:
       category: correctness
-      claude-md-ref: "Other > fmt.Errorf single sentinel"
       confidence: HIGH
     patterns:
       - pattern: fmt.Errorf("$FMT", ...)

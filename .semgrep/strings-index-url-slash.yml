@@ -3,14 +3,12 @@ rules:
     languages: [go]
     severity: WARNING
     message: >-
-      `strings.Index(url, "/")` and `strings.IndexByte(url, '/')` will match the
-      first `/` inside the `://` scheme separator, not the host/path boundary.
-      Find `://` first, then search after offset+3. See `output.DefangURL` for
-      the correct pattern.
-      See CLAUDE.md "Other > DefangURL host extraction".
+      Don't use `strings.Index(url, "/")` or `strings.IndexByte(url, '/')` to
+      find the host/path boundary in a URL — both match the first `/` inside
+      `://`, not the boundary. Find `://` first, skip 3 bytes, then search from
+      there. See `output.DefangURL` for the correct pattern.
     metadata:
       category: correctness
-      claude-md-ref: "Other > DefangURL host extraction"
       confidence: LOW
     pattern-either:
       - patterns:

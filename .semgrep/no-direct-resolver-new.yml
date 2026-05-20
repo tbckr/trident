@@ -3,14 +3,12 @@ rules:
     languages: [go]
     severity: ERROR
     message: >-
-      Direct `resolver.NewResolver(...)` calls are reserved for
-      `internal/cli/deps.go` and resolver tests. Service/command code must use
-      `d.newResolver()` from the deps factory to ensure consistent SOCKS5
-      leak prevention.
-      See CLAUDE.md "CLI / deps factory methods".
+      Don't call `resolver.NewResolver(...)` from command or service code. Use
+      the deps factory `d.newResolver()` so SOCKS5-leak prevention stays in one
+      place. The only legitimate direct callers are `internal/cli/deps.go` (the
+      factory itself) and `internal/resolver/*_test.go`.
     metadata:
       category: convention
-      claude-md-ref: "CLI / deps factory methods"
       confidence: HIGH
     paths:
       exclude:
