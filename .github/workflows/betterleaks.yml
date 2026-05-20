@@ -37,11 +37,13 @@ jobs:
           persist-credentials: false
           fetch-depth: 0  # full history so 'betterleaks git .' can scan all commits
 
-      # Container user UID differs from the runner UID that owns $GITHUB_WORKSPACE,
-      # so git refuses to scan with "dubious ownership" (CVE-2022-24765 mitigation).
-      # --system writes /etc/gitconfig so betterleaks' internal git invocation
-      # picks it up regardless of HOME (--global was ignored by betterleaks).
-      - run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
+      # Container runs as root but $GITHUB_WORKSPACE is bind-mounted with the
+      # runner UID, so git fails with "dubious ownership" (CVE-2022-24765).
+      # safe.directory via git config does not work here because betterleaks
+      # spawns git with a cleared environment (no HOME → no global/system
+      # config is read). The reliable fix is to align ownership with the
+      # container user before scanning.
+      - run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
 
       - run: betterleaks git . --report-format=sarif --report-path=betterleaks.sarif --redact --no-banner
 
