@@ -39,7 +39,9 @@ jobs:
 
       # Container user UID differs from the runner UID that owns $GITHUB_WORKSPACE,
       # so git refuses to scan with "dubious ownership" (CVE-2022-24765 mitigation).
-      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      # --system writes /etc/gitconfig so betterleaks' internal git invocation
+      # picks it up regardless of HOME (--global was ignored by betterleaks).
+      - run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
 
       - run: betterleaks git . --report-format=sarif --report-path=betterleaks.sarif --redact --no-banner
 
