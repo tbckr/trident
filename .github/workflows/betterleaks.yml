@@ -1,0 +1,45 @@
+name: Betterleaks
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  schedule:
+    - cron: "0 6 * * 1"  # Weekly Monday 06:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: betterleaks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    container:
+      image: ghcr.io/betterleaks/betterleaks:v1.2.0@sha256:0d438a2f5821f182bf1af1b2bb74bf3f79830c93291503c1fb90c19cab1ac5d6
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0  # full history so 'betterleaks git .' can scan all commits
+
+      - run: betterleaks git . --report-format=sarif --report-path=betterleaks.sarif --redact --no-banner
+
+      - uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4.35.5
+        if: always()
+        with:
+          sarif_file: betterleaks.sarif

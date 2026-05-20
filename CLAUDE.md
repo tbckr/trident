@@ -31,10 +31,11 @@ go mod tidy
 - `just fuzz <pkg>` — run fuzz tests for a specific package
 - `just coverage` — check service coverage meets 80% threshold
 - `just fmt` — format all Go files with gofmt
-- `just ci` — run all CI checks locally (build → test → coverage → lint → semgrep → vuln → flake-check)
+- `just ci` — run all CI checks locally (build → test → coverage → lint → semgrep → leaks → vuln → flake-check)
 - `just tidy` / `just tidy-check` — tidy modules / verify they're clean
 - `just vuln` / `just license-check` / `just flake-check` — govulncheck, license audit, nix check
 - `just semgrep` — semgrep scan against `.semgrep/` + `p/golang` + `p/gosec` (requires `nix develop` or semgrep on PATH)
+- `just leaks` — betterleaks secret scan against the working tree (requires `nix develop` or betterleaks on PATH)
 - `just flake-build` — build the Nix package locally
 - `just goreleaser-check` — validate `.goreleaser.yaml` config
 - `just verify-release <archive>` — verify release artifact attestation
@@ -212,6 +213,7 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 - **HTTPS only** — no `InsecureSkipVerify`
 - **Output sanitization** — strip ANSI escape sequences from external data before printing
 - **`internal/version` BuildInfo fallback** — `init()` reads `debug.ReadBuildInfo()` to populate Version/Commit/Date when ldflags aren't set (e.g. `go install`); ldflags always win. Logic lives in `applyBuildInfo(*debug.BuildInfo)` (exported for unit tests). Strips `v` prefix; skips `""` and `"(devel)"` for Version; truncates `vcs.revision` to 7 chars.
+- **`.githooks/pre-commit`** — `nix develop` shellHook automatically sets `core.hooksPath=.githooks` so betterleaks scans staged changes before every commit. Hook is skip-when-missing (logs a warning and exits 0 if `betterleaks` not on PATH); CI workflow `betterleaks.yml` is the authoritative backstop.
 
 ## CI/CD
 
@@ -223,11 +225,12 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 - `vuln-schedule.yml` — daily (06:00 UTC): govulncheck in sandboxed step
 - `codeql.yml` — CodeQL SAST analysis for Go (push/PR to main + weekly Mon 06:00 UTC)
 - `semgrep.yml` — Pattern-based SAST: custom rules in `.semgrep/` + `p/golang` + `p/gosec`; runs in `semgrep/semgrep` container (SHA-pinned); push/PR + weekly Mon 06:00 UTC; SARIF → Security tab
+- `betterleaks.yml` — Secret scanning: full git-history scan in SHA-pinned `ghcr.io/betterleaks/betterleaks` container; push/PR + weekly Mon 06:00 UTC; SARIF → Security tab. Backstop for the `.githooks/pre-commit` developer hook.
 - `scorecard.yml` — weekly (Mon 06:00 UTC): OpenSSF Scorecard → SARIF upload to Security tab
-- `tool-versions.yml` — weekly (Mon 06:00 UTC): checks pinned Go tool versions (govulncheck, go-licenses, golangci-lint, goreleaser) and pinned Docker container images (semgrep, via Docker Hub) via `scripts/check-tool-versions.sh`; creates/updates a GitHub issue when updates are available. Docker entries trigger an issue on either tag OR manifest-digest change (upstream rebuilds → digest-only update).
+- `tool-versions.yml` — weekly (Mon 06:00 UTC): checks pinned Go tool versions (govulncheck, go-licenses, golangci-lint, goreleaser) and pinned container images (semgrep on Docker Hub, betterleaks on ghcr.io) via `scripts/check-tool-versions.sh`; creates/updates a GitHub issue when updates are available. Docker/ghcr entries trigger an issue on either tag OR manifest-digest change (upstream rebuilds → digest-only update).
 - `latest-deps.yml` — weekly: upgrade direct deps only (`go get <pkg>@latest` + `go mod tidy`). **Never `go get -u`** — upgrades all transitive deps, breaking direct-only intent.
 
-Scripts: `scripts/harden-repo.sh` (idempotent repo hardening via `gh` API), `scripts/check-tool-versions.sh` (Go tool + Docker image version checker), `scripts/verify-release.sh` (release verification).
+Scripts: `scripts/harden-repo.sh` (idempotent repo hardening via `gh` API), `scripts/check-tool-versions.sh` (Go tool + container image version checker; supports `goproxy`/`github`/`docker`/`ghcr` types), `scripts/verify-release.sh` (release verification).
 
 All `uses:` lines are SHA-pinned. Dependabot covers github-actions only (not gomod — `govulncheck` handles reachability, `latest-deps.yml` handles freshness).
 

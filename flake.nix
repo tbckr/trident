@@ -54,13 +54,22 @@
 
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
+            betterleaks
             go_1_26
             golangci-lint
             goreleaser
+            just
             nodejs_24
             semgrep
             shellcheck
           ];
+
+          shellHook = ''
+            if [ -d .githooks ] && [ "$(git config --local --get core.hooksPath 2>/dev/null)" != ".githooks" ]; then
+              git config --local core.hooksPath .githooks
+              echo "trident devShell: enabled .githooks/pre-commit (secret scanning)"
+            fi
+          '';
         };
       }
     );

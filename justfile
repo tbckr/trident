@@ -27,6 +27,10 @@ lint:
 semgrep:
     semgrep scan --config=.semgrep --config=p/golang --config=p/gosec --error --metrics=off
 
+# Run betterleaks (secret scanning) against the working tree (requires nix develop or betterleaks on PATH)
+leaks:
+    betterleaks git . --redact --no-banner
+
 # Tidy and verify modules
 tidy:
     go mod tidy
@@ -58,7 +62,7 @@ flake-check:
     nix flake check
 
 # Run all CI checks locally
-ci: tidy-check build test coverage lint semgrep vuln license-check flake-check
+ci: tidy-check build test coverage lint semgrep leaks vuln license-check flake-check
 
 alias r := release
 

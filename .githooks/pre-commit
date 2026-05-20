@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Trident pre-commit hook: scan staged changes for secrets via betterleaks.
+# Activated automatically when entering `nix develop` (sets core.hooksPath).
+# Manual activation for non-Nix users: `git config core.hooksPath .githooks`.
+set -euo pipefail
+
+if ! command -v betterleaks >/dev/null 2>&1; then
+  echo "warning: betterleaks not on PATH — skipping secret scan." >&2
+  echo "  Enter 'nix develop' to enable, or install: https://github.com/betterleaks/betterleaks" >&2
+  exit 0
+fi
+
+exec betterleaks git --pre-commit --redact --staged --no-banner

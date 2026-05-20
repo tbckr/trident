@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Tool version checker for pinned Go tools and Docker container images not
-# covered by Dependabot. Parses current versions directly from workflow files —
-# no dual maintenance.
+# Tool version checker for pinned Go tools and container images not covered by
+# Dependabot. Parses current versions directly from workflow files — no dual
+# maintenance.
 #
 # Registry format: NAME|TYPE|SOURCE|GREP_PATTERN|FILES
 #   TYPE: "goproxy" (Go module proxy), "github" (GitHub releases),
-#         or "docker" (Docker Hub tags + manifest digest)
-#   SOURCE: module path (goproxy), owner/repo (github), or repo path (docker)
+#         "docker" (Docker Hub tags + manifest digest),
+#         or "ghcr" (GitHub releases for tag + ghcr.io manifest digest)
+#   SOURCE: module path (goproxy), owner/repo (github / ghcr), or repo path (docker)
 #   GREP_PATTERN: regex used to find files containing the pin
 #   FILES: file or directory to search in
 #
-# Docker entries trigger updates when either the tag OR the manifest digest
+# Docker/ghcr entries trigger updates when either the tag OR the manifest digest
 # changes (digest-only changes indicate an upstream re-push). The JSON report
-# carries two extra fields for docker entries: current_digest / latest_digest.
+# carries two extra fields for these entries: current_digest / latest_digest.
 #
 # Environment:
 #   GITHUB_TOKEN  — optional; avoids GitHub API rate limits
@@ -29,6 +30,7 @@ TOOLS=(
   "golangci-lint|github|golangci/golangci-lint|golangci-lint-action|${WORKFLOWS}/ci.yml"
   "goreleaser|github|goreleaser/goreleaser|goreleaser-action|${WORKFLOWS}/release.yml ${WORKFLOWS}/goreleaser-lint.yml"
   "semgrep|docker|semgrep/semgrep|image:\\s+semgrep/semgrep|${WORKFLOWS}/semgrep.yml"
+  "betterleaks|ghcr|betterleaks/betterleaks|image:\\s+ghcr.io/betterleaks/betterleaks|${WORKFLOWS}/betterleaks.yml"
 )
 
 REPORT_FILE="${REPORT_FILE:-}"
@@ -48,12 +50,19 @@ extract_version() {
         | head -1
       ;;
     semgrep)
-      # Docker image pin: image: <source>:<X.Y.Z>@sha256:<digest>
+      # Docker Hub image pin: image: <source>:<X.Y.Z>@sha256:<digest>
       # shellcheck disable=SC2086
       grep -rhoP "image:\s+${source}:\K[0-9]+\.[0-9]+\.[0-9]+" $files | head -1
       ;;
+    betterleaks)
+      # ghcr.io image pin: image: ghcr.io/<source>:v<X.Y.Z>@sha256:<digest>
+      # Output keeps the "v" prefix to match check_github_release output.
+      # shellcheck disable=SC2086
+      grep -rhoP "image:\s+ghcr.io/${source}:\Kv[0-9]+\.[0-9]+\.[0-9]+" $files | head -1
+      ;;
     *)
       # "go run module@vX.Y.Z" pattern
+      # shellcheck disable=SC2086
       grep -rhoP "${pattern}" $files \
         | head -1 \
         | grep -oP 'v[0-9.]+$'
@@ -67,6 +76,13 @@ extract_docker_digest() {
   local source="$1" files="$2"
   # shellcheck disable=SC2086
   grep -rhoP "image:\s+${source}:[0-9.]+@\Ksha256:[a-f0-9]+" $files | head -1
+}
+
+# Extract the sha256 digest from a ghcr.io image pin: image: ghcr.io/<source>:vX.Y.Z@sha256:<digest>
+extract_ghcr_digest() {
+  local source="$1" files="$2"
+  # shellcheck disable=SC2086
+  grep -rhoP "image:\s+ghcr.io/${source}:v[0-9.]+@\Ksha256:[a-f0-9]+" $files | head -1
 }
 
 check_go_proxy() {
@@ -102,14 +118,31 @@ check_docker_digest() {
     | jq -r '.digest // empty' 2>/dev/null || true
 }
 
+# ghcr.io manifest digest for a specific tag (anonymous bearer token).
+# Returns the docker-content-digest header value (sha256:...) for image@tag.
+check_ghcr_digest() {
+  local repo="$1" tag="$2"
+  local token
+  token=$(curl -sfL "https://ghcr.io/token?service=ghcr.io&scope=repository:${repo}:pull" \
+    | jq -r '.token // empty' 2>/dev/null) || return
+  [[ -z "$token" ]] && return
+  curl -sfIL \
+    -H "Authorization: Bearer ${token}" \
+    -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json" \
+    "https://ghcr.io/v2/${repo}/manifests/${tag}" \
+    | grep -i '^docker-content-digest:' | awk '{print $2}' | tr -d '\r\n'
+}
+
 # Find all workflow files containing the pinned version for a tool.
 find_locations() {
   local name="$1" pattern="$2" files="$3" current="$4"
+  # $files is intentionally word-split (space-separated paths from the registry).
+  # shellcheck disable=SC2086
   case "$name" in
     golangci-lint|goreleaser)
       grep -rl "$pattern" $files 2>/dev/null | sed "s|${REPO_ROOT}/||g" | paste -sd ',' -
       ;;
-    semgrep)
+    semgrep|betterleaks)
       grep -rlP "$pattern" $files 2>/dev/null | sed "s|${REPO_ROOT}/||g" | paste -sd ',' -
       ;;
     *)
@@ -146,6 +179,13 @@ for entry in "${TOOLS[@]}"; do
         latest_digest=$(check_docker_digest "$source" "$latest")
       fi
       ;;
+    ghcr)
+      latest=$(check_github_release "$source")
+      if [[ -n "$latest" ]]; then
+        current_digest=$(extract_ghcr_digest "$source" "$files")
+        latest_digest=$(check_ghcr_digest "$source" "$latest")
+      fi
+      ;;
     *)       echo "Unknown type: $type for $name" >&2; continue ;;
   esac
 
@@ -156,7 +196,7 @@ for entry in "${TOOLS[@]}"; do
 
   unchanged=true
   if [[ "$current" != "$latest" ]]; then unchanged=false; fi
-  if [[ "$type" == "docker" && "$current_digest" != "$latest_digest" ]]; then unchanged=false; fi
+  if [[ ( "$type" == "docker" || "$type" == "ghcr" ) && "$current_digest" != "$latest_digest" ]]; then unchanged=false; fi
 
   if [[ "$unchanged" == "true" ]]; then
     printf "%-20s %-15s %-15s %s\n" "$name" "$current" "$latest" "up-to-date"
@@ -164,7 +204,7 @@ for entry in "${TOOLS[@]}"; do
     locations=$(find_locations "$name" "$pattern" "$files" "$current")
     printf "%-20s %-15s %-15s %s\n" "$name" "$current" "$latest" "UPDATE AVAILABLE"
     has_updates=true
-    if [[ "$type" == "docker" ]]; then
+    if [[ "$type" == "docker" || "$type" == "ghcr" ]]; then
       updates_json=$(printf '%s' "$updates_json" | jq -c \
         --arg name "$name" \
         --arg current "$current" \

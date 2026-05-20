@@ -595,10 +595,16 @@ trident alias delete asn
 
 ### Nix Dev Shell
 
-If you use [Nix](https://nixos.org/), `nix develop` provides Go, golangci-lint, and goreleaser:
+If you use [Nix](https://nixos.org/), `nix develop` provides Go, golangci-lint, goreleaser, just, semgrep, and betterleaks. Entering the shell also enables a local pre-commit hook (`.githooks/pre-commit`) that scans staged changes for secrets via betterleaks:
 
 ```bash
 nix develop
+```
+
+For non-Nix users, enable the same hook manually (one-time):
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 ### justfile
@@ -621,6 +627,8 @@ just tidy               # Tidy and verify modules
 just tidy-check         # Verify modules are tidy (fails if dirty)
 just vuln               # Run govulncheck
 just license-check      # Check dependency licenses against allowlist
+just semgrep            # Pattern-based SAST (custom rules + p/golang + p/gosec)
+just leaks              # Secret scanning via betterleaks
 
 # CI
 just ci                 # Run all CI checks locally
