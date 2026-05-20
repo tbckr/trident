@@ -1,0 +1,18 @@
+rules:
+  - id: trident-httpmock-activate-scoped
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Bare `httpmock.Activate()` patches the default `http.Client` and does not
+      intercept requests made through the trident `req.Client`. Use
+      `httpmock.ActivateNonDefault(client.GetClient())` to scope the mock to the
+      test's HTTP client.
+      See CLAUDE.md "HTTP / req > httpmock patterns".
+    metadata:
+      category: testing
+      claude-md-ref: "HTTP / req > httpmock patterns"
+      confidence: HIGH
+    paths:
+      include:
+        - "**/*_test.go"
+    pattern: httpmock.Activate()

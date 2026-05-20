@@ -1,0 +1,25 @@
+rules:
+  - id: trident-strings-index-url-slash
+    languages: [go]
+    severity: WARNING
+    message: >-
+      `strings.Index(url, "/")` and `strings.IndexByte(url, '/')` will match the
+      first `/` inside the `://` scheme separator, not the host/path boundary.
+      Find `://` first, then search after offset+3. See `output.DefangURL` for
+      the correct pattern.
+      See CLAUDE.md "Other > DefangURL host extraction".
+    metadata:
+      category: correctness
+      claude-md-ref: "Other > DefangURL host extraction"
+      confidence: LOW
+    pattern-either:
+      - patterns:
+          - pattern: strings.Index($URL, "/")
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '(?i).*(url|host).*'
+      - patterns:
+          - pattern: strings.IndexByte($URL, '/')
+          - metavariable-regex:
+              metavariable: $URL
+              regex: '(?i).*(url|host).*'

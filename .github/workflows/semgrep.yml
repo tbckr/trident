@@ -1,0 +1,48 @@
+name: Semgrep
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.go"
+      - ".semgrep/**"
+      - ".semgrepignore"
+      - ".github/workflows/semgrep.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.go"
+      - ".semgrep/**"
+      - ".semgrepignore"
+      - ".github/workflows/semgrep.yml"
+  schedule:
+    - cron: "0 6 * * 1"  # Weekly Monday 06:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: semgrep-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    container:
+      image: semgrep/semgrep:1.161.0@sha256:326e5f41cc972bb423b764a14febbb62bbad29ee1c01820805d077dd868fea48
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - run: semgrep scan --config=.semgrep --config=p/golang --config=p/gosec --sarif --output=semgrep.sarif --error --metrics=off
+
+      - uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4.35.5
+        if: always()
+        with:
+          sarif_file: semgrep.sarif

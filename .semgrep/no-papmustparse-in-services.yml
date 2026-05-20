@@ -1,0 +1,18 @@
+rules:
+  - id: trident-no-papmustparse-in-services
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Use the pre-computed `d.papLevel` field instead of re-parsing
+      `pap.MustParse(d.cfg.PAPLimit)` in command/service code. The deps factory
+      already computed this once during initialization.
+      See CLAUDE.md "CLI / deps factory methods".
+    metadata:
+      category: convention
+      claude-md-ref: "CLI / deps factory methods"
+      confidence: HIGH
+    paths:
+      exclude:
+        - "/internal/cli/deps.go"
+        - "/internal/pap/**"
+    pattern: pap.MustParse(d.cfg.PAPLimit)

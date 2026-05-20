@@ -1,0 +1,18 @@
+rules:
+  - id: trident-no-direct-httpclient-new
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Direct `httpclient.New(...)` calls are reserved for `internal/cli/deps.go`
+      and httpclient tests. Service/command code must use `d.newHTTPClient()`
+      from the deps factory to ensure consistent proxy, user-agent, and logging.
+      See CLAUDE.md "CLI / deps factory methods".
+    metadata:
+      category: convention
+      claude-md-ref: "CLI / deps factory methods"
+      confidence: HIGH
+    paths:
+      exclude:
+        - "/internal/cli/deps.go"
+        - "/internal/httpclient/*_test.go"
+    pattern: httpclient.New(...)

@@ -1,0 +1,28 @@
+rules:
+  - id: trident-req-response-nil-guard
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Accessing `.Response.StatusCode` or `.Response.Header` on a `*req.Response`
+      without a nil-guard can crash on transport-level errors (outer `*req.Response`
+      is non-nil but embedded `*http.Response` is nil). Always guard with
+      `if resp.Response != nil { ... }` before access.
+      See CLAUDE.md "HTTP / req > req.Response nil guard".
+    metadata:
+      category: correctness
+      claude-md-ref: "HTTP / req > req.Response nil guard"
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: $R.Response.StatusCode
+          - pattern: $R.Response.Header
+      - pattern-not-inside: |
+          if $R.Response != nil {
+            ...
+          }
+      - pattern-not-inside: |
+          if $R.Response == nil {
+            ...
+          } else {
+            ...
+          }

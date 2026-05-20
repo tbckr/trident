@@ -2,7 +2,7 @@ package ratelimit
 
 import (
 	"context"
-	"math/rand/v2"
+	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used -- jitter is non-cryptographic by design
 	"time"
 
 	"golang.org/x/time/rate"

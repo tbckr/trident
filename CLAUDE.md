@@ -31,9 +31,10 @@ go mod tidy
 - `just fuzz <pkg>` — run fuzz tests for a specific package
 - `just coverage` — check service coverage meets 80% threshold
 - `just fmt` — format all Go files with gofmt
-- `just ci` — run all CI checks locally (build → test → coverage → lint → vuln → flake-check)
+- `just ci` — run all CI checks locally (build → test → coverage → lint → semgrep → vuln → flake-check)
 - `just tidy` / `just tidy-check` — tidy modules / verify they're clean
 - `just vuln` / `just license-check` / `just flake-check` — govulncheck, license audit, nix check
+- `just semgrep` — semgrep scan against `.semgrep/` + `p/golang` + `p/gosec` (requires `nix develop` or semgrep on PATH)
 - `just flake-build` — build the Nix package locally
 - `just goreleaser-check` — validate `.goreleaser.yaml` config
 - `just verify-release <archive>` — verify release artifact attestation
@@ -170,6 +171,8 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 
 **`gofmt` alignment** — never manually align struct field types or map key→value pairs (lint fails). `const` blocks may be pre-aligned (gofmt preserves it). No trailing blank line before closing `)`.
 
+**Semgrep custom rules** — `.semgrep/` codifies project-specific gotchas as CI gates. Rule IDs: `trident-no-double-percent-w`, `trident-req-response-nil-guard`, `trident-no-direct-httpclient-new`, `trident-no-direct-resolver-new`, `trident-no-papmustparse-in-services`, `trident-httpmock-activate-scoped`, `trident-strings-index-url-slash`, `trident-waitgroup-use-go`. Bypass with inline `// nosemgrep: <rule-id> -- reason`. Registry packs `p/golang` + `p/gosec` also run; suppress justified findings the same way.
+
 ### Other
 **`fmt.Errorf` single sentinel** — two `%w` verbs in one call create a multi-error (Go 1.20+); use `%v` for the inner error: `fmt.Errorf("%w: ...: %v", services.ErrXxx, err)`. Never two `%w` in the same error string.
 
@@ -231,6 +234,7 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 - `goreleaser-lint.yml` — `goreleaser check` on `.goreleaser.yaml` changes (push/PR)
 - `vuln-schedule.yml` — daily (06:00 UTC): govulncheck in sandboxed step
 - `codeql.yml` — CodeQL SAST analysis for Go (push/PR to main + weekly Mon 06:00 UTC)
+- `semgrep.yml` — Pattern-based SAST: custom rules in `.semgrep/` + `p/golang` + `p/gosec`; runs in `semgrep/semgrep` container (SHA-pinned); push/PR + weekly Mon 06:00 UTC; SARIF → Security tab
 - `scorecard.yml` — weekly (Mon 06:00 UTC): OpenSSF Scorecard → SARIF upload to Security tab
 - `tool-versions.yml` — weekly (Mon 06:00 UTC): checks pinned Go tool versions (govulncheck, go-licenses, golangci-lint, goreleaser) via `scripts/check-tool-versions.sh`; creates/updates a GitHub issue when updates are available
 - `latest-deps.yml` — weekly: upgrade direct deps only (`go get <pkg>@latest` + `go mod tidy`). **Never `go get -u`** — upgrades all transitive deps, breaking direct-only intent.

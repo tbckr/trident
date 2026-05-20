@@ -1,0 +1,12 @@
+coverage.out
+svc_coverage.out
+dist/
+.build/
+result
+result-*
+vendor/
+
+# Override default semgrep test-file exclusion — we want to lint test files
+# for project-specific rules (e.g. trident-httpmock-activate-scoped).
+!*_test.go
+!**/*_test.go

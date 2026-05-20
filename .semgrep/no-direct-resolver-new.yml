@@ -1,0 +1,19 @@
+rules:
+  - id: trident-no-direct-resolver-new
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Direct `resolver.NewResolver(...)` calls are reserved for
+      `internal/cli/deps.go` and resolver tests. Service/command code must use
+      `d.newResolver()` from the deps factory to ensure consistent SOCKS5
+      leak prevention.
+      See CLAUDE.md "CLI / deps factory methods".
+    metadata:
+      category: convention
+      claude-md-ref: "CLI / deps factory methods"
+      confidence: HIGH
+    paths:
+      exclude:
+        - "/internal/cli/deps.go"
+        - "/internal/resolver/*_test.go"
+    pattern: resolver.NewResolver(...)

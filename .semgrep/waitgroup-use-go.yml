@@ -1,0 +1,20 @@
+rules:
+  - id: trident-waitgroup-use-go
+    languages: [go]
+    severity: WARNING
+    message: >-
+      Project is on Go 1.26 — use `wg.Go(func() { ... })` instead of the manual
+      `wg.Add(1)` + `go func() { defer wg.Done(); ... }()` pattern.
+      `sync.WaitGroup.Go` is available since Go 1.25.
+      See CLAUDE.md "Other > sync.WaitGroup.Go".
+    metadata:
+      category: modernization
+      claude-md-ref: "Other > sync.WaitGroup.Go"
+      confidence: MEDIUM
+    patterns:
+      - pattern: |
+          $WG.Add(1)
+          go func() {
+            defer $WG.Done()
+            ...
+          }()

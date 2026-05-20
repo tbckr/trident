@@ -717,6 +717,7 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 trident follows a defense-in-depth approach to supply chain security:
 
 - **Static analysis** — CodeQL SAST on every push/PR and weekly scans
+- **Pattern-based SAST** — Semgrep with custom project rules + `p/golang` + `p/gosec` on every push/PR and weekly scans
 - **Vulnerability scanning** — govulncheck on every push/PR and daily scheduled scans
 - **OpenSSF Scorecard** — weekly independent assessment of security posture
 - **Release provenance** — GitHub Artifact Attestation (SLSA) for every release artifact

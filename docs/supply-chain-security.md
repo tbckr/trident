@@ -10,7 +10,7 @@ This document describes the supply chain hardening measures in place for trident
 | CI | SHA-pinned actions, least-privilege permissions, sandboxed steps | `ci.yml` |
 | Dependencies | govulncheck (daily + per-PR), Dependabot, license audit | `ci.yml`, `vuln-schedule.yml` |
 | Release | Reproducible builds, SBOM, VEX, GitHub Artifact Attestation | `release.yml` |
-| Monitoring | CodeQL SAST, OpenSSF Scorecard, secret scanning, push protection, tool version checks | `codeql.yml`, `scorecard.yml`, `tool-versions.yml`, repo settings |
+| Monitoring | CodeQL SAST, Semgrep pattern SAST, OpenSSF Scorecard, secret scanning, push protection, tool version checks | `codeql.yml`, `semgrep.yml`, `scorecard.yml`, `tool-versions.yml`, repo settings |
 
 ## Repository Settings
 
@@ -62,6 +62,7 @@ All workflows use **least-privilege `permissions`** blocks:
 - `vuln-schedule.yml`: `contents: read` only.
 - `scorecard.yml`: `read-all` at workflow level; `security-events: write` + `id-token: write` at job level.
 - `codeql.yml`: `contents: read` at workflow level; `security-events: write` at job level.
+- `semgrep.yml`: `contents: read` at workflow level; `security-events: write` at job level.
 - `tool-versions.yml`: `contents: read` at workflow level; `issues: write` at job level.
 
 ### Action Restrictions
@@ -180,6 +181,14 @@ The script parses versions directly from workflow files — there is no separate
 ## CodeQL SAST Analysis
 
 [CodeQL](https://codeql.github.com/) runs on every push and pull request to `main`, plus weekly (Monday 06:00 UTC) via `codeql.yml`. It performs semantic code analysis for Go, detecting security vulnerabilities such as injection flaws, path traversals, and unsafe operations. Results are uploaded to GitHub's Security tab as SARIF reports.
+
+## Semgrep Pattern-based Analysis
+
+[Semgrep](https://semgrep.dev/) runs on every push and pull request to `main`, plus weekly (Monday 06:00 UTC) via `semgrep.yml`. It enforces project-specific patterns from `.semgrep/` (e.g. `req.Response` nil-guards, single-sentinel `fmt.Errorf`, deps-factory method usage) alongside the community rule packs `p/golang` and `p/gosec`. Findings are uploaded to GitHub's Security tab as SARIF.
+
+The Semgrep workflow runs in the official `semgrep/semgrep` container, pinned by full image digest (`@sha256:...`) for reproducibility. The same Semgrep version is provided to local development through the Nix dev shell (`flake.nix`), so `just semgrep` produces the same results as CI.
+
+Semgrep complements CodeQL: CodeQL covers broad semantic security analysis, while Semgrep encodes project-specific conventions that CodeQL cannot infer.
 
 ## OpenSSF Scorecard
 

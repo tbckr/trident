@@ -23,6 +23,10 @@ coverage:
 lint:
     golangci-lint run
 
+# Run semgrep with custom rules + registry packs (requires nix develop or semgrep on PATH)
+semgrep:
+    semgrep scan --config=.semgrep --config=p/golang --config=p/gosec --error --metrics=off
+
 # Tidy and verify modules
 tidy:
     go mod tidy
@@ -54,7 +58,7 @@ flake-check:
     nix flake check
 
 # Run all CI checks locally
-ci: tidy-check build test coverage lint vuln license-check flake-check
+ci: tidy-check build test coverage lint semgrep vuln license-check flake-check
 
 alias r := release
 
