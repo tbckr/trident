@@ -58,6 +58,7 @@
             golangci-lint
             goreleaser
             semgrep
+            shellcheck
           ];
         };
       }

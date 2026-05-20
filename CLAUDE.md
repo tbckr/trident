@@ -236,10 +236,10 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 - `codeql.yml` — CodeQL SAST analysis for Go (push/PR to main + weekly Mon 06:00 UTC)
 - `semgrep.yml` — Pattern-based SAST: custom rules in `.semgrep/` + `p/golang` + `p/gosec`; runs in `semgrep/semgrep` container (SHA-pinned); push/PR + weekly Mon 06:00 UTC; SARIF → Security tab
 - `scorecard.yml` — weekly (Mon 06:00 UTC): OpenSSF Scorecard → SARIF upload to Security tab
-- `tool-versions.yml` — weekly (Mon 06:00 UTC): checks pinned Go tool versions (govulncheck, go-licenses, golangci-lint, goreleaser) via `scripts/check-tool-versions.sh`; creates/updates a GitHub issue when updates are available
+- `tool-versions.yml` — weekly (Mon 06:00 UTC): checks pinned Go tool versions (govulncheck, go-licenses, golangci-lint, goreleaser) and pinned Docker container images (semgrep, via Docker Hub) via `scripts/check-tool-versions.sh`; creates/updates a GitHub issue when updates are available. Docker entries trigger an issue on either tag OR manifest-digest change (upstream rebuilds → digest-only update).
 - `latest-deps.yml` — weekly: upgrade direct deps only (`go get <pkg>@latest` + `go mod tidy`). **Never `go get -u`** — upgrades all transitive deps, breaking direct-only intent.
 
-Scripts: `scripts/harden-repo.sh` (idempotent repo hardening via `gh` API), `scripts/check-tool-versions.sh` (Go tool version checker), `scripts/verify-release.sh` (release verification).
+Scripts: `scripts/harden-repo.sh` (idempotent repo hardening via `gh` API), `scripts/check-tool-versions.sh` (Go tool + Docker image version checker), `scripts/verify-release.sh` (release verification).
 
 All `uses:` lines are SHA-pinned. Dependabot covers github-actions only (not gomod — `govulncheck` handles reachability, `latest-deps.yml` handles freshness).
 

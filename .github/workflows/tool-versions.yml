@@ -40,9 +40,9 @@ jobs:
           LABEL="tool-update"
           TITLE="chore(deps): Go tool version updates available"
 
-          BODY="## Go Tool Version Updates
+          BODY="## Tool Version Updates
 
-          The following pinned Go tools have newer versions available:
+          The following pinned tools / images have newer versions available:
 
           | Tool | Current | Latest | Files |
           |------|---------|--------|-------|"
@@ -52,8 +52,17 @@ jobs:
             current=$(echo "$line" | jq -r '.current')
             latest=$(echo "$line" | jq -r '.latest')
             files=$(echo "$line" | jq -r '.files')
+            current_digest=$(echo "$line" | jq -r '.current_digest // ""')
+            latest_digest=$(echo "$line" | jq -r '.latest_digest // ""')
+            if [ -n "$latest_digest" ]; then
+              current_disp="\`${current}\` (\`${current_digest:0:19}…\`)"
+              latest_disp="\`${latest}\` (\`${latest_digest:0:19}…\`)"
+            else
+              current_disp="\`${current}\`"
+              latest_disp="\`${latest}\`"
+            fi
             BODY="${BODY}
-          | ${name} | \`${current}\` | \`${latest}\` | \`${files}\` |"
+          | ${name} | ${current_disp} | ${latest_disp} | \`${files}\` |"
           done < <(jq -c '.[]' "$REPORT_FILE")
 
           BODY="${BODY}

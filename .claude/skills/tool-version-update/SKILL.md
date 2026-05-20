@@ -1,6 +1,6 @@
 ---
 name: tool-version-update
-description: Use when the user references a `tool-update` GitHub issue from the trident `tool-versions.yml` workflow (e.g. "update tools from #16", "process tool-update issue 23", "do the pinned tool update", "aktualisiere die Tools aus Issue #16"). Updates Go tool versions (govulncheck, go-licenses, golangci-lint, goreleaser) pinned in .github/workflows/ and .goreleaser.yaml, verifies repo-wide consistency, and emits per-tool commit commands.
+description: Use when the user references a `tool-update` GitHub issue from the trident `tool-versions.yml` workflow (e.g. "update tools from #16", "process tool-update issue 23", "do the pinned tool update", "aktualisiere die Tools aus Issue #16"). Updates Go tool versions (govulncheck, go-licenses, golangci-lint, goreleaser) and Docker container image pins (semgrep) in .github/workflows/ and .goreleaser.yaml, verifies repo-wide consistency, and emits per-tool commit commands.
 ---
 
 # tool-version-update
@@ -56,8 +56,11 @@ REPORT_FILE=/tmp/trident-tool-updates.json ./scripts/check-tool-versions.sh || t
 Parse the JSON report:
 ```bash
 jq -c '.[]' /tmp/trident-tool-updates.json
-# Each entry: {"name":"goreleaser","current":"v2.15.1","latest":"v2.15.2","source":"goreleaser/goreleaser","files":"..."}
+# Go tool entry: {"name":"goreleaser","current":"v2.15.1","latest":"v2.15.2","source":"goreleaser/goreleaser","files":"..."}
+# Docker entry:  {"name":"semgrep","current":"1.161.0","latest":"1.162.0","source":"semgrep/semgrep","files":"...","current_digest":"sha256:...","latest_digest":"sha256:..."}
 ```
+
+Docker entries are distinguishable by the presence of `current_digest` / `latest_digest` fields.
 
 **If the script exits 0** (no updates): The issue is stale. Stop and tell the user:
 > "All tools are already up to date. Close issue #N manually."
@@ -97,6 +100,23 @@ For each file found: replace only `version: "v<current>"` → `version: "v<lates
 - **NEVER change the `# v7.0.0` comment** on the `uses:` line — that refers to the action version, not the tool version.
 - Only touch the `version:` input line inside the `with:` block.
 
+#### Pattern C — Docker image pins: `semgrep`
+
+JSON entry includes the extra fields `current_digest` and `latest_digest`. **Both already include the `sha256:` prefix** (matches Docker Hub API output). The pin in the workflow YAML looks like:
+
+```yaml
+image: <source>:<current>@<current_digest>
+# resolves to e.g. semgrep/semgrep:1.161.0@sha256:326e5f41cc...
+```
+
+For each file listed in `files`: replace the **full** pinned string `<source>:<current>@<current_digest>` with `<source>:<latest>@<latest_digest>` in a **single Edit call** so tag and digest move together.
+
+**CRITICAL safety rules for Pattern C:**
+- **Never bump the tag without also bumping the digest** — leaves a tag/digest mismatch that the runtime rejects.
+- **Never replace just the digest in isolation** — it must always reference the resolved `latest` tag from the report.
+- The pin lives under a `container:` block in workflow YAML; never confuse it with `uses:` action references.
+- `.semgrepignore` and `.semgrep/` are not workflow files; never touch them.
+
 ### Step 4 — Repo-wide safety net
 
 After all edits, grep for any remaining occurrences of the old version strings:
@@ -107,6 +127,11 @@ grep -rn "v<old>" .github/workflows/ .goreleaser.yaml
 ```
 
 Ignore any hits inside `justfile` where the tool appears with `@latest` — those are intentionally unpinned (lines 41/45 in justfile).
+
+For docker entries, also check that the old digest is gone (use the first 12 hex chars **after** the `sha256:` prefix):
+```bash
+grep -rn "<first-12-hex-of-old-digest>" .github/workflows/
+```
 
 Any other remaining hits: **warn the user** but do not abort — let them decide.
 
@@ -141,6 +166,10 @@ git commit -m "chore(deps): bump goreleaser from v2.15.1 to v2.15.2" -m "Closes 
 # govulncheck: v1.1.4 → v1.1.5  (if multiple tools, only last commit needs Closes)
 git add .github/workflows/ci.yml .github/workflows/vuln-schedule.yml .goreleaser.yaml
 git commit -m "chore(deps): bump govulncheck from v1.1.4 to v1.1.5"
+
+# semgrep (docker image): 1.161.0 → 1.162.0
+git add .github/workflows/semgrep.yml
+git commit -m "chore(deps): bump semgrep docker image from 1.161.0 to 1.162.0" -m "Closes #<issue-id>"
 ```
 
 List exactly the files that were changed for each tool. No more, no less.
@@ -165,6 +194,7 @@ List exactly the files that were changed for each tool. No more, no less.
 | `go-licenses` | go run | `github.com/google/go-licenses/v2` | `ci.yml` |
 | `golangci-lint` | action input | `golangci/golangci-lint` | `ci.yml` |
 | `goreleaser` | action input | `goreleaser/goreleaser` | `release.yml`, `goreleaser-lint.yml` |
+| `semgrep` | docker image | `semgrep/semgrep` (Docker Hub) | `semgrep.yml` |
 
 ## Common Mistakes
 
@@ -175,4 +205,4 @@ List exactly the files that were changed for each tool. No more, no less.
 | Only updating `release.yml` for goreleaser | `goreleaser-lint.yml` left on old version | Always run `grep -rl` — don't rely on script's file list alone |
 | Parsing issue body instead of running script | Acts on stale data | Always run script first, use JSON report |
 | Skipping Step 5 verification | Ship without confirming the fix | Never skip — the script is fast |
-| Two `%w` in one `fmt.Errorf` | (Go-specific, not applicable here) | N/A |
+| Bumping docker tag but not the digest | Container runtime aborts on tag/digest mismatch | Always replace tag and digest in one Edit (Pattern C) |
