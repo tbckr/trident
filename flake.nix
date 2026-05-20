@@ -57,6 +57,7 @@
             go_1_26
             golangci-lint
             goreleaser
+            nodejs_24
             semgrep
             shellcheck
           ];
