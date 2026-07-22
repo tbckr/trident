@@ -3,7 +3,6 @@
 [![CI](https://github.com/tbckr/trident/actions/workflows/ci.yml/badge.svg)](https://github.com/tbckr/trident/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/tbckr/trident)](https://github.com/tbckr/trident/releases)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/tbckr/trident)](https://github.com/tbckr/trident/blob/main/go.mod)
-[![Go Report Card](https://goreportcard.com/badge/github.com/tbckr/trident)](https://goreportcard.com/report/github.com/tbckr/trident)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/tbckr/trident/badge)](https://securityscorecards.dev/viewer/?uri=github.com/tbckr/trident)
 [![CodeQL](https://github.com/tbckr/trident/actions/workflows/codeql.yml/badge.svg)](https://github.com/tbckr/trident/actions/workflows/codeql.yml)
 
