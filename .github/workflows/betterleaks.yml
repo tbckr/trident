@@ -30,7 +30,7 @@ jobs:
       contents: read
       security-events: write
     container:
-      image: ghcr.io/betterleaks/betterleaks:v1.6.1@sha256:7a43a20d40be02a9c13801a6485f7bea9d9cdba512263440eae972103c5291f1
+      image: ghcr.io/betterleaks/betterleaks:v1.7.0@sha256:bca7945ad3a69a5df4fc5960a575e9b03238f04acd8ac28c5bd0d588cbe0b33f
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
