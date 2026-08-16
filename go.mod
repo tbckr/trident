@@ -1,6 +1,6 @@
 module github.com/tbckr/trident
 
-go 1.26.5
+go 1.26.6
 
 require (
 	codeberg.org/miekg/dns v0.6.60
