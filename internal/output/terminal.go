@@ -37,7 +37,8 @@ func NewGroupedWrappingTable(w io.Writer, minWidth, overhead int) *tablewriter.T
 		})),
 		tablewriter.WithConfig(tablewriter.Config{
 			Row: tw.CellConfig{
-				Formatting:   tw.CellFormatting{MergeMode: tw.MergeHierarchical, AutoWrap: tw.WrapNormal},
+				Formatting:   tw.CellFormatting{AutoWrap: tw.WrapNormal},
+				Merging:      tw.CellMerging{Mode: tw.MergeHierarchical},
 				ColMaxWidths: tw.CellWidth{Global: maxColWidth},
 			},
 		}),
@@ -63,7 +64,8 @@ func NewGroupedWrappingTablePerCol(w io.Writer, colMaxWidths map[int]int) *table
 		})),
 		tablewriter.WithConfig(tablewriter.Config{
 			Row: tw.CellConfig{
-				Formatting:   tw.CellFormatting{MergeMode: tw.MergeHierarchical, AutoWrap: tw.WrapNormal},
+				Formatting:   tw.CellFormatting{AutoWrap: tw.WrapNormal},
+				Merging:      tw.CellMerging{Mode: tw.MergeHierarchical},
 				ColMaxWidths: tw.CellWidth{PerColumn: perCol},
 			},
 		}),
