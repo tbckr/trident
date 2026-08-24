@@ -1,0 +1,21 @@
+# betterleaks configuration for trident.
+#
+# The default ruleset is kept in full; this file only adds allowlists for
+# findings that are provably not secrets. Each entry is scoped to a single
+# rule and a single path, so a real leak anywhere else still fails the scan.
+#
+# `betterleaks git .` scans the whole commit history, so allowlists are also
+# needed for files that no longer exist in the working tree.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "DefangURL fuzz seed corpus: fake URLs, incl. a userinfo-style credential URI"
+targetRules = ["generic-credential-uri"]
+paths = ['''(?:^|/)internal/output/defang_fuzz_test\.go$''']
+
+[[allowlists]]
+description = "Deleted Claude skill docs: linter example with a dummy password literal (history only)"
+targetRules = ["generic-password"]
+paths = ['''(?:^|/)\.claude/skills/[^/]+/references/linter-guide\.md$''']
