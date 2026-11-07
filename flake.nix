@@ -60,7 +60,7 @@
             goreleaser
             just
             nodejs_24
-            semgrep
+            # semgrep
             shellcheck
             svu
           ];
