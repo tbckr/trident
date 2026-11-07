@@ -62,6 +62,7 @@
             nodejs_24
             semgrep
             shellcheck
+            svu
           ];
 
           shellHook = ''
