@@ -213,7 +213,7 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 - **HTTPS only** — no `InsecureSkipVerify`
 - **Output sanitization** — strip ANSI escape sequences from external data before printing
 - **`internal/version` BuildInfo fallback** — `init()` reads `debug.ReadBuildInfo()` to populate Version/Commit/Date when ldflags aren't set (e.g. `go install`); ldflags always win. Logic lives in `applyBuildInfo(*debug.BuildInfo)` (exported for unit tests). Strips `v` prefix; skips `""` and `"(devel)"` for Version; truncates `vcs.revision` to 7 chars.
-- **`.githooks/pre-commit`** — `nix develop` shellHook automatically sets `core.hooksPath=.githooks` so betterleaks scans staged changes before every commit. Hook is skip-when-missing (logs a warning and exits 0 if `betterleaks` not on PATH); CI workflow `betterleaks.yml` is the authoritative backstop.
+- **`.githooks/pre-commit`** — `nix develop` shellHook automatically sets `core.hooksPath=.githooks` so betterleaks scans staged changes before every commit. Hook is skip-when-missing (logs a warning and exits 0 if `betterleaks` not on PATH); CI workflow `betterleaks.yml` is the authoritative backstop. **betterleaks ≥ 1.10 does not auto-load `.betterleaks.toml`** — every invocation (workflow, `just leaks`, hook) passes `--config=.betterleaks.toml`; without it the allowlists are ignored and the scan fails on the fuzz seed corpus.
 
 ## CI/CD
 

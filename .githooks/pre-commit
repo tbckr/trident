@@ -10,4 +10,8 @@ if ! command -v betterleaks >/dev/null 2>&1; then
   exit 0
 fi
 
-exec betterleaks git --pre-commit --redact --staged --no-banner
+# betterleaks >= 1.10 no longer loads .betterleaks.toml by itself. Pass it
+# unconditionally: a missing or renamed file must fail the hook rather than fall
+# back to the default rules. (Older trees run their own copy of this hook, since
+# core.hooksPath is relative to the worktree.)
+exec betterleaks git --pre-commit --config=.betterleaks.toml --redact --staged --no-banner

@@ -29,7 +29,7 @@ semgrep:
 
 # Run betterleaks (secret scanning) against the working tree (requires nix develop or betterleaks on PATH)
 leaks:
-    betterleaks git . --redact --no-banner
+    betterleaks git . --config=.betterleaks.toml --redact --no-banner
 
 # Tidy and verify modules
 tidy:

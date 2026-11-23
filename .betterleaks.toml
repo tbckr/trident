@@ -6,6 +6,10 @@
 #
 # `betterleaks git .` scans the whole commit history, so allowlists are also
 # needed for files that no longer exist in the working tree.
+#
+# betterleaks >= 1.10 no longer loads this file from the scanned repository by
+# itself, so betterleaks.yml, `just leaks` and .githooks/pre-commit pass it
+# with --config. Keep the flag when renaming or moving the file.
 
 [extend]
 useDefault = true
