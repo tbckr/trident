@@ -41,7 +41,7 @@ func (r *Result) WriteText(w io.Writer) error {
 
 // WriteTable renders the result as an ASCII table for a single input.
 //
-// Trident-specific table API notes (tablewriter v1.1.3):
+// Trident-specific table API notes (tablewriter v1.1.5):
 //   - table.Header([]string{...}) is VOID — never assign or err-check it.
 //   - table.Bulk(rows) and table.Render() return error — always propagate.
 //   - Header() outputs ALL CAPS; test assertions must use "TYPE", not "Type".

@@ -20,7 +20,7 @@
           pname = "trident";
           inherit version;
           src = self;
-          vendorHash = "sha256-ia1JcvaECgy+AgGoVgZQ4nlhU7sZnBUxPiyj7/VbhbE=";
+          vendorHash = "sha256-zio/e5lrXQJ0vK7OLlCYVFGToOasaix3mGQStzS9PW8=";
 
           ldflags = [
             "-s" "-w"

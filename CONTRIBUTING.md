@@ -186,6 +186,8 @@ just ci
 
 **Only direct dependencies are upgraded.** A transitive dependency changes only where an upgraded direct dependency requires it; keeping its own dependencies current is that dependency's job. `just upgrade` ([`scripts/deps.sh`](scripts/deps.sh)) runs `go get <module>@latest` for each direct module and `go mod tidy`. Never use `go get -u`: it raises transitive versions on its own. If a vulnerability needs a transitive module raised before its direct dependency ships a fix, raise only that module, to the fixed version and not to the latest.
 
+**Held modules.** A direct module that has to stay at an older version carries a `// Revisit ...` note on its `require` line in `go.mod` saying why and until when, so `just outdated` lists it under Reminders. `just upgrade` does not know about holds and raises it like any other module, so set it back with `go get <module>@<version>` before committing. If the newer release needs a later Go, `go get` may also switch toolchains and raise the go directive: check that the `go` line in `go.mod` did not move.
+
 **Major versions** of direct modules are a manual step that `just outdated` does not detect: a new major is a new module path, and `go list -m -u` only looks within the current one. Check them by hand when upgrading, for example with `go list -m -f '{{.Version}}' <module>/v<N+1>@latest`.
 
 **Manual steps.** `just outdated` lists them for review on every upgrade; it never fails:

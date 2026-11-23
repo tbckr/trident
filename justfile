@@ -99,7 +99,7 @@ outdated:
 # Upgrade direct dependencies; transitive ones move only where required (mirrors latest-deps.yml)
 upgrade:
     ./scripts/deps.sh upgrade
-    @echo "Next: update vendorHash in flake.nix, git add go.mod go.sum flake.nix, then just ci."
+    @echo "Next: set held modules back (Revisit notes in go.mod), update vendorHash in flake.nix, git add go.mod go.sum flake.nix, then just ci."
 
 # Apply repository hardening settings via GitHub API
 harden-repo *args:

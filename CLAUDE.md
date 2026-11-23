@@ -39,7 +39,7 @@ go mod tidy
 - `just flake-build` — build the Nix package locally
 - `just goreleaser-check` — validate `.goreleaser.yaml` config
 - `just verify-release <archive>` — verify release artifact attestation
-- `just upgrade` — upgrade direct dependencies (`scripts/deps.sh upgrade`); then update `vendorHash`, `git add go.mod go.sum flake.nix` (tidy-check diffs against the index) and run `just ci`
+- `just upgrade` — upgrade direct dependencies (`scripts/deps.sh upgrade`, every direct module `@latest` — it ignores holds: set modules with a `// Revisit` note on their go.mod require line back with `go get <mod>@<ver>`, and check the go directive did not move); then update `vendorHash`, `git add go.mod go.sum flake.nix` (tidy-check diffs against the index) and run `just ci`
 - `just harden-repo` — apply repository hardening settings via `gh` API
 - `just outdated` — list what `just upgrade` leaves out, for review (never fails): newer releases/deprecations of direct modules (not new majors — `go list -m -u` stays within a module path), Go release support, hand-pinned tools/images, flake input age, `Revisit`/`Drop this once` notes
 
@@ -106,7 +106,7 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 **New commands must use `deps` factory methods** — use `d.newHTTPClient()`, `d.newResolver()`, `d.loadPatterns()`, and read `d.papLevel` directly. Factories + `papLevel` live in `internal/cli/deps.go`. (Semgrep enforces the `httpclient.New` / `resolver.NewResolver` / `pap.MustParse(d.cfg.PAPLimit)` cases — `loadPatterns` is not yet codified.)
 
 ### HTTP / req
-**`req.Client` retry API** — client-level: `SetCommonRetryCount`, `AddCommonRetryCondition`, `SetCommonRetryInterval`. Bare `SetRetryCount`/`AddRetryCondition` are request-level only (`*req.Request`), not on `*req.Client`.
+**`req.Client` retry API** — client-level: `SetCommonRetryCount`, `AddCommonRetryCondition`, `SetCommonRetryInterval`. Bare `SetRetryCount`/`AddRetryCondition` are request-level only (`*req.Request`), not on `*req.Client`. Since req v3.60.0 an error returned by an `OnBeforeRequest` hook also goes through the retry conditions — trident's transport-error condition (`internal/httpclient/ratelimit.go`) would retry it; keep hooks returning only `ctx.Err()` or narrow the condition before adding a validating hook.
 
 **httpmock patterns** — regex match: `"=~^"+baseURL`; transport failure (nil `resp.Response`): `httpmock.NewErrorResponder(err)` (not a 500 response).
 
@@ -118,7 +118,7 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 **`codeberg.org/miekg/dns`** — moved from `github.com/miekg/dns` to Codeberg; NOT a v2 module (no `/v2` suffix in import path). RR struct literals in tests need `codeberg.org/miekg/dns/rdata` import. `rdata.TXT{Txt: []string{...}}` (slice, not string). Set `m.Response = true` in test response messages. In `dns.TXT{}` struct literals, the embedded rdata field is `TXT:` (uppercase) not `Txt:`.
 
 ### Tables / output
-**tablewriter v1.1.3 API** — `table.Header([]string{...})` is **void** (no return); `table.Bulk(rows)` and `table.Render()` return `error` — always propagate. `Header()` renders ALL CAPS — test assertions must use `"DOMAIN"`, not `"Domain"`.
+**tablewriter v1.1.5 API** — `table.Header([]string{...})` is **void** (no return); `table.Bulk(rows)` and `table.Render()` return `error` — always propagate. `Header()` renders ALL CAPS — test assertions must use `"DOMAIN"`, not `"Domain"`. Since v1.1.4 a `\t` in a cell is expanded to `twwidth.TabWidth()` spaces, which depends on env (`TABWIDTH`, `TS`, `VIM_TABSTOP`), `.editorconfig` and the cwd — never golden-test cells containing tabs. Bump `olekukonko/ll` only together with tablewriter (ll ≥ v0.1.5 logs to stdout by default; only tablewriter ≥ v1.1.5 disables it).
 
 **`output.NewGroupedWrappingTable`** — merging is **consecutive-only**; sort rows before `Bulk` when parallel queries may interleave records for the same host. **`NewGroupedWrappingTablePerCol`** — use when host column has variable-length content; `Global` cap applies to all columns equally, causing overflow if host is wide.
 
@@ -197,7 +197,7 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 
 ## Tech Stack
 
-- **CLI:** cobra v1.10.2 | **Config:** viper | **HTTP:** imroc/req v3 | **Tables:** olekukonko/tablewriter v1.1.3
+- **CLI:** cobra v1.10.2 | **Config:** viper | **HTTP:** imroc/req v3 | **Tables:** olekukonko/tablewriter v1.1.5
 - **DNS wire:** `codeberg.org/miekg/dns` (NOT github.com/miekg/dns; no `/v2` suffix) | **Tests:** testify + httpmock
 - **Lint:** golangci-lint v2 (strict; CI fails on any error)
 

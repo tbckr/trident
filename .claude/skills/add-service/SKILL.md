@@ -150,7 +150,7 @@ Use `feat:` prefix (new feature → minor version bump on svu). For follow-up bu
 |---------|------------------------|---------------------|
 | Two `%w` in one `fmt.Errorf` (multi-error) | Single sentinel + `%v` for inner err | "Other → fmt.Errorf single sentinel" |
 | `resp.StatusCode` panic on transport error | `if resp.Response == nil` guard | "HTTP / req → req.Response nil guard" |
-| `table.Header(...)` assigned to var | Bare call, no assignment | "Tables / output → tablewriter v1.1.3 API" |
+| `table.Header(...)` assigned to var | Bare call, no assignment | "Tables / output → tablewriter v1.1.5 API" |
 | `runServiceCmd` skipped, custom Run inline | Comment block at top of service.go calling out the pattern | "Service Implementations" |
 | Forgot `allServices()` entry | Step 3 of this checklist | "Key Gotchas → CLI" |
 | Sort in `Run`, not `WriteTable` | TODO comment placed in `result.go` only | "Tables → display-only sort" |
