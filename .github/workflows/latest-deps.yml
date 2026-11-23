@@ -1,16 +1,56 @@
-name: Test Against Latest Dependencies
+# Early warning without updating (CONTRIBUTING.md: Updating dependencies):
+# once a week, CI runs against the newest versions of the direct
+# dependencies, upgraded exactly like `just upgrade` does, and checks that the
+# Go release in go.mod still gets security fixes. Nothing is committed; a
+# failure means the next upgrade needs work. A list for review goes into the
+# run's summary: newer releases and deprecations of the direct modules, the
+# Go release, the tools and container images pinned by hand, the flake inputs
+# and the reminders in code and configuration. That list never fails.
+#
+# Fresh dependency code runs only inside a gVisor sandbox
+# (geomys/sandboxed-step) without access to the job's token or caches.
+#
+# Actions are pinned to full commit SHAs with a "# vX.Y.Z" comment;
+# Dependabot (.github/dependabot.yml) bumps them monthly.
+name: Latest dependencies
 
 on:
   schedule:
-    - cron: '0 6 * * 1'
+    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  latest:
+  go:
+    name: Go (stable toolchain, latest direct dependencies)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The newest Go, not the one in go.mod: where a new release of a direct
+      # dependency requires a later Go, `go get` raises the go directive, and
+      # the diff below shows it, instead of the upgrade failing every week.
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5  # v7.1.0
+        with:
+          go-version: stable
+          cache: false
+
+      - uses: geomys/sandboxed-step@a6bfc174e532cea4f378e3427bcde8b714c2e810  # v1.2.2
+        with:
+          run: |
+            scripts/deps.sh upgrade
+            git --no-pager diff -- go.mod
+            go test ./...
+
+  go-support:
+    name: Go release in go.mod is supported
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -19,29 +59,35 @@ jobs:
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5  # v7.1.0
         with:
           go-version-file: go.mod
-          check-latest: true
           cache: false
 
-      - uses: geomys/sandboxed-step@a6bfc174e532cea4f378e3427bcde8b714c2e810  # v1.2.2
+      - run: scripts/deps.sh go-support
+
+  # Runs no dependency code, only reads registries, so it needs no sandbox.
+  outdated:
+    name: Versions to review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          run: |
-            DIRECT=$(grep -E '^\s+\S+ v[0-9]' go.mod | grep -v '// indirect' | awk '{print $1}')
-            UPGRADES=$(go get $(echo "$DIRECT" | awk '{print $1 "@latest"}') 2>&1 \
-              | grep -E "^go: (upgraded|added)" \
-              | while IFS= read -r line; do
-                  pkg=$(echo "$line" | awk '{print $3}')
-                  if echo "$DIRECT" | grep -qxF "$pkg"; then echo "$line"; fi
-                done || true)
-            go mod tidy
-            {
-              echo "### Direct Dependency Updates"
-              echo ""
-              if [ -z "$UPGRADES" ]; then
-                echo "All direct dependencies are already at their latest versions."
-              else
-                echo "\`\`\`"
-                echo "$UPGRADES"
-                echo "\`\`\`"
-              fi
-            }
-            go test ./...
+          persist-credentials: false
+
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5  # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Versions to review
+        env:
+          # Read-only; raises the GitHub API rate limit of the release lookups.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          report="$RUNNER_TEMP/outdated.txt"
+          scripts/deps.sh outdated > "$report"
+          cat "$report"
+          {
+            echo '```'
+            cat "$report"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

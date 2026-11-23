@@ -1,10 +1,19 @@
+# Dependabot only keeps the SHA-pinned GitHub Actions current. Go modules are
+# upgraded by hand with `just upgrade`, and the tools and container images
+# pinned in the workflows and .goreleaser.yaml are bumped by hand from the
+# list of `just outdated` (CONTRIBUTING.md: Updating dependencies).
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    # Let new releases settle before they run in CI.
+    cooldown:
+      default-days: 7
     groups:
-      codeql-action:
+      actions:
         patterns:
-          - "github/codeql-action*"
+          - "*"
+    commit-message:
+      prefix: chore(deps)

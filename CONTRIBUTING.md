@@ -77,9 +77,9 @@ just flake-update       # Update Nix flake inputs
 just release            # Tag next version with svu and push
 just goreleaser-check   # Validate .goreleaser.yaml config
 just verify-release v0.10.0 trident_Linux_x86_64.tar.gz  # Verify release artifact
-just upgrade-deps       # Upgrade direct dependencies and run tests
+just outdated           # List newer dependencies, tools and images to review
+just upgrade            # Upgrade direct dependencies (see Updating Dependencies)
 just harden-repo        # Apply repository hardening settings
-just check-tool-versions  # Check pinned tool versions for updates
 ```
 
 Or use the underlying Go commands directly:
@@ -168,15 +168,50 @@ Examples:
 |----------|----------|-------------|
 | Daily 06:00 UTC | `vuln-schedule.yml` | govulncheck for newly disclosed CVEs |
 | Weekly Mon 06:00 UTC | `scorecard.yml` | OpenSSF Scorecard assessment |
-| Weekly Mon 06:00 UTC | `latest-deps.yml` | Direct dependency freshness check |
-| Weekly Mon 06:00 UTC | `tool-versions.yml` | Pinned Go tool version updates |
+| Weekly Mon 06:00 UTC | `latest-deps.yml` | Tests against the latest direct dependencies, checks Go release support, lists versions to review |
 | Weekly Mon 06:00 UTC | `codeql.yml` | CodeQL SAST analysis for Go |
+
+## Updating Dependencies
+
+There is no update bot for Go modules or for the tools pinned in the workflows. They are upgraded on the project's own schedule:
+
+```bash
+just outdated                    # what has a newer release: direct modules, Go, pinned tools and images, flake inputs
+just upgrade                     # upgrade the direct Go modules
+git add go.mod go.sum flake.nix  # after updating vendorHash; tidy-check compares against the index
+just ci
+```
+
+`just upgrade` changes `go.sum`, so update `vendorHash` in `flake.nix` as well (see `CLAUDE.md`, Nix Flake). Commit the result as a single `chore(deps):` commit, or `fix(deps):` if it fixes a vulnerability that govulncheck reports for trident, so that the next release ships it.
+
+**Only direct dependencies are upgraded.** A transitive dependency changes only where an upgraded direct dependency requires it; keeping its own dependencies current is that dependency's job. `just upgrade` ([`scripts/deps.sh`](scripts/deps.sh)) runs `go get <module>@latest` for each direct module and `go mod tidy`. Never use `go get -u`: it raises transitive versions on its own. If a vulnerability needs a transitive module raised before its direct dependency ships a fix, raise only that module, to the fixed version and not to the latest.
+
+**Major versions** of direct modules are a manual step that `just outdated` does not detect: a new major is a new module path, and `go list -m -u` only looks within the current one. Check them by hand when upgrading, for example with `go list -m -f '{{.Version}}' <module>/v<N+1>@latest`.
+
+**Manual steps.** `just outdated` lists them for review on every upgrade; it never fails:
+
+- The Go release in `go.mod`: only the two newest Go releases get security fixes, and `latest-deps.yml` fails once ours drops out. `go get` also raises it where a new release of a direct dependency requires a later Go, which `just upgrade` then needs to run with. Raise `buildGo1XXModule` and `go_1_XX` in `flake.nix` with it.
+- golangci-lint (`GOLANGCI_LINT_VERSION` in `ci.yml`). Keep it at the version of the dev shell, which takes golangci-lint from nixpkgs, or CI and `just lint` lint with different rules.
+- GoReleaser (`GORELEASER_VERSION` in `release.yml` and `goreleaser-lint.yml`), an exact version because it runs in the job that publishes and attests.
+- govulncheck and go-licenses (`go run <module>@vX.Y.Z` in `ci.yml`, `vuln-schedule.yml` and `.goreleaser.yaml`).
+- The semgrep and betterleaks container images (`semgrep.yml`, `betterleaks.yml`), pinned by tag and digest. Bump both together to the pin that `just outdated` prints. A tag reported as rebuilt kept its version but now has another digest upstream.
+- The flake inputs (`just flake-update`), shown with the age of their lock.
+
+Every pin of a tool carries the same version; `just outdated` reports pins that disagree. When bumping a tool, change only its version, never the SHA of a `uses:` line or its `# vX.Y.Z` comment, which Dependabot maintains.
+
+A note in code or configuration that waits for an event (a fix upstream, a new release) says "Revisit" or "Drop this once", so that `just outdated` lists it under Reminders.
+
+**Automation:**
+
+- `latest-deps.yml`, weekly: tests against the newest direct dependencies, upgraded exactly like `just upgrade` does with the newest Go, inside a gVisor sandbox, and checks that the Go release in `go.mod` still gets security fixes. It commits nothing; a failure means the next upgrade needs work. The list of `just outdated` goes into the run's summary.
+- `vuln-schedule.yml`, daily, and `ci.yml`, on every change: govulncheck.
+- Dependabot only bumps the SHA-pinned GitHub Actions, monthly in one pull request, and leaves out releases younger than seven days.
 
 ## Security Practices for Contributors
 
 When modifying CI workflows:
 
-- All `uses:` references must be **SHA-pinned** (not tag-pinned) — Dependabot proposes updates
+- All `uses:` references must be **SHA-pinned** (not tag-pinned) — Dependabot proposes updates monthly
 - Checkout steps must use `persist-credentials: false`
 - Workflow `permissions` must follow least-privilege (start with `contents: read`)
 - Security-sensitive steps (govulncheck, license checks) should use [`geomys/sandboxed-step`](https://github.com/geomys/sandboxed-step)

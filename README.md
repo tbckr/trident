@@ -643,9 +643,9 @@ just goreleaser-check   # Validate .goreleaser.yaml config
 just verify-release trident_Linux_x86_64.tar.gz  # Verify release artifact
 
 # Maintenance
-just upgrade-deps       # Upgrade direct dependencies and run tests
+just outdated           # List newer dependencies, tools and images to review
+just upgrade            # Upgrade direct dependencies
 just harden-repo        # Apply repository hardening settings
-just check-tool-versions  # Check pinned tool versions for updates
 ```
 
 ### Build & Test

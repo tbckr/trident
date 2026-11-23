@@ -11,6 +11,12 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # An exact version, not a range: GoReleaser runs in the job that can
+  # publish and attest. Bumped by hand together with goreleaser-lint.yml
+  # (`just outdated` shows the latest release).
+  GORELEASER_VERSION: v2.18.2
+
 jobs:
   release:
     name: Release
@@ -36,7 +42,7 @@ jobs:
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de  # v7.3.0
         with:
           distribution: goreleaser
-          version: "v2.18.2"
+          version: ${{ env.GORELEASER_VERSION }}
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

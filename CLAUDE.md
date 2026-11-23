@@ -39,9 +39,9 @@ go mod tidy
 - `just flake-build` — build the Nix package locally
 - `just goreleaser-check` — validate `.goreleaser.yaml` config
 - `just verify-release <archive>` — verify release artifact attestation
-- `just upgrade-deps` — upgrade direct dependencies and run tests
+- `just upgrade` — upgrade direct dependencies (`scripts/deps.sh upgrade`); then update `vendorHash`, `git add go.mod go.sum flake.nix` (tidy-check diffs against the index) and run `just ci`
 - `just harden-repo` — apply repository hardening settings via `gh` API
-- `just check-tool-versions` — check pinned Go tool versions for updates
+- `just outdated` — list what `just upgrade` leaves out, for review (never fails): newer releases/deprecations of direct modules (not new majors — `go list -m -u` stays within a module path), Go release support, hand-pinned tools/images, flake input age, `Revisit`/`Drop this once` notes
 
 ## Architecture
 
@@ -227,12 +227,13 @@ File: `~/.config/trident/config.yaml` (0600). Env prefix: `TRIDENT_*`. Flag→vi
 - `semgrep.yml` — Pattern-based SAST: custom rules in `.semgrep/` + `p/golang` + `p/gosec`; runs in `semgrep/semgrep` container (SHA-pinned); push/PR + weekly Mon 06:00 UTC; SARIF → Security tab
 - `betterleaks.yml` — Secret scanning: full git-history scan in SHA-pinned `ghcr.io/betterleaks/betterleaks` container; push/PR + weekly Mon 06:00 UTC; SARIF → Security tab. Backstop for the `.githooks/pre-commit` developer hook.
 - `scorecard.yml` — weekly (Mon 06:00 UTC): OpenSSF Scorecard → SARIF upload to Security tab
-- `tool-versions.yml` — weekly (Mon 06:00 UTC): checks pinned Go tool versions (govulncheck, go-licenses, golangci-lint, goreleaser) and pinned container images (semgrep on Docker Hub, betterleaks on ghcr.io) via `scripts/check-tool-versions.sh`; creates/updates a GitHub issue when updates are available. Docker/ghcr entries trigger an issue on either tag OR manifest-digest change (upstream rebuilds → digest-only update).
-- `latest-deps.yml` — weekly: upgrade direct deps only (`go get <pkg>@latest` + `go mod tidy`). **Never `go get -u`** — upgrades all transitive deps, breaking direct-only intent.
+- `latest-deps.yml` — weekly (Mon 06:00 UTC), commits nothing: `go` job runs `scripts/deps.sh upgrade` (direct deps only: `go get <pkg>@latest` + `go mod tidy`) + `go test` in a sandbox on the **stable** Go toolchain (a dep needing newer Go raises the go directive in the logged diff instead of failing weekly); `go-support` job fails once go.mod's Go release drops out of support; `outdated` job writes `scripts/deps.sh outdated` to the run's step summary (never fails — no issue, no label). **Never `go get -u`** — upgrades all transitive deps, breaking direct-only intent.
 
-Scripts: `scripts/harden-repo.sh` (idempotent repo hardening via `gh` API), `scripts/check-tool-versions.sh` (Go tool + container image version checker; supports `goproxy`/`github`/`docker`/`ghcr` types), `scripts/verify-release.sh` (release verification).
+Scripts: `scripts/harden-repo.sh` (idempotent repo hardening via `gh` API), `scripts/deps.sh` (`outdated` / `upgrade` / `go-support`), `scripts/verify-release.sh` (release verification).
 
-All `uses:` lines are SHA-pinned. Dependabot covers github-actions only (not gomod — `govulncheck` handles reachability, `latest-deps.yml` handles freshness).
+All `uses:` lines are SHA-pinned. Dependabot covers github-actions only — monthly, one grouped PR, 7-day cooldown (not gomod — `govulncheck` handles reachability, `latest-deps.yml` handles freshness).
+
+**Hand-pinned tools** — bumped by hand from `just outdated`, which parses these exact forms (keep them): `GOLANGCI_LINT_VERSION: vX.Y.Z` (ci.yml env; keep at the dev shell's nixpkgs version), `GORELEASER_VERSION: vX.Y.Z` (release.yml + goreleaser-lint.yml env), `govulncheck@vX.Y.Z` / `go-licenses/v2@vX.Y.Z` (ci.yml, vuln-schedule.yml, .goreleaser.yaml), `image: <repo>:<tag>@sha256:<digest>` (semgrep.yml, betterleaks.yml — tag and digest move together; `outdated` prints the new pin, and flags a same-tag digest change as "rebuilt"). All pins of one tool must agree; `outdated` reports disagreement. Never touch the `uses:` SHA or its `# vX.Y.Z` comment when bumping a tool.
 
 ## Nix Flake
 

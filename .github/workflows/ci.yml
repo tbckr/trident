@@ -29,6 +29,16 @@ concurrency:
 permissions:
   contents: read
 
+# Tools pinned by hand and bumped when upgrading dependencies; `just outdated`
+# shows the latest releases (CONTRIBUTING.md: Updating dependencies). The
+# govulncheck and go-licenses versions in the jobs below are pinned the same
+# way, together with vuln-schedule.yml and .goreleaser.yaml.
+env:
+  # Keep it at the version of the dev shell, which takes golangci-lint from
+  # nixpkgs (a nixpkgs bump can move it), or CI and `just lint` lint with
+  # different rules.
+  GOLANGCI_LINT_VERSION: v2.14.0
+
 jobs:
   test:
     name: Test
@@ -84,7 +94,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
         with:
-          version: v2.14.0
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
 
   vuln:
     name: Vulnerability Check

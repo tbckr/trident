@@ -92,10 +92,14 @@ test-race:
 fuzz pkg *args:
     go test -fuzz=. -fuzztime=30s {{ pkg }} {{ args }}
 
-# Upgrade all direct dependencies and run tests (mirrors latest-deps.yml)
-upgrade-deps:
-    ./scripts/upgrade-deps.sh
-    go test ./...
+# Show direct dependencies with newer releases, the Go release, the tools and images pinned by hand and the flake inputs
+outdated:
+    ./scripts/deps.sh outdated
+
+# Upgrade direct dependencies; transitive ones move only where required (mirrors latest-deps.yml)
+upgrade:
+    ./scripts/deps.sh upgrade
+    @echo "Next: update vendorHash in flake.nix, git add go.mod go.sum flake.nix, then just ci."
 
 # Apply repository hardening settings via GitHub API
 harden-repo *args:
@@ -104,10 +108,6 @@ harden-repo *args:
 # Verify a release artifact's attestation
 verify-release archive:
     ./scripts/verify-release.sh {{ archive }}
-
-# Check pinned Go tool versions for updates
-check-tool-versions:
-    ./scripts/check-tool-versions.sh
 
 # Remove build artifacts and coverage files
 clean:

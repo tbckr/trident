@@ -8,9 +8,9 @@ This document describes the supply chain hardening measures in place for trident
 |-------|---------|--------|
 | Repository | Branch & tag rulesets, CODEOWNERS, action restrictions, immutable releases | `harden-repo.sh` |
 | CI | SHA-pinned actions, least-privilege permissions, sandboxed steps | `ci.yml` |
-| Dependencies | govulncheck (daily + per-PR), Dependabot, license audit | `ci.yml`, `vuln-schedule.yml` |
+| Dependencies | govulncheck (daily + per-PR), Dependabot, license audit, weekly test against latest direct deps | `ci.yml`, `vuln-schedule.yml`, `latest-deps.yml` |
 | Release | Reproducible builds, SBOM, VEX, GitHub Artifact Attestation | `release.yml` |
-| Monitoring | CodeQL SAST, Semgrep pattern SAST, OpenSSF Scorecard, secret scanning, push protection, tool version checks | `codeql.yml`, `semgrep.yml`, `scorecard.yml`, `tool-versions.yml`, repo settings |
+| Monitoring | CodeQL SAST, Semgrep pattern SAST, OpenSSF Scorecard, secret scanning, push protection, versions to review | `codeql.yml`, `semgrep.yml`, `scorecard.yml`, `latest-deps.yml`, repo settings |
 
 ## Repository Settings
 
@@ -63,7 +63,7 @@ All workflows use **least-privilege `permissions`** blocks:
 - `scorecard.yml`: `read-all` at workflow level; `security-events: write` + `id-token: write` at job level.
 - `codeql.yml`: `contents: read` at workflow level; `security-events: write` at job level.
 - `semgrep.yml`: `contents: read` at workflow level; `security-events: write` at job level.
-- `tool-versions.yml`: `contents: read` at workflow level; `issues: write` at job level.
+- `latest-deps.yml`: `contents: read` only.
 
 ### Action Restrictions
 
@@ -82,7 +82,7 @@ Repository-level policy (via `harden-repo.sh`):
 
 ### SHA Pinning
 
-All `uses:` references are pinned to full commit SHAs (not tags). Dependabot is configured for `github-actions` to propose SHA updates via PRs.
+All `uses:` references are pinned to full commit SHAs (not tags). Dependabot is configured for `github-actions` to propose SHA updates, monthly in one grouped pull request, holding back releases younger than seven days.
 
 ### Sandboxed Steps
 
@@ -104,8 +104,8 @@ govulncheck performs reachability analysis — it only flags vulnerabilities in 
 
 ### Dependency Updates
 
-- **GitHub Actions**: Dependabot monitors and proposes SHA-pinned updates.
-- **Go modules**: `latest-deps.yml` runs weekly, upgrading direct dependencies only (`go get <pkg>@latest`, never `go get -u` which would upgrade all transitive deps).
+- **GitHub Actions**: Dependabot proposes SHA-pinned updates monthly, in one grouped pull request, after a seven-day cooldown.
+- **Go modules**: upgraded by hand with `just upgrade` ([`scripts/deps.sh`](../scripts/deps.sh)), direct dependencies only (`go get <pkg>@latest`, never `go get -u` which would upgrade all transitive deps). `latest-deps.yml` runs the same upgrade weekly in a sandbox and tests the result without committing it, so a failure is an early warning for the next upgrade.
 - **Go modules are NOT managed by Dependabot** — govulncheck handles reachability-aware vulnerability detection, and `latest-deps.yml` handles freshness.
 
 ### License Compliance
@@ -172,11 +172,13 @@ This script verifies the build provenance attestation with `gh attestation verif
 
 Requirements: [GitHub CLI](https://cli.github.com/) (2.49+).
 
-## Tool Version Monitoring
+## Versions to Review
 
-Go tools pinned in workflow files (govulncheck, go-licenses, golangci-lint, goreleaser) are not covered by Dependabot. The `tool-versions.yml` workflow runs weekly (Mondays at 06:00 UTC) and uses [`scripts/check-tool-versions.sh`](../scripts/check-tool-versions.sh) to compare pinned versions against the latest releases (via the Go module proxy and GitHub API). When updates are available, it creates or updates a GitHub issue with a summary table.
+The tools pinned in workflow files and `.goreleaser.yaml` (golangci-lint, GoReleaser, govulncheck, go-licenses) and the container images pinned by tag and digest (semgrep, betterleaks) are not covered by Dependabot; they are bumped by hand. `scripts/deps.sh outdated` (`just outdated`) reads every pin directly from those files — there is no separate version manifest to keep in sync — and compares it against the latest release (via the GitHub API, the Go module proxy, Docker Hub and ghcr.io). It also lists direct modules with a newer release or a deprecation, whether the Go release in `go.mod` still gets security fixes, the age of the flake inputs and notes in the code that wait for an event.
 
-The script parses versions directly from workflow files — there is no separate version manifest to keep in sync.
+For an image, it prints the pin to use (`<repo>:<tag>@sha256:<digest>`) and also reports a pinned tag whose digest changed upstream (a rebuild). Pins of one tool that disagree across files are reported as such.
+
+The list never fails. `latest-deps.yml` writes it into the summary of its weekly run (Mondays at 06:00 UTC); it opens no issues and needs no write permission. See [Updating Dependencies](../CONTRIBUTING.md#updating-dependencies) for the procedure.
 
 ## CodeQL SAST Analysis
 
