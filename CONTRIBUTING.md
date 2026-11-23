@@ -190,7 +190,7 @@ just ci
 
 **Manual steps.** `just outdated` lists them for review on every upgrade; it never fails:
 
-- The Go release in `go.mod`: only the two newest Go releases get security fixes, and `latest-deps.yml` fails once ours drops out. `go get` also raises it where a new release of a direct dependency requires a later Go, which `just upgrade` then needs to run with. Raise `buildGo1XXModule` and `go_1_XX` in `flake.nix` with it.
+- The Go release in `go.mod`: only the two newest Go releases get security fixes, and `latest-deps.yml` fails once ours drops out. `go get` also raises it where a new release of a direct dependency requires a later Go, which `just upgrade` then needs to run with. Raise the release in `.go-version` and `buildGo1XXModule` and `go_1_XX` in `flake.nix` with it. `.go-version` holds only the release (`1.26`), never a patch. Every `actions/setup-go` step reads it, except the `go` job of `latest-deps.yml`, which runs on the newest stable Go on purpose; the steps that build, lint, scan and release add `check-latest`, so they run on the newest patch of that release. `go.mod` cannot serve for this, because `go get` writes a patch level into the go directive (`go 1.26.0`) as soon as a dependency declares one, and setup-go then installs exactly that patch.
 - golangci-lint (`GOLANGCI_LINT_VERSION` in `ci.yml`). Keep it at the version of the dev shell, which takes golangci-lint from nixpkgs, or CI and `just lint` lint with different rules.
 - GoReleaser (`GORELEASER_VERSION` in `release.yml` and `goreleaser-lint.yml`), an exact version because it runs in the job that publishes and attests.
 - govulncheck and go-licenses (`go run <module>@vX.Y.Z` in `ci.yml`, `vuln-schedule.yml` and `.goreleaser.yaml`).

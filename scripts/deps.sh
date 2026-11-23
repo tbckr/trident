@@ -7,9 +7,10 @@
 # Usage: scripts/deps.sh <command>
 #   outdated    what the upgrade leaves out, for review; never fails: direct
 #               modules with a newer release or a deprecation, the Go release
-#               in go.mod, the tools and container images pinned by hand, the
-#               flake inputs and the notes in code and configuration that say
-#               Revisit or Drop this once
+#               in go.mod (and that .go-version and flake.nix match it), the
+#               tools and container images pinned by hand, the flake inputs
+#               and the notes in code and configuration that say Revisit or
+#               Drop this once
 #   upgrade     every direct module to its newest release, then go mod tidy
 #   go-support  fail if the Go release in go.mod no longer gets security fixes
 #
@@ -79,7 +80,7 @@ go_support() {
   fi
   if [[ " $supported " != *" $current "* ]]; then
     echo "Go $current (go.mod) no longer gets security fixes; supported: $supported." >&2
-    echo "Raise the go directive in go.mod, and buildGo1XXModule and go_1_XX in flake.nix with it." >&2
+    echo "Raise the go directive in go.mod, and with it the release in .go-version and buildGo1XXModule and go_1_XX in flake.nix." >&2
     return 1
   fi
   echo "Go $current (go.mod) is supported; supported: $supported."
@@ -207,7 +208,7 @@ ghcr_digest() {
 }
 
 outdated() {
-  local found current supported newest newest_digest pin flake
+  local found current supported newest newest_digest pin flake goversion
 
   current="$(go_release)" || current=""
   supported="$(supported_go)" || supported=""
@@ -243,6 +244,14 @@ outdated() {
     echo "Go $flake (flake.nix: buildGo1XXModule, go_1_XX): matches go.mod"
   else
     echo "Go ${flake:-unknown} (flake.nix: buildGo1XXModule, go_1_XX): go.mod has $current"
+  fi
+  # setup-go reads .go-version, which holds the release only (X.Y), so that
+  # check-latest installs its newest patch.
+  goversion="$(tr -d '[:space:]' <.go-version)" || goversion=""
+  if [[ "$goversion" == "$current" ]]; then
+    echo "Go $goversion (.go-version: setup-go in the workflows): matches go.mod"
+  else
+    echo "Go ${goversion:-unknown} (.go-version: setup-go in the workflows): go.mod has $current"
   fi
 
   newest="$(github_latest golangci/golangci-lint)" || newest=""

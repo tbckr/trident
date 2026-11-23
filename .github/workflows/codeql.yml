@@ -7,6 +7,7 @@ on:
       - "**.go"
       - "go.mod"
       - "go.sum"
+      - ".go-version"
       - ".github/workflows/codeql.yml"
   pull_request:
     branches: [main]
@@ -14,6 +15,7 @@ on:
       - "**.go"
       - "go.mod"
       - "go.sum"
+      - ".go-version"
       - ".github/workflows/codeql.yml"
   schedule:
     - cron: "0 6 * * 1"  # Weekly Monday 06:00 UTC
@@ -34,7 +36,7 @@ jobs:
 
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5  # v7.1.0
         with:
-          go-version-file: go.mod
+          go-version-file: .go-version
           check-latest: true
           cache: true
 

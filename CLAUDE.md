@@ -241,6 +241,8 @@ All `uses:` lines are SHA-pinned. Dependabot covers github-actions only — mont
 
 **`buildGo126Module`** — pinned to Go 1.26; bump to `buildGo1XXModule` when `go.mod` version changes. Dev shell uses `go_1_26` correspondingly.
 
+**`.go-version`** — the Go release for the `actions/setup-go` steps (`go-version-file: .go-version`; the build/lint/scan/release steps add `check-latest: true` → newest patch). Exception: latest-deps.yml's `go` job uses `go-version: stable` on purpose — don't switch it to `.go-version`. Holds `X.Y` only, never a patch and never `go.mod` as the source: `go get` writes a patch-level go directive (`go 1.26.0`) whenever a dependency declares one (golang.org/x/* do), and setup-go would then install exactly X.Y.0 (stdlib CVEs, govulncheck fails). Raise it together with go.mod's go directive and the flake's `buildGo1XXModule`/`go_1_XX`; `just outdated` reports a mismatch. Do not add a `toolchain` line to go.mod instead.
+
 **Checking nixpkgs Go version** — `nix eval "github:NixOS/nixpkgs/nixpkgs-unstable#go_1_26.version"` checks the channel the flake follows (independent of local `flake.lock`). Nixpkgs typically lags Go releases by a few days to ~2 weeks.
 
 **`nix build` requires staged files** — new/modified files must be `git add`-ed before `nix build` (flakes only see git-tracked content).
