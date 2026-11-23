@@ -21,7 +21,7 @@ permissions:
 
 env:
   # The version release.yml releases with; keep both in sync.
-  GORELEASER_VERSION: v2.18.2
+  GORELEASER_VERSION: v2.20.3
 
 jobs:
   goreleaser-lint:

@@ -32,7 +32,7 @@ jobs:
     container:
       # Pinned by hand by tag and digest, which move together; `just outdated`
       # shows the latest release and the pin to use.
-      image: ghcr.io/betterleaks/betterleaks:v1.8.1@sha256:8b9d12db5e11ca798029da44923503de5d8cfff6992cffaaa6722fbeb9fc7797
+      image: ghcr.io/betterleaks/betterleaks:v1.10.1@sha256:f345c1ac502abc51ec334c3d815ad18a79fb1509555fc4496b2cb88e760681b3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -42,9 +42,9 @@ jobs:
       # Container runs as root but $GITHUB_WORKSPACE is bind-mounted with the
       # runner UID, so git fails with "dubious ownership" (CVE-2022-24765).
       # safe.directory via git config does not work here because betterleaks
-      # spawns git with a cleared environment (no HOME → no global/system
-      # config is read). The reliable fix is to align ownership with the
-      # container user before scanning.
+      # runs git with GIT_CONFIG_GLOBAL and GIT_CONFIG_SYSTEM set to /dev/null,
+      # so no global/system config is read. The reliable fix is to align
+      # ownership with the container user before scanning.
       - run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
 
       - run: betterleaks git . --config=.betterleaks.toml --report-format=sarif --report-path=betterleaks.sarif --redact --no-banner

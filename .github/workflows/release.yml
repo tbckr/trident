@@ -15,7 +15,7 @@ env:
   # An exact version, not a range: GoReleaser runs in the job that can
   # publish and attest. Bumped by hand together with goreleaser-lint.yml
   # (`just outdated` shows the latest release).
-  GORELEASER_VERSION: v2.18.2
+  GORELEASER_VERSION: v2.20.3
 
 jobs:
   release:
