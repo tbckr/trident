@@ -13,6 +13,7 @@ import (
 	"github.com/tbckr/trident/internal/config"
 	"github.com/tbckr/trident/internal/input"
 	"github.com/tbckr/trident/internal/pap"
+	"github.com/tbckr/trident/internal/proxyconf"
 	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/version"
 	"github.com/tbckr/trident/internal/worker"
@@ -64,9 +65,12 @@ PAP levels (least to most active intrusion): red < amber < green < white.`,
 	if len(aliases) > 0 {
 		cmd.AddGroup(&cobra.Group{ID: "aliases", Title: "Aliases:"})
 		for name, expansion := range aliases {
+			// The help text must not carry proxy credentials; the alias itself
+			// still expands to the real value in RunE.
+			short := fmt.Sprintf("Alias for %q", proxyconf.RedactText(expansion))
 			cmd.AddCommand(&cobra.Command{
 				Use:     name,
-				Short:   fmt.Sprintf("Alias for %q", expansion),
+				Short:   short,
 				GroupID: "aliases",
 				RunE: func(aliasCmd *cobra.Command, extraArgs []string) error {
 					parts := append(strings.Fields(expansion), extraArgs...)

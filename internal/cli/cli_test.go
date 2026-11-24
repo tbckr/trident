@@ -305,3 +305,89 @@ func TestBrokenProxyOnlyBreaksNetworkCommands(t *testing.T) {
 		})
 	}
 }
+
+func TestAliases_MaskProxyCredentials(t *testing.T) {
+	const secret = "S3cr3t"
+	aliases := map[string]string{
+		"tor":  "crtsh --proxy socks5h://alice:S3cr3t@127.0.0.1:9050",
+		"bare": "crtsh --proxy alice:S3cr3t@127.0.0.1:9050",
+	}
+
+	t.Run("help", func(t *testing.T) {
+		for _, args := range [][]string{{"--help"}, {"tor", "--help"}, {"bare", "--help"}} {
+			var out bytes.Buffer
+			cmd := newRootCmd(aliases)
+			cmd.SetOut(&out)
+			cmd.SetErr(&out)
+			cmd.SetArgs(args)
+			require.NoError(t, cmd.ExecuteContext(context.Background()))
+
+			help := out.String()
+			assert.NotContains(t, help, secret, "args %v", args)
+			if args[0] == "--help" || args[0] == "tor" {
+				assert.Contains(t, help, "socks5h://***@127.0.0.1:9050", "args %v", args)
+			}
+			if args[0] == "--help" || args[0] == "bare" {
+				assert.Contains(t, help, "--proxy ***@127.0.0.1:9050", "args %v", args)
+			}
+		}
+	})
+
+	cfgFile := filepath.Join(t.TempDir(), "config.yaml")
+	cfg := "alias:\n"
+	for name, expansion := range aliases {
+		cfg += "  " + name + ": " + expansion + "\n"
+	}
+	require.NoError(t, os.WriteFile(cfgFile, []byte(cfg), 0o600))
+
+	t.Run("alias list", func(t *testing.T) {
+		for _, format := range []string{"table", "text", "json"} {
+			stdout, stderr, err := runTrident(t, context.Background(), nil,
+				"--config", cfgFile, "--output", format, "alias", "list")
+			require.NoError(t, err, format)
+			assert.NotContains(t, stdout, secret, format)
+			assert.NotContains(t, stderr, secret, format)
+			assert.Contains(t, stdout, "socks5h://***@127.0.0.1:9050", format)
+			assert.Contains(t, stdout, "--proxy ***@127.0.0.1:9050", format)
+		}
+
+		// The JSON stays a name-to-expansion object.
+		stdout, _, err := runTrident(t, context.Background(), nil,
+			"--config", cfgFile, "--output", "json", "alias", "list")
+		require.NoError(t, err)
+		var got map[string]string
+		require.NoError(t, json.Unmarshal([]byte(stdout), &got))
+		assert.Equal(t, map[string]string{
+			"tor":  "crtsh --proxy socks5h://***@127.0.0.1:9050",
+			"bare": "crtsh --proxy ***@127.0.0.1:9050",
+		}, got)
+	})
+
+	// The masking is display-only: running the alias must hand the real proxy
+	// URL to the command. The PAP limit stops crtsh before it sends anything,
+	// and the proxy flag then still holds the alias's value.
+	t.Run("alias still expands to the real value", func(t *testing.T) {
+		for _, name := range clearedVars {
+			t.Setenv(name, "")
+		}
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+		for name, want := range map[string]string{
+			"tor":  "socks5h://alice:S3cr3t@127.0.0.1:9050",
+			"bare": "alice:S3cr3t@127.0.0.1:9050",
+		} {
+			var out bytes.Buffer
+			cmd := newRootCmd(aliases)
+			cmd.SetOut(&out)
+			cmd.SetErr(&out)
+			cmd.SetIn(strings.NewReader(""))
+			cmd.SetArgs([]string{name, "--config", cfgFile, "--pap-limit", "red", "example.com"})
+			err := cmd.ExecuteContext(context.Background())
+
+			require.ErrorIs(t, err, services.ErrPAPBlocked, name)
+			assert.Equal(t, want, cmd.PersistentFlags().Lookup("proxy").Value.String(), name)
+			assert.NotContains(t, out.String(), secret, name)
+		}
+	})
+}

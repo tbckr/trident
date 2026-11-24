@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/tbckr/trident/internal/output"
+	"github.com/tbckr/trident/internal/proxyconf"
 )
 
 func newAliasCmd(d *deps) *cobra.Command {
@@ -96,15 +97,23 @@ func newAliasListCmd(d *deps) *cobra.Command {
 			}
 			sort.Strings(names)
 
+			// An expansion may hold a proxy URL with credentials: print a
+			// redacted copy, never the loaded map (the alias must still expand
+			// to the real value when it runs).
+			aliases := make(map[string]string, len(d.cfg.Aliases))
+			for name, expansion := range d.cfg.Aliases {
+				aliases[name] = proxyconf.RedactText(expansion)
+			}
+
 			w := cmd.OutOrStdout()
 			switch output.Format(d.cfg.Output) {
 			case output.FormatJSON:
 				enc := json.NewEncoder(w)
 				enc.SetIndent("", "  ")
-				return enc.Encode(d.cfg.Aliases)
+				return enc.Encode(aliases)
 			case output.FormatText:
 				for _, name := range names {
-					if _, err := fmt.Fprintf(w, "%s=%s\n", name, d.cfg.Aliases[name]); err != nil {
+					if _, err := fmt.Fprintf(w, "%s=%s\n", name, aliases[name]); err != nil {
 						return err
 					}
 				}
@@ -114,7 +123,7 @@ func newAliasListCmd(d *deps) *cobra.Command {
 				table.Header([]string{"ALIAS", "EXPANSION"})
 				rows := make([][]string, 0, len(names))
 				for _, name := range names {
-					rows = append(rows, []string{name, d.cfg.Aliases[name]})
+					rows = append(rows, []string{name, aliases[name]})
 				}
 				if err := table.Bulk(rows); err != nil {
 					return err
