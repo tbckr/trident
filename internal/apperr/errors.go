@@ -25,3 +25,9 @@ var ErrProxyBypass = errors.New("refusing direct connection while a proxy is con
 // proxy's scheme, such as socks4:// for DNS-over-HTTPS. Retrying cannot help,
 // so it is never retried.
 var ErrUnsupportedProxy = errors.New("proxy scheme not supported")
+
+// ErrProxyConfig is returned when a proxy setting (--proxy, the config file,
+// TRIDENT_PROXY or a proxy environment variable) is not a usable proxy URL.
+// The message names the setting and the reason, never the value. Retrying
+// cannot help, so it is never retried.
+var ErrProxyConfig = errors.New("invalid proxy configuration")
