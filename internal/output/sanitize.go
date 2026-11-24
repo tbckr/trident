@@ -22,14 +22,16 @@ var (
 	escPair = regexp.MustCompile(`\x1b[ -~]`)
 )
 
-// SanitizeTerminal removes everything from s that a terminal would act on
-// instead of print: OSC, CSI and other escape sequences, then every remaining
-// C0 control character (except newline and tab), DEL and C1 control character.
-// Use it on text that carries external data into the terminal but is not
-// produced by a service result, such as error messages that quote a proxy's
-// reply. A truncated sequence loses its introducer; its payload stays as
-// plain text. Invalid UTF-8 bytes become U+FFFD, so a raw 0x9b cannot act as
-// an 8-bit CSI.
+// SanitizeTerminal removes from s what a terminal would act on instead of
+// print: whole OSC and CSI sequences, every other two-byte escape sequence,
+// then every remaining C0 control character (except newline and tab), DEL and
+// C1 control character. Use it on text that carries external data into the
+// terminal but is not produced by a service result, such as error messages
+// that quote a proxy's reply. Only OSC and CSI sequences are removed whole:
+// of a DCS, SOS, PM or APC string (ESC P, ESC X, ESC ^, ESC _) only the
+// introducer and the terminator go, and its payload stays as visible text, as
+// does the payload of a truncated OSC or CSI sequence. Invalid UTF-8 bytes
+// become U+FFFD, so a raw 0x9b cannot act as an 8-bit CSI.
 func SanitizeTerminal(s string) string {
 	s = oscSequence.ReplaceAllString(s, "")
 	s = csiSequence.ReplaceAllString(s, "")

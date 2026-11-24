@@ -358,7 +358,8 @@ literal, as in `socks5h://127.0.0.1:9050`.
 
 - Entries are separated by commas; spaces and case do not matter.
 - `example.com`, `.example.com` and `*.example.com` all match the host itself and every
-  subdomain, but not `badexample.com`.
+  subdomain, but not `badexample.com`. (`*.example.com` is trident's extension; curl has no `*.`
+  wildcard.)
 - IP addresses and CIDR ranges (IPv4 and IPv6) match only targets given as IP literals; no name
   is looked up for matching. An entry with a port (`host:port`, `[::1]:8080`) matches only that
   port. Internationalised names are compared in their ASCII (IDNA) form.
@@ -378,8 +379,9 @@ literal, as in `socks5h://127.0.0.1:9050`.
 proxy. Only the commands that use the network stop; `identify`, `config`, `version` and shell
 completion keep working. Two situations only warn: a `NO_PROXY` exemption (above) and DNS behind
 an HTTP(S) proxy (below). Errors read `invalid proxy configuration: <source>: <reason>`, where the
-source is `proxy` (the flag, config file or `TRIDENT_PROXY`) or the exact variable name. They never
-contain the proxy value, and no output ever shows a user name or password.
+source is `proxy` (the flag, config file or `TRIDENT_PROXY`) or the exact variable name; the
+lowercase/uppercase conflict and the http-only error name their variables in the sentence instead.
+They never contain the proxy value, and no output ever shows a user name or password.
 
 | Situation | What to do |
 |-----------|------------|
@@ -441,7 +443,8 @@ the proxy, `apex` stops with an error.
 - `NO_PROXY` follows curl's rules, with no implicit `localhost` exemption, and exemptions of the
   hosts trident contacts are warned about.
 - The DNS warning appears only in the commands that use the system resolver (before, it appeared
-  in every command run with an HTTP(S) `--proxy` or `ALL_PROXY`, `crtsh` and `pgp` included).
+  in every command run with a `--proxy` or `ALL_PROXY` other than a lowercase `socks5://` one,
+  `crtsh` and `pgp` included).
 - `config show` lists the proxy per path and never prints credentials.
 
 ---

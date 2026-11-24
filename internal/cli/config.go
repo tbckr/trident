@@ -130,8 +130,8 @@ If not explicitly configured, the built-in default is used:
 
 proxy rows: five rows describe the proxy trident actually uses, per path. The four
 proxy_* rows are read-only (config set rejects them; change proxy or the environment
-instead). No row shows credentials: a proxy URL with a user name or password appears
-as scheme://***@host:port.
+instead). No proxy row shows credentials: a proxy URL with a user name or password
+appears as scheme://***@host:port.
   proxy           trident's own setting (--proxy, config file or TRIDENT_PROXY);
                   empty when only the environment is set
   proxy_https     the proxy for https requests and where it comes from, or direct
@@ -139,16 +139,18 @@ as scheme://***@host:port.
                   proxied)" when only https has a proxy: http:// URLs then fail
                   instead of going direct
   proxy_dns       how DNS lookups are made: through a SOCKS5 proxy (to the nameserver
-                  9.9.9.10:53), or by the system resolver, not proxied, behind an
-                  HTTP(S) proxy
+                  9.9.9.10:53); by the system resolver, not proxied, behind an
+                  HTTP(S) proxy; else "system resolver", or "system resolver
+                  (NO_PROXY=*)"
   proxy_no_proxy  the NO_PROXY value in effect (empty when proxy is set)
 Rule: when proxy is set it applies to every path and the proxy environment
 variables, NO_PROXY included, are ignored. Otherwise https and DNS use https_proxy
 (HTTPS_PROXY), then all_proxy (ALL_PROXY); http uses http_proxy (HTTP_PROXY), then
-all_proxy. A lowercase variable and its uppercase twin must agree, and HTTP_PROXY
-without an https or all proxy is refused (https requests would bypass it). NO_PROXY
-exempts hosts; NO_PROXY=* turns the proxy off for every path. A value that cannot be
-honoured is not hidden: the affected rows read "error: <reason>", and only the
+all_proxy. A lowercase variable and its uppercase twin must agree, and http_proxy
+(HTTP_PROXY) without an https or all proxy is refused (https requests would bypass
+it). NO_PROXY exempts hosts from the https and http proxy only: DNS is not exempted,
+except by NO_PROXY=*, which turns the proxy off for every path. A value that cannot
+be honoured is not hidden: the affected rows read "error: <reason>", and only the
 commands that use the network abort with it; config show itself still works.
 
 detect_patterns.file: shows the resolved patterns file that will actually be used.
