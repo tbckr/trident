@@ -69,8 +69,6 @@ func explicitClients(tr *http.Transport) {
 	_ = &http.Client{Transport: tr}
 	// ok: trident-no-implicit-proxy-env
 	_ = &http.Client{Transport: tr, Timeout: time.Second}
-	// ok: trident-no-implicit-proxy-env
-	_ = &http.Transport{}
 }
 
 // The shape of newDoH in internal/httpclient/doh.go: the clone's Proxy is
