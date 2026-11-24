@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -12,6 +14,7 @@ import (
 	"codeberg.org/miekg/dns"
 	"github.com/imroc/req/v3"
 
+	"github.com/tbckr/trident/internal/apperr"
 	"github.com/tbckr/trident/internal/detect"
 	"github.com/tbckr/trident/internal/doh"
 	"github.com/tbckr/trident/internal/output"
@@ -41,19 +44,32 @@ const (
 // Service aggregates DNS reconnaissance for an apex domain via Quad9 DoH.
 type Service struct {
 	client   *req.Client
-	resolver services.DNSResolverInterface
+	txt      cymrusvc.TXTResolver
 	logger   *slog.Logger
 	detector *detect.Detector
 }
 
-// NewService creates a new Service with the given HTTP client, DNS resolver, logger, and patterns.
-func NewService(client *req.Client, resolver services.DNSResolverInterface, logger *slog.Logger, patterns detect.Patterns) *Service {
+// NewService creates a new Service with the given HTTP client, the resolver for
+// the Team Cymru ASN lookups, logger, and patterns. Use [CymruResolver] to pick
+// that resolver.
+func NewService(client *req.Client, txt cymrusvc.TXTResolver, logger *slog.Logger, patterns detect.Patterns) *Service {
 	return &Service{
 		client:   client,
-		resolver: resolver,
+		txt:      txt,
 		logger:   logger,
 		detector: detect.NewDetector(patterns),
 	}
+}
+
+// CymruResolver returns the resolver for the Team Cymru ASN lookups. The system
+// resolver sends plain DNS over UDP/TCP and never goes through an HTTP proxy,
+// so when the DoH queries are proxied (dohProxied) the Cymru lookups go through
+// DoH on client as well; otherwise system is used.
+func CymruResolver(client *req.Client, dohProxied bool, system cymrusvc.TXTResolver) cymrusvc.TXTResolver {
+	if dohProxied {
+		return doh.NewTXTResolver(client)
+	}
+	return system
 }
 
 // Name returns the service identifier.
@@ -78,7 +94,8 @@ const maxCNAMEHops = 20
 
 // resolveCNAMEChain follows CNAME records for domain and returns each target in order.
 // It stops when no new CNAME is found, a cycle is detected, or maxCNAMEHops is reached.
-// Context cancellation causes an early return of the partial chain without error.
+// The caller's context ending causes an early return of the partial chain without error;
+// any other failed query (including an http.Client timeout) is returned as an error.
 func (s *Service) resolveCNAMEChain(ctx context.Context, domain string) ([]string, error) {
 	seen := map[string]bool{domain: true}
 	if len(domain) == 0 || domain[len(domain)-1] != '.' {
@@ -89,7 +106,7 @@ func (s *Service) resolveCNAMEChain(ctx context.Context, domain string) ([]strin
 	for range maxCNAMEHops {
 		resp, err := doh.MakeDoHRequest(ctx, s.client, current, dns.TypeCNAME)
 		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			if ctx.Err() != nil {
 				return chain, nil
 			}
 			return nil, err
@@ -125,6 +142,10 @@ type directQuery struct {
 
 // Run performs parallel DNS reconnaissance for the given apex domain.
 // Partial results are returned when context is cancelled mid-query.
+//
+// A failed query is one that errors while the caller's context is still live.
+// A refused proxy bypass fails the run, and so does every query failing; when
+// only some fail the result is partial and one warning says so.
 func (s *Service) Run(ctx context.Context, domain string) (services.Result, error) {
 	domain = output.StripANSI(domain)
 	if !services.IsDomain(domain) {
@@ -185,14 +206,21 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 
 	results := make([][]Record, len(directQueries))
 	cnameResults := make([][]Record, len(cnameHosts))
+	// One error slot per query keeps the reported first error deterministic.
+	directErrs := make([]error, len(directQueries))
+	chainErrs := make([]error, len(cnameHosts))
 	var wg sync.WaitGroup
 
 	for i, q := range directQueries {
 		wg.Go(func() {
 			resp, err := doh.MakeDoHRequest(ctx, s.client, q.host, q.typeCode)
 			if err != nil {
-				if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+				// Only the caller's own context ending is a cancelled run; an
+				// http.Client timeout also matches context.DeadlineExceeded
+				// but is a failed query.
+				if ctx.Err() == nil {
 					s.logger.Debug("apex: query failed", "host", q.host, "type", q.typeName, "error", err)
+					directErrs[i] = err
 				}
 				return
 			}
@@ -211,7 +239,9 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		wg.Go(func() {
 			chain, err := s.resolveCNAMEChain(ctx, h)
 			if err != nil {
+				// resolveCNAMEChain returns an error only while ctx is live.
 				s.logger.Debug("apex: CNAME chain failed", "host", h, "error", err)
+				chainErrs[i] = err
 				return
 			}
 			if len(chain) == 0 {
@@ -226,6 +256,10 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 	}
 
 	wg.Wait()
+
+	if err := s.checkQueryFailures(domain, slices.Concat(directErrs, chainErrs)); err != nil {
+		return nil, err
+	}
 
 	// Flatten direct query results in slice order (deterministic).
 	for _, recs := range results {
@@ -323,7 +357,10 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 			ips = append(ips, ip)
 		}
 		sort.Strings(ips)
-		cymruSvc := cymrusvc.NewService(s.resolver, s.logger)
+		// The Cymru service logs a failed lookup at Debug and returns an empty
+		// result, so the failures are counted on the resolver underneath it.
+		counter := &countingResolver{inner: s.txt}
+		cymruSvc := cymrusvc.NewService(counter, s.logger)
 		asnResults := make([]*cymrusvc.Result, len(ips))
 		var asnWg sync.WaitGroup
 		for i, ip := range ips {
@@ -339,6 +376,10 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 			})
 		}
 		asnWg.Wait()
+		if failed, total, firstErr := counter.failures(); failed > 0 {
+			s.logger.Warn("apex: some ASN lookups failed; ASN data is incomplete",
+				"domain", domain, "failed", failed, "total", total, "error", firstErr)
+		}
 		seenASN := map[string]bool{}
 		for _, cr := range asnResults {
 			if cr == nil {
@@ -359,4 +400,85 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 	}
 
 	return result, nil
+}
+
+// checkQueryFailures applies the failure policy to the DoH query outcomes (one
+// entry per query, nil for a query that succeeded or was cut short by the
+// caller's context). A refused proxy bypass is returned as is. When every query
+// failed the run is an [services.ErrRequestFailed]; when only some did, one
+// warning reports that the result is incomplete.
+func (s *Service) checkQueryFailures(domain string, errs []error) error {
+	var failed int
+	var firstErr error
+	for _, err := range errs {
+		if err == nil {
+			continue
+		}
+		if errors.Is(err, apperr.ErrProxyBypass) {
+			return err
+		}
+		failed++
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+	switch failed {
+	case 0:
+		return nil
+	case len(errs):
+		return fmt.Errorf("%w: apex: all %d DoH queries for %q failed: %v", services.ErrRequestFailed, len(errs), domain, firstErr)
+	}
+	s.logger.Warn("apex: some queries failed; results are incomplete",
+		"domain", domain, "failed", failed, "total", len(errs), "error", firstErr)
+	return nil
+}
+
+// countingResolver wraps a Cymru TXT resolver and counts the lookups that
+// failed. A failure is an error while the caller's context is still live that
+// is not the resolver's "no such record" answer.
+type countingResolver struct {
+	inner cymrusvc.TXTResolver
+
+	mu       sync.Mutex
+	total    int
+	failed   int
+	firstErr error
+}
+
+// LookupTXT implements [cymrusvc.TXTResolver].
+func (c *countingResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	txts, err := c.inner.LookupTXT(ctx, name)
+	failed := isLookupFailure(ctx, err)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.total++
+	if failed {
+		c.failed++
+		if c.firstErr == nil {
+			c.firstErr = err
+		}
+	}
+	return txts, err
+}
+
+// failures returns the number of failed lookups, the number of lookups made and
+// the first failure.
+func (c *countingResolver) failures() (failed, total int, firstErr error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.failed, c.total, c.firstErr
+}
+
+// isLookupFailure reports whether err from a TXT lookup made under ctx is a
+// real failure. Not found is an answer (the name has no record), and an error
+// after the caller's context ended is a cancelled run.
+func isLookupFailure(ctx context.Context, err error) bool {
+	if err == nil || ctx.Err() != nil {
+		return false
+	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+		return false
+	}
+	return true
 }

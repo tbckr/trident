@@ -1,12 +1,17 @@
 package apex_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"log/slog"
+	"net"
 	"net/http"
 	"net/netip"
 	"strings"
+	"sync"
 	"testing"
 
 	"codeberg.org/miekg/dns"
@@ -16,7 +21,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tbckr/trident/internal/apperr"
 	providers "github.com/tbckr/trident/internal/detect"
+	"github.com/tbckr/trident/internal/doh"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/services/apex"
@@ -53,8 +60,9 @@ func buildWireResponse(t *testing.T, rcode int, answers []dns.RR, authority []dn
 	return m.Data
 }
 
-// apexWireResponder decodes the DNS wire query and dispatches based on hostname and type.
-func apexWireResponder(t *testing.T, handler func(qname string, qtype uint16) []byte) httpmock.Responder {
+// apexQueryResponder decodes the DNS wire query and lets handler build the whole HTTP outcome
+// (status, body or transport error) from the hostname and type.
+func apexQueryResponder(t *testing.T, handler func(qname string, qtype uint16) (*http.Response, error)) httpmock.Responder {
 	t.Helper()
 	return func(r *http.Request) (*http.Response, error) {
 		encoded := r.URL.Query().Get("dns")
@@ -73,8 +81,56 @@ func apexWireResponder(t *testing.T, handler func(qname string, qtype uint16) []
 			qname = strings.TrimSuffix(m.Question[0].Header().Name, ".")
 			qtype = dns.RRToType(m.Question[0])
 		}
-		return httpmock.NewBytesResponse(http.StatusOK, handler(qname, qtype)), nil
+		return handler(qname, qtype)
 	}
+}
+
+// apexWireResponder decodes the DNS wire query and dispatches based on hostname and type.
+func apexWireResponder(t *testing.T, handler func(qname string, qtype uint16) []byte) httpmock.Responder {
+	t.Helper()
+	return apexQueryResponder(t, func(qname string, qtype uint16) (*http.Response, error) {
+		return httpmock.NewBytesResponse(http.StatusOK, handler(qname, qtype)), nil
+	})
+}
+
+// newBufLogger returns a logger at the default (Info) level that writes to the returned buffer.
+func newBufLogger() (*slog.Logger, *bytes.Buffer) {
+	var buf bytes.Buffer
+	return slog.New(slog.NewTextHandler(&buf, nil)), &buf
+}
+
+// fakeTXT is a cymru.TXTResolver that records the names it is asked for.
+type fakeTXT struct {
+	fn    func(name string) ([]string, error)
+	mu    sync.Mutex
+	names []string
+}
+
+func (f *fakeTXT) LookupTXT(_ context.Context, name string) ([]string, error) {
+	f.mu.Lock()
+	f.names = append(f.names, name)
+	f.mu.Unlock()
+	return f.fn(name)
+}
+
+func (f *fakeTXT) recorded() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.names...)
+}
+
+// registerAnswerA answers the A query for example.com with 93.184.216.34 and every other query empty.
+func registerAnswerA(t *testing.T) {
+	t.Helper()
+	aRR := &dns.A{Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300}}
+	aRR.Addr = netip.MustParseAddr("93.184.216.34")
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "example.com" && qtype == dns.TypeA {
+				return buildWireResponse(t, 0, []dns.RR{aRR}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
 }
 
 func TestApexService_Name(t *testing.T) {
@@ -318,12 +374,12 @@ func TestApexService_Run_HTTPError(t *testing.T) {
 		httpmock.NewStringResponder(http.StatusInternalServerError, ""))
 
 	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger(), embeddedPatterns(t))
-	// HTTP errors are logged and skipped — service still returns a result (possibly empty)
+	// Every query failing is an error, not an empty result.
 	raw, err := svc.Run(context.Background(), "example.com")
-	require.NoError(t, err)
-	result, ok := raw.(*apex.Result)
-	require.True(t, ok, "expected *apex.Result")
-	assert.Equal(t, "example.com", result.Input)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, services.ErrRequestFailed)
+	assert.Contains(t, err.Error(), "HTTP 500")
+	assert.Nil(t, raw)
 }
 
 func TestApexService_Run_NetworkError(t *testing.T) {
@@ -333,12 +389,102 @@ func TestApexService_Run_NetworkError(t *testing.T) {
 		httpmock.NewErrorResponder(fmt.Errorf("connection refused")))
 
 	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger(), embeddedPatterns(t))
-	// Network errors are logged and skipped — service still returns a result (possibly empty)
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, services.ErrRequestFailed)
+	assert.Nil(t, raw)
+}
+
+func TestApexService_Run_ClientTimeoutCounts(t *testing.T) {
+	client := newTestClient(t)
+
+	// An http.Client timeout matches context.DeadlineExceeded while the caller's
+	// context is still live: that is a failed query, not a cancelled run.
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		httpmock.NewErrorResponder(context.DeadlineExceeded))
+
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger(), embeddedPatterns(t))
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, services.ErrRequestFailed)
+	assert.Nil(t, raw)
+}
+
+func TestApexService_Run_PartialFailure(t *testing.T) {
+	client := newTestClient(t)
+
+	aRR := &dns.A{Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300}}
+	aRR.Addr = netip.MustParseAddr("93.184.216.34")
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexQueryResponder(t, func(qname string, qtype uint16) (*http.Response, error) {
+			if qtype == dns.TypeTXT {
+				return httpmock.NewStringResponse(http.StatusInternalServerError, ""), nil
+			}
+			if qname == "example.com" && qtype == dns.TypeA {
+				return httpmock.NewBytesResponse(http.StatusOK, buildWireResponse(t, 0, []dns.RR{aRR}, nil)), nil
+			}
+			return httpmock.NewBytesResponse(http.StatusOK, buildWireResponse(t, 0, nil, nil)), nil
+		}))
+
+	logger, buf := newBufLogger()
+	svc := apex.NewService(client, &testutil.MockResolver{}, logger, embeddedPatterns(t))
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.NoError(t, err)
+
 	result, ok := raw.(*apex.Result)
 	require.True(t, ok, "expected *apex.Result")
-	assert.Equal(t, "example.com", result.Input)
+	var values []string
+	for _, rec := range result.Records {
+		if rec.Type == "A" {
+			values = append(values, rec.Value)
+		}
+	}
+	assert.Equal(t, []string{"93.184.216.34"}, values)
+
+	assert.Equal(t, 1, strings.Count(buf.String(), "some queries failed"), "exactly one warning: %s", buf.String())
+	assert.Contains(t, buf.String(), "level=WARN")
+	assert.Contains(t, buf.String(), "domain=example.com")
+	assert.Contains(t, buf.String(), "HTTP 500")
+}
+
+func TestApexService_Run_CNAMEChainFailureCounts(t *testing.T) {
+	client := newTestClient(t)
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexQueryResponder(t, func(_ string, qtype uint16) (*http.Response, error) {
+			if qtype == dns.TypeCNAME {
+				return httpmock.NewStringResponse(http.StatusInternalServerError, ""), nil
+			}
+			return httpmock.NewBytesResponse(http.StatusOK, buildWireResponse(t, 0, nil, nil)), nil
+		}))
+
+	logger, buf := newBufLogger()
+	svc := apex.NewService(client, &testutil.MockResolver{}, logger, embeddedPatterns(t))
+	_, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	// 4 direct CNAME queries (_dmarc, _domainkey, _mta-sts, _smtp._tls) + 3 chain starts.
+	assert.Contains(t, buf.String(), "failed=7")
+	assert.Equal(t, 1, strings.Count(buf.String(), "some queries failed"))
+}
+
+func TestApexService_Run_ProxyBypass(t *testing.T) {
+	client := newTestClient(t)
+
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexQueryResponder(t, func(_ string, qtype uint16) (*http.Response, error) {
+			if qtype == dns.TypeMX {
+				return nil, fmt.Errorf("dial: %w", apperr.ErrProxyBypass)
+			}
+			return httpmock.NewBytesResponse(http.StatusOK, buildWireResponse(t, 0, nil, nil)), nil
+		}))
+
+	svc := apex.NewService(client, &testutil.MockResolver{}, testutil.NopLogger(), embeddedPatterns(t))
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrProxyBypass)
+	assert.Nil(t, raw)
 }
 
 func TestApexService_Run_DNSKEY(t *testing.T) {
@@ -667,4 +813,100 @@ func TestApexService_Run_ASNLookup(t *testing.T) {
 	assert.Contains(t, asnRecords[0].Value, "AS15133")
 	assert.Contains(t, asnRecords[0].Value, "93.184.216.0/24")
 	assert.Contains(t, asnRecords[0].Value, "EDGECAST")
+}
+
+func TestApexService_Run_UsesGivenCymruResolver(t *testing.T) {
+	client := newTestClient(t)
+	registerAnswerA(t)
+
+	txt := &fakeTXT{fn: func(name string) ([]string, error) {
+		switch name {
+		case "34.216.184.93.origin.asn.cymru.com":
+			return []string{"15133 | 93.184.216.0/24 | US | arin | 2008-06-02"}, nil
+		case "AS15133.asn.cymru.com":
+			return []string{"15133 | US | arin | 2007-03-19 | EDGECAST, US"}, nil
+		}
+		return nil, nil
+	}}
+
+	// The Cymru lookups go through the resolver given to NewService and nowhere else.
+	svc := apex.NewService(client, txt, testutil.NopLogger(), embeddedPatterns(t))
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*apex.Result)
+	require.True(t, ok, "expected *apex.Result")
+	var asnRecords []apex.Record
+	for _, rec := range result.Records {
+		if rec.Type == "ASN" {
+			asnRecords = append(asnRecords, rec)
+		}
+	}
+	require.Len(t, asnRecords, 1)
+	assert.Contains(t, asnRecords[0].Value, "15133")
+	assert.Equal(t, []string{"34.216.184.93.origin.asn.cymru.com", "AS15133.asn.cymru.com"}, txt.recorded())
+}
+
+func TestApexService_Run_ASNLookupFailureWarns(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		wantWarn bool
+	}{
+		{"timeout is a failure", errors.New("timeout"), true},
+		{"not found is an answer", &net.DNSError{Err: "no such host", Name: "x", IsNotFound: true}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newTestClient(t)
+			registerAnswerA(t)
+
+			txt := &fakeTXT{fn: func(string) ([]string, error) { return nil, tt.err }}
+			logger, buf := newBufLogger()
+			svc := apex.NewService(client, txt, logger, embeddedPatterns(t))
+			raw, err := svc.Run(context.Background(), "example.com")
+			require.NoError(t, err)
+			require.NotNil(t, raw)
+
+			if tt.wantWarn {
+				assert.Equal(t, 1, strings.Count(buf.String(), "some ASN lookups failed"), "log: %s", buf.String())
+				assert.Contains(t, buf.String(), "level=WARN")
+				assert.Contains(t, buf.String(), "domain=example.com")
+				assert.Contains(t, buf.String(), "failed=1")
+				assert.Contains(t, buf.String(), "total=1")
+				assert.Contains(t, buf.String(), "timeout")
+			} else {
+				assert.NotContains(t, buf.String(), "some ASN lookups failed")
+			}
+		})
+	}
+}
+
+func TestApexService_Run_ASNLookupCanceledDoesNotWarn(t *testing.T) {
+	client := newTestClient(t)
+	registerAnswerA(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// The caller's context ends during the ASN stage: that is a cancelled run, not a failed lookup.
+	txt := &fakeTXT{fn: func(string) ([]string, error) {
+		cancel()
+		return nil, context.Canceled
+	}}
+	logger, buf := newBufLogger()
+	svc := apex.NewService(client, txt, logger, embeddedPatterns(t))
+	_, err := svc.Run(ctx, "example.com")
+	require.NoError(t, err)
+	assert.NotContains(t, buf.String(), "some ASN lookups failed")
+}
+
+func TestCymruResolver(t *testing.T) {
+	client := req.NewClient()
+	system := &testutil.MockResolver{}
+
+	got := apex.CymruResolver(client, true, system)
+	assert.IsType(t, &doh.TXTResolver{}, got, "a proxied DoH client must carry the Cymru lookups too")
+
+	got = apex.CymruResolver(client, false, system)
+	assert.Same(t, system, got)
 }

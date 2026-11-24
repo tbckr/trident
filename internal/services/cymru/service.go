@@ -29,14 +29,20 @@ const (
 	PAP = pap.AMBER
 )
 
+// TXTResolver is the only lookup the Cymru service needs: Team Cymru publishes
+// its data as TXT records. *net.Resolver and *doh.TXTResolver both satisfy it.
+type TXTResolver interface {
+	LookupTXT(ctx context.Context, name string) ([]string, error)
+}
+
 // Service performs ASN lookups via the Team Cymru DNS service.
 type Service struct {
-	resolver services.DNSResolverInterface
+	resolver TXTResolver
 	logger   *slog.Logger
 }
 
 // NewService creates a new Cymru service.
-func NewService(resolver services.DNSResolverInterface, logger *slog.Logger) *Service {
+func NewService(resolver TXTResolver, logger *slog.Logger) *Service {
 	return &Service{resolver: resolver, logger: logger}
 }
 
