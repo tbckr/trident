@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 	"slices"
@@ -115,7 +116,7 @@ func TestNewResolver_SOCKSQueriesPinnedNameserver(t *testing.T) {
 			// to; rooted, it leaves through the proxy as typed.
 			ns.reset()
 			_, err = r.LookupIPAddr(ctx, "intranet")
-			require.Error(t, err)
+			assertRootedError(t, err, "intranet.", ns.addr())
 			seen := ns.seen()
 			require.NotEmpty(t, seen)
 			for _, name := range seen {
@@ -123,6 +124,22 @@ func TestNewResolver_SOCKSQueriesPinnedNameserver(t *testing.T) {
 			}
 		})
 	}
+}
+
+// assertRootedError checks the error of a lookup through the SOCKS proxy that
+// the fake nameserver answered with NXDOMAIN. Go's resolver reports the name
+// it was asked for, so the name shows whether the resolver rooted it; what the
+// nameserver saw does not, because without a search list (in a sandbox, or
+// with "search .") Go queries the rooted name anyway. The server must be the
+// pinned nameserver the query went to, not one from /etc/resolv.conf that the
+// SOCKS dialer ignored.
+func assertRootedError(t *testing.T, err error, name, server string) {
+	t.Helper()
+	var de *net.DNSError
+	require.ErrorAs(t, err, &de)
+	assert.True(t, de.IsNotFound, "the fake nameserver answers NXDOMAIN: %v", err)
+	assert.Equal(t, name, de.Name, "the name must be queried rooted")
+	assert.Equal(t, server, de.Server, "the error must name the pinned nameserver")
 }
 
 func TestResolver_EveryLookupGoesThroughTheProxyRooted(t *testing.T) {
@@ -140,6 +157,7 @@ func TestResolver_EveryLookupGoesThroughTheProxyRooted(t *testing.T) {
 		lookup func(ctx context.Context) error
 		want   string
 	}{
+		{"IP", func(ctx context.Context) error { _, err := r.LookupIPAddr(ctx, "intranet"); return err }, "intranet."},
 		{"MX", func(ctx context.Context) error { _, err := r.LookupMX(ctx, "intranet"); return err }, "intranet."},
 		{"NS", func(ctx context.Context) error { _, err := r.LookupNS(ctx, "intranet"); return err }, "intranet."},
 		{"TXT", func(ctx context.Context) error { _, err := r.LookupTXT(ctx, "intranet"); return err }, "intranet."},
@@ -154,7 +172,7 @@ func TestResolver_EveryLookupGoesThroughTheProxyRooted(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
 
-			require.Error(t, tt.lookup(ctx), "the fake nameserver answers NXDOMAIN")
+			assertRootedError(t, tt.lookup(ctx), tt.want, ns.addr())
 			seen := ns.seen()
 			require.NotEmpty(t, seen)
 			for _, name := range seen {
@@ -167,6 +185,53 @@ func TestResolver_EveryLookupGoesThroughTheProxyRooted(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResolver_ConcurrentLookupsOfOneName(t *testing.T) {
+	// Go's resolver hands one error to concurrent lookups of the same name
+	// (singleflight), so pin must not write to it: go test -race fails if it
+	// does.
+	ns := newFakeDNS(t)
+	saved := nameserver
+	nameserver = ns.addr()
+	t.Cleanup(func() { nameserver = saved })
+	socks := newFakeSOCKS(t, ns.addr())
+	r, err := NewResolver(proxyconf.Resolve("socks5h://"+socks.addr(), nil))
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	for range 16 {
+		wg.Go(func() {
+			_, err := r.LookupIPAddr(ctx, "intranet")
+			var de *net.DNSError
+			if assert.ErrorAs(t, err, &de) {
+				assert.Equal(t, ns.addr(), de.Server)
+			}
+		})
+	}
+	wg.Wait()
+}
+
+func TestResolver_Pin(t *testing.T) {
+	pinned := &Resolver{rooted: true, server: "9.9.9.10:53"}
+	withServer := &net.DNSError{Err: "no such host", Name: "x.", Server: "127.0.0.53:53", IsNotFound: true}
+
+	got := pinned.pin(withServer)
+	var de *net.DNSError
+	require.ErrorAs(t, got, &de)
+	assert.Equal(t, "9.9.9.10:53", de.Server)
+	assert.Equal(t, "x.", de.Name)
+	assert.True(t, de.IsNotFound)
+	assert.Equal(t, "127.0.0.53:53", withServer.Server, "the original error is not changed")
+
+	assert.NoError(t, pinned.pin(nil))
+	other := errors.New("boom")
+	assert.Same(t, other, pinned.pin(other))
+	noServer := &net.DNSError{Err: "no such host", Name: "x.", IsNotFound: true}
+	assert.Same(t, noServer, pinned.pin(noServer), "a query that never left names no server")
+	assert.Same(t, withServer, (&Resolver{}).pin(withServer), "the system resolver's errors stay as they are")
 }
 
 func TestResolver_Root(t *testing.T) {

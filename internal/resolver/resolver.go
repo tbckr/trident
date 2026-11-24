@@ -19,11 +19,14 @@ var nameserver = proxyconf.SOCKSNameserver
 // Resolver performs DNS lookups like a *net.Resolver, with the same method
 // signatures. Behind a SOCKS proxy it roots every name it is asked for, so
 // that no search domain from the system configuration is appended to it and
-// sent through the proxy. It satisfies services.DNSResolverInterface and
-// cymru.TXTResolver.
+// sent through the proxy, and its errors name the pinned nameserver the query
+// went to. It satisfies services.DNSResolverInterface and cymru.TXTResolver.
 type Resolver struct {
 	r      *net.Resolver
 	rooted bool
+	// server is the nameserver every query goes to through the proxy, or ""
+	// for the system resolver.
+	server string
 }
 
 // NewResolver returns the resolver for the run's proxy settings. It fails with
@@ -70,7 +73,29 @@ func NewResolver(settings *proxyconf.Settings) (*Resolver, error) {
 			},
 		},
 		rooted: true,
+		server: ns,
 	}, nil
+}
+
+// pin returns err with the server of its *net.DNSError replaced by the pinned
+// nameserver. Go fills that field with the nameserver from the system
+// configuration, which Dial ignored; shown in an error behind a proxy, it
+// would read like a query that leaked to it. err itself is not changed: the
+// Go resolver shares one error between concurrent lookups of the same name.
+// It returns err as it is for the system resolver, for an error that names no
+// server (the query never left) and for any other error.
+func (r *Resolver) pin(err error) error {
+	if r.server == "" {
+		return err
+	}
+	// net.Resolver returns its *net.DNSError unwrapped.
+	de, ok := err.(*net.DNSError)
+	if !ok || de.Server == "" {
+		return err
+	}
+	c := *de
+	c.Server = r.server
+	return &c
 }
 
 // root returns name with a trailing dot when the resolver roots names. Empty
@@ -85,39 +110,46 @@ func (r *Resolver) root(name string) string {
 // LookupIPAddr looks up host's IPv4 and IPv6 addresses, like
 // [net.Resolver.LookupIPAddr].
 func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
-	return r.r.LookupIPAddr(ctx, r.root(host))
+	addrs, err := r.r.LookupIPAddr(ctx, r.root(host))
+	return addrs, r.pin(err)
 }
 
 // LookupMX looks up the MX records of name, like [net.Resolver.LookupMX].
 func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*net.MX, error) {
-	return r.r.LookupMX(ctx, r.root(name))
+	mx, err := r.r.LookupMX(ctx, r.root(name))
+	return mx, r.pin(err)
 }
 
 // LookupNS looks up the NS records of name, like [net.Resolver.LookupNS].
 func (r *Resolver) LookupNS(ctx context.Context, name string) ([]*net.NS, error) {
-	return r.r.LookupNS(ctx, r.root(name))
+	ns, err := r.r.LookupNS(ctx, r.root(name))
+	return ns, r.pin(err)
 }
 
 // LookupTXT looks up the TXT records of name, like [net.Resolver.LookupTXT].
 func (r *Resolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
-	return r.r.LookupTXT(ctx, r.root(name))
+	txt, err := r.r.LookupTXT(ctx, r.root(name))
+	return txt, r.pin(err)
 }
 
 // LookupAddr performs a reverse lookup of addr, like
 // [net.Resolver.LookupAddr]. The resolver builds the rooted in-addr.arpa or
 // ip6.arpa name itself.
 func (r *Resolver) LookupAddr(ctx context.Context, addr string) ([]string, error) {
-	return r.r.LookupAddr(ctx, addr)
+	names, err := r.r.LookupAddr(ctx, addr)
+	return names, r.pin(err)
 }
 
 // LookupCNAME returns the canonical name of host, like
 // [net.Resolver.LookupCNAME].
 func (r *Resolver) LookupCNAME(ctx context.Context, host string) (string, error) {
-	return r.r.LookupCNAME(ctx, r.root(host))
+	cname, err := r.r.LookupCNAME(ctx, r.root(host))
+	return cname, r.pin(err)
 }
 
 // LookupSRV looks up the SRV records of _service._proto.name (or of name when
 // service and proto are empty), like [net.Resolver.LookupSRV].
 func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (string, []*net.SRV, error) {
-	return r.r.LookupSRV(ctx, service, proto, r.root(name))
+	cname, addrs, err := r.r.LookupSRV(ctx, service, proto, r.root(name))
+	return cname, addrs, r.pin(err)
 }
