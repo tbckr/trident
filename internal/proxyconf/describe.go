@@ -12,6 +12,12 @@ type Row struct {
 	Value string
 }
 
+// httpRefused is the proxy_http row when only https has a proxy: the proxy
+// function has none for http, but the dial guard refuses a direct connection
+// to any host that https would proxy, so http:// URLs fail instead of going
+// direct (a NO_PROXY exemption still goes direct, as on every path).
+const httpRefused = "refused (no http proxy; https is proxied)"
+
 // Describe returns the rows "config show" prints for the proxy, in this order:
 // proxy (trident's own setting), proxy_dns, proxy_http, proxy_https and
 // proxy_no_proxy. Proxy URLs are redacted and a value that failed validation is
@@ -19,10 +25,14 @@ type Row struct {
 // message; proxy shows an error only when trident's own setting is the invalid
 // value, and proxy_no_proxy only when NO_PROXY itself is.
 func (s *Settings) Describe() []Row {
+	httpRow := s.describePath(s.http)
+	if s.err == nil && !s.disabled && s.http.url == nil && s.https.url != nil {
+		httpRow = httpRefused
+	}
 	return []Row{
 		{Key: "proxy", Value: s.describeSetting()},
 		{Key: "proxy_dns", Value: s.describeDNS()},
-		{Key: "proxy_http", Value: s.describePath(s.http)},
+		{Key: "proxy_http", Value: httpRow},
 		{Key: "proxy_https", Value: s.describePath(s.https)},
 		{Key: "proxy_no_proxy", Value: s.describeNoProxy()},
 	}

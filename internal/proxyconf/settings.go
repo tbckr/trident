@@ -244,7 +244,9 @@ func (s *Settings) Err() error {
 // every other scheme the https one (an unknown scheme errs toward proxying).
 // NO_PROXY exempts a request only when the proxy comes from the environment;
 // notify, if not nil, is called with the host of every request it exempts.
-// The returned URLs are copies.
+// That includes an http request NO_PROXY matches while only https has a proxy:
+// it has no proxy either way, but only the exemption lets the dial guard
+// connect it directly. The returned URLs are copies.
 func (s *Settings) ProxyFunc(notify func(host string)) func(*http.Request) (*url.URL, error) {
 	return func(r *http.Request) (*url.URL, error) {
 		if s.err != nil {
@@ -262,14 +264,21 @@ func (s *Settings) ProxyFunc(notify func(host string)) func(*http.Request) (*url
 		if strings.EqualFold(scheme, "http") {
 			rt, defaultPort = s.http, "80"
 		}
-		if rt.url == nil {
-			return nil, nil
-		}
 		if port == "" {
 			port = defaultPort
 		}
 		// A request without a host cannot be exempted: it is proxied.
-		if !s.viaSetting && host != "" && s.noProxy.matches(host, port) {
+		exempt := !s.viaSetting && host != "" && s.noProxy.matches(host, port)
+		switch {
+		case rt.url == nil:
+			// With an https proxy this is an http request without an http
+			// proxy (the reverse is an error). It goes direct either way, but
+			// only an exemption lets the dial guard connect it.
+			if exempt && s.https.url != nil && notify != nil {
+				notify(host)
+			}
+			return nil, nil
+		case exempt:
 			if notify != nil {
 				notify(host)
 			}

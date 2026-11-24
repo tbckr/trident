@@ -81,6 +81,30 @@ func TestDescribe(t *testing.T) {
 			},
 		},
 		{
+			// The dial guard refuses a direct http:// connection while https
+			// is proxied, so the row must not read "direct".
+			name: "only an https proxy: http URLs are refused",
+			env:  []string{"HTTPS_PROXY", "socks5h://tor:9050"},
+			want: []proxyconf.Row{
+				{Key: "proxy", Value: ""},
+				{Key: "proxy_dns", Value: "socks5h://tor:9050 (HTTPS_PROXY), nameserver 9.9.9.10:53"},
+				{Key: "proxy_http", Value: "refused (no http proxy; https is proxied)"},
+				{Key: "proxy_https", Value: "socks5h://tor:9050 (HTTPS_PROXY)"},
+				{Key: "proxy_no_proxy", Value: ""},
+			},
+		},
+		{
+			name: "CGI drops HTTP_PROXY: http URLs are refused",
+			env:  []string{"REQUEST_METHOD", "GET", "HTTP_PROXY", "http://evil:1", "https_proxy", "http://corp:3128"},
+			want: []proxyconf.Row{
+				{Key: "proxy", Value: ""},
+				{Key: "proxy_dns", Value: "system resolver, not proxied (https_proxy is not a SOCKS5 proxy)"},
+				{Key: "proxy_http", Value: "refused (no http proxy; https is proxied)"},
+				{Key: "proxy_https", Value: "http://corp:3128 (https_proxy)"},
+				{Key: "proxy_no_proxy", Value: ""},
+			},
+		},
+		{
 			name: "both cases set and equal name the lowercase variable",
 			env:  []string{"https_proxy", "http://corp:3128", "HTTPS_PROXY", "http://corp:3128", "http_proxy", "http://corp:3128", "HTTP_PROXY", "http://corp:3128"},
 			want: []proxyconf.Row{

@@ -571,6 +571,39 @@ func TestNew_WarnsOnceWhenNoProxyExempts(t *testing.T) {
 	}
 }
 
+func TestNew_HTTPURLWithOnlyAnHTTPSProxy(t *testing.T) {
+	// A plain-HTTP origin: with only an https proxy, an http:// URL has no
+	// proxy. The dial guard refuses the direct connection unless NO_PROXY
+	// exempts the host, and then the exemption is warned about.
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, r.Proto)
+	}))
+	t.Cleanup(origin.Close)
+	proxy := newTestProxy(t, "http")
+
+	t.Run("exempted: direct, with a warning", func(t *testing.T) {
+		var buf bytes.Buffer
+		s := settings("", "HTTPS_PROXY", proxy.url(), "NO_PROXY", "127.0.0.1")
+		client, err := httpclient.New(s, "", slog.New(slog.NewTextHandler(&buf, nil)), false)
+		require.NoError(t, err)
+		_, err = client.R().Get(origin.URL)
+		require.NoError(t, err)
+		assert.Equal(t, 1, strings.Count(buf.String(), "NO_PROXY exempts"), buf.String())
+		assert.Contains(t, buf.String(), "host=127.0.0.1")
+	})
+
+	t.Run("not exempted: refused, without a warning", func(t *testing.T) {
+		var buf bytes.Buffer
+		s := settings("", "HTTPS_PROXY", proxy.url())
+		client, err := httpclient.New(s, "", slog.New(slog.NewTextHandler(&buf, nil)), false)
+		require.NoError(t, err)
+		_, err = client.R().Get(origin.URL)
+		require.ErrorIs(t, err, apperr.ErrProxyBypass)
+		assert.NotContains(t, buf.String(), "NO_PROXY exempts")
+	})
+	assert.Zero(t, proxy.tunnels.Load(), "an http:// URL never goes through the https proxy")
+}
+
 func TestNew_DialGuardDoesNotWarn(t *testing.T) {
 	// NO_PROXY exempts the proxy's own host, not the origin: the requests are
 	// proxied, and only the dial guard, checking the dial to the proxy, sees

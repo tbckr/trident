@@ -431,6 +431,38 @@ func TestResolve_NoProxyNotifies(t *testing.T) {
 	assert.Nil(t, u)
 }
 
+// With only an https proxy an http:// request has no proxy of its own: the
+// proxy function sends it direct and the dial guard refuses it, unless NO_PROXY
+// exempts the host, which is then notified like any other exemption.
+func TestProxyFunc_HTTPWithOnlyAnHTTPSProxyNotifiesExemptions(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		env  []string
+	}{
+		{name: "HTTPS_PROXY only", env: []string{"HTTPS_PROXY", "http://corp:3128", "NO_PROXY", ".corp,b.example:80"}},
+		{name: "CGI drops HTTP_PROXY", env: []string{"REQUEST_METHOD", "GET", "HTTP_PROXY", "http://evil:1", "https_proxy", "http://corp:3128", "no_proxy", ".corp,b.example:80"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got []string
+			s := proxyconf.Resolve("", env(tc.env...))
+			require.NoError(t, s.Err())
+			fn := s.ProxyFunc(func(host string) { got = append(got, host) })
+
+			for _, target := range []string{"http://a.corp/", "http://b.example/", "http://crt.sh/", "http://b.example:8080/"} {
+				u, err := fn(&http.Request{URL: mustParse(t, target)})
+				require.NoError(t, err, target)
+				assert.Nil(t, u, "%s: no http proxy, the request is not proxied", target)
+			}
+			assert.Equal(t, []string{"a.corp", "b.example"}, got, "exactly the exempted hosts notify; the scheme's default port counts")
+
+			// The guard's lookups (a nil notify) still work.
+			u, err := s.ProxyFunc(nil)(&http.Request{URL: mustParse(t, "http://a.corp/")})
+			require.NoError(t, err)
+			assert.Nil(t, u)
+		})
+	}
+}
+
 func TestResolve_NoProxyNeverNotifiesWithoutAnExemption(t *testing.T) {
 	tests := []struct {
 		name    string

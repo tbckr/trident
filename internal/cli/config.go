@@ -135,7 +135,9 @@ as scheme://***@host:port.
   proxy           trident's own setting (--proxy, config file or TRIDENT_PROXY);
                   empty when only the environment is set
   proxy_https     the proxy for https requests and where it comes from, or direct
-  proxy_http      the same for http requests
+  proxy_http      the same for http requests; "refused (no http proxy; https is
+                  proxied)" when only https has a proxy: http:// URLs then fail
+                  instead of going direct
   proxy_dns       how DNS lookups are made: through a SOCKS5 proxy (to the nameserver
                   9.9.9.10:53), or by the system resolver, not proxied, behind an
                   HTTP(S) proxy

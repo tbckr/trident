@@ -334,9 +334,11 @@ decides; each variable may be spelled in lowercase or uppercase:
 | DNS lookups | the https value, so DNS and HTTPS leave through the same exit |
 
 Every trident service talks HTTPS, so `HTTP_PROXY` alone is not enough (see Errors below). With
-only an https proxy set, `config show` reads `proxy_http=direct`, but trident still refuses to
-connect to `http://` targets directly, because a proxy is configured for https; this matters only
-for `http://` redirects and a custom `detect_patterns.url`. When a server runs trident as a CGI
+only an https proxy set, `http://` targets have no proxy, and trident refuses to connect to them
+directly, because a proxy is configured for https; `config show` reads
+`proxy_http=refused (no http proxy; https is proxied)`. A host that `NO_PROXY` exempts is still
+reached directly, with the exemption warning. This matters only for `http://` redirects and a
+custom `detect_patterns.url`. When a server runs trident as a CGI
 script (`REQUEST_METHOD` is set), uppercase `HTTP_PROXY` is ignored, because the web server fills it
 from the request's `Proxy:` header; lowercase `http_proxy` is kept.
 
@@ -672,7 +674,7 @@ that report the proxy trident actually uses per path, and where it comes from. S
 | Row | Value |
 |-----|-------|
 | `proxy_https` | The proxy for https requests and its source (a variable name, or `proxy` for trident's own setting), or `direct`, or `direct (NO_PROXY=*)` |
-| `proxy_http` | The same for http requests |
+| `proxy_http` | The same for http requests; `refused (no http proxy; https is proxied)` when only https has a proxy (trident then refuses `http://` URLs instead of connecting directly) |
 | `proxy_dns` | Over SOCKS: `<proxy> (<source>), nameserver 9.9.9.10:53`. Behind an HTTP(S) proxy: `system resolver, not proxied (<source> is not a SOCKS5 proxy)`. Otherwise `system resolver`, or `system resolver (NO_PROXY=*)` |
 | `proxy_no_proxy` | The `NO_PROXY` value in effect (empty when `proxy` is set) |
 
