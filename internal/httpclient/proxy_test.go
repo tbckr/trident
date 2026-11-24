@@ -514,8 +514,10 @@ func TestNew_CGIInjectedHTTPProxyIsIgnored(t *testing.T) {
 	origin := newTestOrigin(t, true, 0)
 	proxy := newTestProxy(t, "http")
 	// Under CGI, HTTP_PROXY can come from a client's Proxy: header; it must
-	// neither steer trident nor make the dial guard fail every dial.
-	s := settings("", "REQUEST_METHOD", "GET", "HTTP_PROXY", "http://127.0.0.1:1", "HTTPS_PROXY", proxy.url())
+	// neither steer trident nor abort it. The value fails validation, so if
+	// it were selected, building the clients would fail.
+	s := settings("", "REQUEST_METHOD", "GET", "HTTP_PROXY", "socks4://127.0.0.1:1", "HTTPS_PROXY", proxy.url())
+	require.NoError(t, s.Err())
 
 	client := newTestClientWith(t, s, nil, origin)
 	_, err := client.R().Get(origin.URL)

@@ -296,11 +296,13 @@ func TestBrokenProxyOnlyBreaksNetworkCommands(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	// The cancelled context is a backstop: these commands must fail while
-	// they build their client or resolver, before any request.
+	// These commands must fail while they build their client or resolver,
+	// before any request. The cancelled context and --pap-limit red are
+	// backstops: should construction ever succeed, the PAP check (which runs
+	// after it) blocks the command before it can reach the network.
 	for _, command := range []string{"crtsh", "quad9", "dns"} {
 		t.Run(command+" fails", func(t *testing.T) {
-			_, _, err := runTrident(t, cancelledContext(), env, command, "example.com")
+			_, _, err := runTrident(t, cancelledContext(), env, "--pap-limit", "red", command, "example.com")
 			require.ErrorIs(t, err, apperr.ErrProxyConfig)
 		})
 	}
