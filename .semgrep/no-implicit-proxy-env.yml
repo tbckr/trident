@@ -5,9 +5,10 @@ rules:
     message: >-
       This HTTP client reads the proxy environment behind trident's back.
       `http.DefaultClient`, the package-level `http.Get`/`Head`/`Post`/
-      `PostForm`, an `http.Client` without a `Transport` (or with
-      `http.DefaultTransport`), `http.DefaultTransport` itself and a clone of
-      it whose `Proxy` is never replaced all use Go's
+      `PostForm`, an `http.Client` without a `Transport` (or with a nil or
+      the default one, or a zero `var c http.Client`), and any use of
+      `http.DefaultTransport` other than a clone whose `Proxy` is replaced
+      right away all use Go's
       `http.ProxyFromEnvironment`. That function ignores `ALL_PROXY`, caches
       the environment once per process, exempts localhost implicitly and
       drops broken values silently, so the request can leave without the
@@ -27,13 +28,16 @@ rules:
       - pattern: http.Post(...)
       - pattern: http.PostForm(...)
       - pattern: new(http.Client)
+      - pattern: var $C http.Client
       - patterns:
           - pattern: http.Client{...}
           - pattern-not: 'http.Client{..., Transport: $T, ...}'
-      - pattern: 'http.Client{..., Transport: http.DefaultTransport, ...}'
-      - pattern: http.DefaultTransport.RoundTrip(...)
+      - pattern: 'http.Client{..., Transport: nil, ...}'
+      # Any use of http.DefaultTransport (as a Transport, an argument, a
+      # RoundTrip, an unmodified clone) except a clone whose Proxy is
+      # replaced right away.
       - patterns:
-          - pattern: http.DefaultTransport.(*http.Transport).Clone()
+          - pattern: http.DefaultTransport
           - pattern-not-inside: |
               $TR := http.DefaultTransport.(*http.Transport).Clone()
               ...
@@ -47,8 +51,10 @@ rules:
     languages: [go]
     severity: ERROR
     message: >-
-      Don't use req's default client or a bare `req.C()`/`req.NewClient()`
-      outside `internal/httpclient`. Their transport uses Go's
+      Don't call req's package-level functions (`req.C()`, `req.NewClient()`,
+      `req.R()`, `req.SetContext(ctx).Get(u)`, `req.T()`, ...) outside
+      `internal/httpclient`: they use req's default client or build a client
+      or transport with the default proxy function. Their transport uses Go's
       `http.ProxyFromEnvironment` (it ignores `ALL_PROXY`, caches the
       environment and drops broken values), has no dial guard against req's
       HTTP/2 proxy bypass (imroc/req#206, #541) and never sees trident's
@@ -63,13 +69,16 @@ rules:
       exclude:
         - "/internal/httpclient/"
         - "*_test.go"
-    pattern-either:
-      - pattern: req.C()
-      - pattern: req.NewClient()
-      - pattern: req.R()
-      - pattern: req.DefaultClient()
-      - patterns:
-          - pattern: req.$F(...)
-          - metavariable-regex:
-              metavariable: $F
-              regex: ^(Must)?(Get|Head|Post|Put|Patch|Delete|Options|Send)$
+    # Every package-level function of req works on its default client or
+    # builds a client or transport with the default proxy function (req.C,
+    # req.R, req.SetContext(ctx).Get(u), req.T, ...). Matched only in files
+    # that import req, so that a variable named `req` never matches.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              import "github.com/imroc/req/v3"
+              ...
+          - pattern-inside: |
+              import req "github.com/imroc/req/v3"
+              ...
+      - pattern: req.$F(...)

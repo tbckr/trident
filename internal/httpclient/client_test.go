@@ -111,6 +111,7 @@ func TestNew_TransportsNeverKeepTheDefaultProxyFunc(t *testing.T) {
 	// proxy applies.
 	defaults := []uintptr{
 		reflect.ValueOf(req.C().GetTransport().Proxy).Pointer(),
+		// nosemgrep: trident-no-implicit-proxy-env -- reads the default proxy function only to assert that no transport keeps it
 		reflect.ValueOf(http.DefaultTransport.(*http.Transport).Proxy).Pointer(),
 	}
 	cases := map[string]*proxyconf.Settings{

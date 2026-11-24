@@ -25,7 +25,13 @@ lint:
 
 # Run the semgrep rule tests, then semgrep with custom rules + registry packs (requires nix develop or semgrep on PATH)
 semgrep:
-    semgrep --test --metrics=off .semgrep/
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # semgrep's test mode may skip rule files inside a dot directory: test a copy.
+    rules=$(mktemp -d)
+    trap 'rm -rf "$rules"' EXIT
+    cp -r .semgrep/. "$rules"
+    semgrep --test --metrics=off "$rules"
     semgrep scan --config=.semgrep --config=p/golang --config=p/gosec --exclude=.semgrep --error --metrics=off
 
 # Run betterleaks (secret scanning) against the working tree (requires nix develop or betterleaks on PATH)

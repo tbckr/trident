@@ -1,7 +1,7 @@
-// Test fixture for the trident-proxy-env-single-source rule, run by
-// `semgrep --test .semgrep/`. Not compiled: Go tooling skips dot directories.
-// `// ruleid:` marks the line after it as an expected finding, `// ok:` as one
-// that must not match.
+// Test fixture for the trident-proxy-env-single-source rule, run by semgrep's
+// test mode (see the semgrep workflow). Not compiled: Go tooling skips dot
+// directories. The annotation comments below name the rule and mark the next
+// line as a line it must flag or must leave alone.
 package fixtures
 
 import (

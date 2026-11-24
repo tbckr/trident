@@ -44,7 +44,9 @@ jobs:
 
       # Rule tests: each `.semgrep/<rule>.go` fixture marks the findings its
       # rule must report (`// ruleid:`) and must not report (`// ok:`).
-      - run: semgrep --test --metrics=off .semgrep/
+      # semgrep's test mode may skip rule files inside a dot directory, so
+      # the tests run on a copy outside `.semgrep`.
+      - run: cp -r .semgrep/. /tmp/semgrep-rules && semgrep --test --metrics=off /tmp/semgrep-rules/
 
       # The fixtures contain findings on purpose, so the scan skips them.
       - run: semgrep scan --config=.semgrep --config=p/golang --config=p/gosec --exclude=.semgrep --sarif --output=semgrep.sarif --error --metrics=off
