@@ -1,0 +1,75 @@
+rules:
+  - id: trident-no-implicit-proxy-env
+    languages: [go]
+    severity: ERROR
+    message: >-
+      This HTTP client reads the proxy environment behind trident's back.
+      `http.DefaultClient`, the package-level `http.Get`/`Head`/`Post`/
+      `PostForm`, an `http.Client` without a `Transport` (or with
+      `http.DefaultTransport`), `http.DefaultTransport` itself and a clone of
+      it whose `Proxy` is never replaced all use Go's
+      `http.ProxyFromEnvironment`. That function ignores `ALL_PROXY`, caches
+      the environment once per process, exempts localhost implicitly and
+      drops broken values silently, so the request can leave without the
+      proxy trident resolved (`*proxyconf.Settings`), and without its dial
+      guard, and nothing reports it. Use `d.newHTTPClient()` (or
+      `d.newDoHClient()` for DoH) from `internal/cli/deps.go`; inside
+      `internal/httpclient`, clone `http.DefaultTransport` only to set
+      `tr.Proxy` from the settings right away, as `newDoH` in `doh.go` does.
+      A test that needs a raw client gives it an explicit `Transport`.
+    metadata:
+      category: security
+      confidence: HIGH
+    pattern-either:
+      - pattern: http.DefaultClient
+      - pattern: http.Get(...)
+      - pattern: http.Head(...)
+      - pattern: http.Post(...)
+      - pattern: http.PostForm(...)
+      - pattern: new(http.Client)
+      - patterns:
+          - pattern: http.Client{...}
+          - pattern-not: 'http.Client{..., Transport: $T, ...}'
+      - pattern: 'http.Client{..., Transport: http.DefaultTransport, ...}'
+      - pattern: http.DefaultTransport.RoundTrip(...)
+      - patterns:
+          - pattern: http.DefaultTransport.(*http.Transport).Clone()
+          - pattern-not-inside: |
+              $TR := http.DefaultTransport.(*http.Transport).Clone()
+              ...
+              $TR.Proxy = $P
+          - pattern-not-inside: |
+              $TR = http.DefaultTransport.(*http.Transport).Clone()
+              ...
+              $TR.Proxy = $P
+
+  - id: trident-no-req-default-client
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Don't use req's default client or a bare `req.C()`/`req.NewClient()`
+      outside `internal/httpclient`. Their transport uses Go's
+      `http.ProxyFromEnvironment` (it ignores `ALL_PROXY`, caches the
+      environment and drops broken values), has no dial guard against req's
+      HTTP/2 proxy bypass (imroc/req#206, #541) and never sees trident's
+      resolved `*proxyconf.Settings`, so requests can leave without the
+      proxy. Build clients with `d.newHTTPClient()` or `d.newDoHClient()`
+      from `internal/cli/deps.go`. Tests are exempt: they replace the
+      transport with httpmock.
+    metadata:
+      category: security
+      confidence: HIGH
+    paths:
+      exclude:
+        - "/internal/httpclient/"
+        - "*_test.go"
+    pattern-either:
+      - pattern: req.C()
+      - pattern: req.NewClient()
+      - pattern: req.R()
+      - pattern: req.DefaultClient()
+      - patterns:
+          - pattern: req.$F(...)
+          - metavariable-regex:
+              metavariable: $F
+              regex: ^(Must)?(Get|Head|Post|Put|Patch|Delete|Options|Send)$
