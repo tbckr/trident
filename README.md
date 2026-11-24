@@ -323,9 +323,17 @@ Behind a proxy, the HTTP-based services speak HTTP/1.1 only, and trident refuses
 connection that would reach a proxied host directly instead of through the proxy
 (the request fails with "refusing direct connection while a proxy is configured").
 A `socks4://` proxy from the environment is refused as well, because SOCKS4 makes the
-client resolve host names locally; use `socks4a://` or `socks5://`.
+client resolve host names locally; use `socks5://`.
 This works around HTTP/2 code paths in the HTTP library that ignore the proxy
 ([imroc/req#541](https://github.com/imroc/req/pull/541)).
+
+`quad9` and `apex` are the exception: Quad9 no longer accepts DNS-over-HTTPS over HTTP/1.1
+(it answers `505`), so these two commands speak HTTP/2 through the proxy, on a separate
+transport that never connects around it. They work through `http://`, `https://` and
+`socks5://` proxies; `socks4://` and `socks4a://` proxies are refused for them. A
+TLS-intercepting proxy that only speaks HTTP/1.1 cannot carry DNS-over-HTTPS: Quad9 answers
+`505` and the command fails with an error. Behind a proxy, `apex` also sends its Team Cymru
+ASN lookups through DNS-over-HTTPS instead of plain DNS from the local resolver.
 
 ---
 
@@ -681,7 +689,7 @@ cmd/docgen/         # Man pages + shell completions generator (cobra/doc)
 internal/
   cli/              # Cobra command tree, global flags, output wiring
   config/           # Viper config loading and flag registration
-  httpclient/       # req.Client factory (proxy, UA rotation, debug tracing)
+  httpclient/       # req.Client factories (proxy, UA rotation, debug tracing; HTTP/2 DoH client)
   input/            # Line reader from io.Reader for stdin path
   pap/              # PAP level constants and enforcement
   doh/              # DNS-over-HTTPS client (Quad9 RFC 8484, shared by apex + quad9)

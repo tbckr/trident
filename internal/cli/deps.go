@@ -13,6 +13,7 @@ import (
 
 	"github.com/tbckr/trident/internal/config"
 	providers "github.com/tbckr/trident/internal/detect"
+	"github.com/tbckr/trident/internal/doh"
 	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
@@ -99,6 +100,19 @@ func (d *deps) newHTTPClient() (*req.Client, error) {
 		return nil, fmt.Errorf("creating HTTP client: %w", err)
 	}
 	return client, nil
+}
+
+// newDoHClient creates the HTTP client for DNS-over-HTTPS requests to
+// doh.Endpoint, configured like newHTTPClient. proxied reports whether a proxy
+// applies to the endpoint. It runs inside the commands that need it, not in
+// buildDeps: it fails for a proxy it cannot speak (such as HTTPS_PROXY=socks4://),
+// which must not break the commands that do not use DoH.
+func (d *deps) newDoHClient() (client *req.Client, proxied bool, err error) {
+	client, proxied, err = httpclient.NewDoH(d.cfg.Proxy, doh.Endpoint, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
+	if err != nil {
+		return nil, false, fmt.Errorf("creating DoH client: %w", err)
+	}
+	return client, proxied, nil
 }
 
 // newResolver creates a new DNS resolver configured with the proxy from the

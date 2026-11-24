@@ -41,11 +41,10 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := d.newHTTPClient()
+			client, _, err := d.newDoHClient()
 			if err != nil {
 				return err
 			}
-			httpclient.ForceHTTP2(client, d.cfg.Proxy)
 			httpclient.AttachRateLimit(client, ratelimit.New(doh.DefaultRPS, doh.DefaultBurst))
 			svc := quad9svc.NewService(client, d.logger)
 			return runServiceCmd(cmd, d, svc, args)

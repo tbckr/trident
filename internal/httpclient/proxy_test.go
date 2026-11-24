@@ -469,31 +469,6 @@ func getParallel(t *testing.T, client *req.Client, target string, n int) {
 	}
 }
 
-func TestForceHTTP2_NoProxyUsesOneConnection(t *testing.T) {
-	clearProxyEnv(t)
-	origin := newTestOrigin(t, true, 0)
-	client := newTestClient(t, "", origin)
-	httpclient.ForceHTTP2(client, "")
-
-	getParallel(t, client, origin.URL, 20)
-	resp, err := client.R().Get(origin.URL)
-	require.NoError(t, err)
-	assert.Equal(t, "HTTP/2.0", resp.String())
-	assert.EqualValues(t, 1, origin.conns(), "forced HTTP/2 multiplexes all requests over one connection")
-}
-
-func TestForceHTTP2_BehindProxyStaysOnHTTP1(t *testing.T) {
-	origin := newTestOrigin(t, true, 0)
-	proxy := newTestProxy(t, "socks5")
-	client := newTestClient(t, proxy.url(), origin)
-	httpclient.ForceHTTP2(client, proxy.url())
-
-	resp, err := client.R().Get(origin.URL)
-	require.NoError(t, err)
-	assert.Equal(t, "HTTP/1.1", resp.String())
-	assertNoDirectConns(t, proxy, origin)
-}
-
 func TestNew_ProxiedClientKeepsABurstOfIdleConns(t *testing.T) {
 	// Behind a proxy the client speaks HTTP/1.1, so a burst of 10 concurrent
 	// requests needs 10 connections; with the default of 2 idle connections

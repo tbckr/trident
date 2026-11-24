@@ -123,7 +123,7 @@ func refuseLocalDNSProxies(proxyFor proxyFunc) proxyFunc {
 	return func(r *http.Request) (*url.URL, error) {
 		p, err := proxyFor(r)
 		if err == nil && p != nil && strings.EqualFold(p.Scheme, "socks4") {
-			return nil, fmt.Errorf("%w: proxy %s is socks4, which resolves host names locally; use socks4a:// or socks5://",
+			return nil, fmt.Errorf("%w: proxy %s is socks4, which resolves host names locally; use socks5:// (socks4a:// does not leak either, but quad9 and apex do not support it)",
 				apperr.ErrProxyBypass, p.Redacted())
 		}
 		return p, err

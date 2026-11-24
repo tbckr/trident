@@ -3,10 +3,12 @@ rules:
     languages: [go]
     severity: ERROR
     message: >-
-      Don't call `httpclient.New(...)` from command or service code. Use the
-      deps factory `d.newHTTPClient()` so proxy, user-agent, and logging stay
-      consistent across the binary. The only legitimate direct callers are
-      `internal/cli/deps.go` (the factory itself) and `internal/httpclient/*_test.go`.
+      Don't call `httpclient.New(...)` or `httpclient.NewDoH(...)` from command
+      or service code. Use the deps factories `d.newHTTPClient()` and
+      `d.newDoHClient()` so proxy, user-agent, and logging stay consistent
+      across the binary. The only legitimate direct callers are
+      `internal/cli/deps.go` (the factories themselves) and
+      `internal/httpclient/*_test.go`.
     metadata:
       category: convention
       confidence: HIGH
@@ -14,4 +16,6 @@ rules:
       exclude:
         - "/internal/cli/deps.go"
         - "/internal/httpclient/*_test.go"
-    pattern: httpclient.New(...)
+    pattern-either:
+      - pattern: httpclient.New(...)
+      - pattern: httpclient.NewDoH(...)

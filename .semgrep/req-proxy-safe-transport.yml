@@ -3,23 +3,32 @@ rules:
     languages: [go]
     severity: ERROR
     message: >-
-      Don't change the HTTP version, the dialer or the proxy of a `*req.Client`
-      outside `internal/httpclient`. `httpclient.New` sets all three so that
-      traffic cannot leave the configured proxy: req ignores the proxy on its
-      HTTP/2 paths (forced HTTP/2: imroc/req#206; a redial after a proxied
-      HTTP/2 connection died: imroc/req#541), so behind a proxy New forces
-      HTTP/1.1, and it installs a dial guard (`guardProxyBypass`) that refuses
-      direct connections with `apperr.ErrProxyBypass`. `EnableForceHTTP2`
-      re-enables the leaking path (the guard then fails every request),
-      HTTP/3 is QUIC over UDP and bypasses both the proxy and the guard, and
+      Don't change the HTTP version, the dialer, the transport or the proxy of
+      a `*req.Client` outside `internal/httpclient`. `httpclient.New` and
+      `httpclient.NewDoH` set all of these so that traffic cannot leave the
+      configured proxy: req ignores the proxy on its HTTP/2 paths (forced
+      HTTP/2: imroc/req#206; a redial after a proxied HTTP/2 connection died:
+      imroc/req#541), so behind a proxy req's transport is forced to HTTP/1.1,
+      and a dial guard (`guardProxyBypass`) refuses direct connections with
+      `apperr.ErrProxyBypass`. The DoH clients (`httpclient.NewDoH`: quad9,
+      apex) need HTTP/2, so their requests run on a stdlib `net/http`
+      transport instead, which speaks HTTP/2 through the proxy without leaving
+      it, behind the same guard; req's own transport stays configured as
+      `httpclient.New` leaves it (proxied, guarded, HTTP/1.1 behind a proxy)
+      and is only the fallback. `EnableForceHTTP2` re-enables the leaking path
+      (the guard then fails every request), HTTP/3 is QUIC over UDP and
+      bypasses both the proxy and the guard, and
       `SetDial`/`SetDialTLS`/`SetProxy`/`SetProxyURL` (and `SetResolver`,
       `SetHosts`, `SetUnixSocket`, which call `SetDial` internally, or
       assigning the transport's `DialContext`/`DialTLSContext`/`Proxy`)
-      replace the guard or desynchronise it from the proxy. For HTTP/2 without
-      a proxy use `httpclient.ForceHTTP2(client, proxy)`, which stays on
-      HTTP/1.1 behind one. If a command really needs anything else here,
-      change `httpclient.New` and its proxy tests
-      (internal/httpclient/proxy_test.go) instead.
+      replace the guard or desynchronise it from the proxy. Assigning
+      `GetClient().Transport` replaces the guarded transport outright, and
+      `Clone()` and `RoundTrip` on a `*req.Client` run on req's fallback
+      transport, so a DoH client loses its HTTP/2, timeouts and health checks
+      (Quad9 then answers 505). Get clients from the deps factories
+      (`d.newHTTPClient()`, `d.newDoHClient()`). If a command really needs
+      anything else here, change `internal/httpclient` and its proxy tests
+      (proxy_test.go, doh_test.go) instead.
     metadata:
       category: security
       confidence: HIGH
@@ -42,3 +51,7 @@ rules:
       - pattern: $T.DialContext = $X
       - pattern: $T.DialTLSContext = $X
       - pattern: $T.Proxy = $X
+      - pattern: $C.GetClient().Transport = $X
+      - pattern: '($C : *req.Client).Clone()'
+      - pattern: '($C : *req.Client).RoundTrip(...)'
+      - pattern: $C.GetTransport().RoundTrip(...)

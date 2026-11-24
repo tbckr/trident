@@ -50,11 +50,10 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := d.newHTTPClient()
+			client, proxied, err := d.newDoHClient()
 			if err != nil {
 				return err
 			}
-			httpclient.ForceHTTP2(client, d.cfg.Proxy)
 			httpclient.AttachRateLimit(client, ratelimit.New(doh.DefaultRPS, doh.DefaultBurst))
 			r, err := d.newResolver()
 			if err != nil {
@@ -64,7 +63,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			if err != nil {
 				return err
 			}
-			svc := apexsvc.NewService(client, r, d.logger, patterns)
+			svc := apexsvc.NewService(client, apexsvc.CymruResolver(client, proxied, r), d.logger, patterns)
 			return runAggregateCmd(cmd, d, svc, args)
 		},
 	}

@@ -48,8 +48,8 @@ func ResolveProxy(proxy string) string {
 // Whenever a proxy is configured, the client speaks HTTP/1.1 only, and it
 // refuses (apperr.ErrProxyBypass) to connect around the proxy to a host the
 // proxy is meant to reach (see guardProxyBypass), or to use a socks4:// proxy
-// from the environment (see refuseLocalDNSProxies). Use ForceHTTP2, not
-// client.EnableForceHTTP2, for HTTP/2.
+// from the environment (see refuseLocalDNSProxies). For HTTP/2 behind a proxy
+// use NewDoH, not client.EnableForceHTTP2.
 // When debug is true and logger is non-nil, an OnAfterResponse hook is attached
 // that logs the HTTP method, URL, and status code at DEBUG level.
 // Returns an error if the proxy URL is syntactically invalid.
@@ -116,20 +116,6 @@ func newClient(proxyFor proxyFunc, forceH1 bool, userAgent string, logger *slog.
 	}
 
 	return client
-}
-
-// ForceHTTP2 makes a client from New speak HTTP/2 only, unless a proxy is
-// configured (proxy as passed to New, or the proxy environment variables).
-// Forced HTTP/2 puts every request to a host on one multiplexed connection;
-// with ALPN alone, req dials once per concurrent request until the first
-// connection is pooled. Behind a proxy the client stays on HTTP/1.1, because
-// req's forced HTTP/2 ignores the proxy (imroc/req#206). Use it instead of
-// client.EnableForceHTTP2().
-func ForceHTTP2(client *req.Client, proxy string) {
-	if ResolveProxy(proxy) != "" {
-		return
-	}
-	client.EnableForceHTTP2()
 }
 
 // attachDebugHook registers an OnAfterResponse hook that logs the HTTP method,
