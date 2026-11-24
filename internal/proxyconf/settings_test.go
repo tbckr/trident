@@ -488,13 +488,30 @@ func TestResolve_NoProxyNeverNotifiesWithoutAnExemption(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := proxyconf.Resolve(tt.setting, env(tt.env...))
-			require.NoError(t, s.Err())
+		// The http:// path has its own exemption notice (an http:// URL with
+		// only an https proxy); it must stay silent in the same cases.
+		for _, target := range []string{"https://a.corp/", "http://a.corp/"} {
+			t.Run(tt.name+" "+target, func(t *testing.T) {
+				s := proxyconf.Resolve(tt.setting, env(tt.env...))
+				require.NoError(t, s.Err())
+				fn := s.ProxyFunc(func(host string) { t.Errorf("unexpected notify for %q", host) })
+				u, err := fn(&http.Request{URL: mustParse(t, target)})
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, proxyconf.Redact(u))
+			})
+		}
+	}
+
+	// A deferred error wins over every exemption: the proxy function returns
+	// it and never reports an exemption.
+	for _, target := range []string{"https://a.corp/", "http://a.corp/"} {
+		t.Run("deferred error "+target, func(t *testing.T) {
+			s := proxyconf.Resolve("", env("HTTPS_PROXY", " x", "NO_PROXY", ".corp"))
+			require.Error(t, s.Err())
 			fn := s.ProxyFunc(func(host string) { t.Errorf("unexpected notify for %q", host) })
-			u, err := fn(&http.Request{URL: mustParse(t, "https://a.corp/")})
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, proxyconf.Redact(u))
+			u, err := fn(&http.Request{URL: mustParse(t, target)})
+			require.ErrorIs(t, err, apperr.ErrProxyConfig)
+			assert.Nil(t, u)
 		})
 	}
 }
