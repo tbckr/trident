@@ -58,6 +58,17 @@ func TestNoProxyMatches(t *testing.T) {
 		{list: "1.2.3", host: "0.1.2.3", port: "443", want: false},
 		{list: "example.com", host: "::1", port: "443", want: false},
 		{list: "FD00::/8", host: "FD12::1", port: "443", want: true},
+		// A trailing dot makes a host a DNS name (resolved, then dialled
+		// directly), not an IP literal: no IP or CIDR entry matches it.
+		{list: "10.0.0.0/8", host: "10.1.2.3.", port: "443", want: false},
+		{list: "10.1.2.3", host: "10.1.2.3.", port: "443", want: false},
+		{list: "::1", host: "::1.", port: "443", want: false},
+		{list: "10.1.2.3.", host: "10.1.2.3.", port: "443", want: true},
+		{list: "10.1.2.3.", host: "10.1.2.3", port: "443", want: false},
+		// Go dials an IPv4-mapped IPv6 literal as IPv4, so it matches the
+		// IPv4 entries of its address.
+		{list: "10.0.0.0/8", host: "::ffff:10.1.2.3", port: "443", want: true},
+		{list: "10.1.2.3", host: "::ffff:10.1.2.3", port: "443", want: true},
 		// A bracketed IPv6 literal without a port is the address itself.
 		{list: "[::1]", host: "::1", port: "443", want: true},
 		// An empty port restricts nothing; a port is compared as a number.

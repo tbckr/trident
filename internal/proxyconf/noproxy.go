@@ -107,13 +107,16 @@ func asciiHost(h string) string {
 // matches reports whether a request to host and port must bypass the proxy.
 // host comes without brackets, port is the request's effective port. An IP
 // host is compared with the IP and CIDR entries only, any other host with the
-// domain entries only: no name is ever resolved for matching.
+// domain entries only: no name is ever resolved for matching. A host with a
+// trailing dot ("10.1.2.3.") is a DNS name, which is resolved and not dialled
+// as the literal, so it is no IP host. An IPv4-mapped IPv6 host
+// ("::ffff:10.1.2.3") matches the IPv4 entries: Go dials it as IPv4.
 func (n noProxy) matches(host, port string) bool {
 	if num, err := strconv.ParseUint(port, 10, 16); err == nil {
 		port = strconv.FormatUint(num, 10)
 	}
 
-	ip := net.ParseIP(strings.TrimSuffix(host, "."))
+	ip := net.ParseIP(host)
 	var h string
 	if ip == nil {
 		h = asciiHost(host)
