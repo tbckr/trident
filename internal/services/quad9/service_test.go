@@ -157,8 +157,9 @@ func TestService_Run_ClientTimeoutIsError(t *testing.T) {
 	assert.Nil(t, raw)
 }
 
-// A cancelled caller context keeps returning the partial result (not blocked).
-func TestService_Run_CallerCancelledReturnsPartial(t *testing.T) {
+// A cancelled caller context is an error, never a "not blocked" verdict: the
+// query did not finish, so nothing is known about the domain.
+func TestService_Run_CallerCancelledReturnsContextError(t *testing.T) {
 	client := newTestClient(t)
 	httpmock.RegisterResponder(http.MethodGet, `=~^`+dohURL,
 		httpmock.NewErrorResponder(context.Canceled))
@@ -168,12 +169,8 @@ func TestService_Run_CallerCancelledReturnsPartial(t *testing.T) {
 
 	svc := quad9.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(ctx, "example.com")
-	require.NoError(t, err)
-
-	result, ok := raw.(*quad9.Result)
-	require.True(t, ok, "expected *quad9.Result")
-	assert.Equal(t, "example.com", result.Input)
-	assert.False(t, result.Blocked)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, raw)
 }
 
 // The caller's context decides, not the shape of the error: a transport error
@@ -188,11 +185,8 @@ func TestService_Run_CallerCancelledWithTransportError(t *testing.T) {
 
 	svc := quad9.NewService(client, testutil.NopLogger())
 	raw, err := svc.Run(ctx, "example.com")
-	require.NoError(t, err)
-
-	result, ok := raw.(*quad9.Result)
-	require.True(t, ok, "expected *quad9.Result")
-	assert.False(t, result.Blocked)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, raw)
 }
 
 func TestService_Run_ProxyBypass(t *testing.T) {

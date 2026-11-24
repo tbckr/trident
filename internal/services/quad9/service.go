@@ -62,12 +62,14 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 
 	resp, err := dohpkg.MakeDoHRequest(ctx, s.client, domain, dns.TypeA)
 	if err != nil {
-		// Only the caller's own context ends a query quietly. An http.Client
-		// timeout also matches context.DeadlineExceeded while the caller is
-		// still waiting; reporting that as "not blocked" would be a false negative.
-		if ctx.Err() != nil {
+		// Only the caller's own context counts: an http.Client timeout also
+		// matches context.DeadlineExceeded while the caller is still waiting,
+		// and that is a failed query (the return below). A done caller context
+		// means the query never finished, so there is no verdict; "not blocked"
+		// would be a false negative. main exits 0 quietly on context.Canceled.
+		if ctxErr := ctx.Err(); ctxErr != nil {
 			s.logger.Debug("quad9 blocked: context cancelled", "domain", domain)
-			return result, nil
+			return nil, ctxErr
 		}
 		return nil, err
 	}
