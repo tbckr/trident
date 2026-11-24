@@ -104,7 +104,8 @@ func httpOnlyError(v string) error {
 // included, is then ignored and not validated. Otherwise https uses
 // https_proxy/HTTPS_PROXY, then all_proxy/ALL_PROXY; http uses
 // http_proxy/HTTP_PROXY, then the same all pair; DNS follows the https value.
-// Only values a path actually uses are validated. NO_PROXY=* turns the proxy
+// Only values a path actually uses are validated, and NO_PROXY (its pair and
+// its entries) only when a proxy value is selected. NO_PROXY=* turns the proxy
 // off. Two further rules abort: a lowercase/uppercase pair that disagrees, and
 // an http proxy without an https one (https would go direct).
 func Resolve(setting string, getenv func(string) string) *Settings {
@@ -163,16 +164,23 @@ func resolveEnv(getenv func(string) string) *Settings {
 	}
 	s.httpsSelected, s.httpSelected = useHTTPS.set, useHTTP.set
 
+	// NO_PROXY only matters, and so is only checked (its pair for a conflict,
+	// its entries for a parse error), when a proxy value is selected: with no
+	// proxy there is nothing to exempt, and nothing a user could not honour.
+	checkNoProxy := useHTTPS.set || useHTTP.set
+
 	// One deferred error, the first of these classes in this order.
 	var conflictErr, httpOnlyErr, valueErr, noProxyErr error
-	for _, p := range []pair{no, httpsPair, httpPair, allPair} {
+	pairs := []pair{httpsPair, httpPair, allPair}
+	if checkNoProxy {
+		pairs = append([]pair{no}, pairs...)
+		s.noProxyErr = no.err
+	}
+	for _, p := range pairs {
 		if p.err != nil {
 			conflictErr = p.err
 			break
 		}
-	}
-	if no.err != nil {
-		s.noProxyErr = no.err
 	}
 	if !useHTTPS.set && httpPair.set && httpPair.err == nil {
 		// The https chain is empty, so the http value is the http pair's.
@@ -199,11 +207,14 @@ func resolveEnv(getenv func(string) string) *Settings {
 	}
 
 	if no.err == nil {
+		// The value in effect, shown as typed; parsed only when it matters.
 		s.noProxyValue = no.value
-		var err error
-		s.noProxy, err = parseNoProxy(no.value, no.source)
-		if err != nil {
-			noProxyErr, s.noProxyErr = err, err
+		if checkNoProxy {
+			var err error
+			s.noProxy, err = parseNoProxy(no.value, no.source)
+			if err != nil {
+				noProxyErr, s.noProxyErr = err, err
+			}
 		}
 	}
 

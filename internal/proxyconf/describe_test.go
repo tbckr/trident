@@ -180,6 +180,25 @@ func TestDescribe_ErrorsInTheEnvironment(t *testing.T) {
 	})
 }
 
+// Without a selected proxy NO_PROXY is not looked at, so an odd or conflicting
+// one is no error and shows without one.
+func TestDescribe_NoProxyWithoutASelectedProxy(t *testing.T) {
+	odd := proxyconf.Resolve("", env("NO_PROXY", "localhost,*"))
+	require.NoError(t, odd.Err())
+	assert.Equal(t, []proxyconf.Row{
+		{Key: "proxy", Value: ""},
+		{Key: "proxy_dns", Value: "system resolver"},
+		{Key: "proxy_http", Value: "direct"},
+		{Key: "proxy_https", Value: "direct"},
+		{Key: "proxy_no_proxy", Value: "localhost,*"},
+	}, odd.Describe())
+
+	conflict := proxyconf.Resolve("", env("no_proxy", "a", "NO_PROXY", "b"))
+	require.NoError(t, conflict.Err())
+	assert.Equal(t, "", rows(conflict)["proxy_no_proxy"])
+	assert.Equal(t, "direct", rows(conflict)["proxy_https"])
+}
+
 func TestDescribe_RowOrder(t *testing.T) {
 	var keys []string
 	for _, r := range proxyconf.Resolve("", nil).Describe() {

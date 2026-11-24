@@ -162,6 +162,14 @@ func TestResolve(t *testing.T) {
 			configured: true,
 		},
 		{
+			name: "odd NO_PROXY is ignored when no proxy is selected",
+			env:  []string{"NO_PROXY", "localhost,*"},
+		},
+		{
+			name: "NO_PROXY pair conflict is ignored when no proxy is selected",
+			env:  []string{"no_proxy", "a", "NO_PROXY", "b"},
+		},
+		{
 			name: "NO_PROXY=* disables everything and validates nothing",
 			env:  []string{"HTTPS_PROXY", "garbage value", "NO_PROXY", " * "},
 		},
