@@ -3,6 +3,7 @@ package quad9_test
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/netip"
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tbckr/trident/internal/apperr"
 	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/services/quad9"
 	"github.com/tbckr/trident/internal/testutil"
@@ -137,6 +139,71 @@ func TestService_Run_HTTPError(t *testing.T) {
 	raw, err := svc.Run(context.Background(), "example.com")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, services.ErrRequestFailed)
+	assert.Nil(t, raw)
+}
+
+// An http.Client timeout matches context.DeadlineExceeded while the caller is
+// still waiting. It must surface as an error: reporting "not blocked" would be
+// a false negative.
+func TestService_Run_ClientTimeoutIsError(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet, `=~^`+dohURL,
+		httpmock.NewErrorResponder(context.DeadlineExceeded))
+
+	svc := quad9.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, services.ErrRequestFailed)
+	assert.Nil(t, raw)
+}
+
+// A cancelled caller context keeps returning the partial result (not blocked).
+func TestService_Run_CallerCancelledReturnsPartial(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet, `=~^`+dohURL,
+		httpmock.NewErrorResponder(context.Canceled))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	svc := quad9.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(ctx, "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*quad9.Result)
+	require.True(t, ok, "expected *quad9.Result")
+	assert.Equal(t, "example.com", result.Input)
+	assert.False(t, result.Blocked)
+}
+
+// The caller's context decides, not the shape of the error: a transport error
+// that races with the cancellation need not wrap context.Canceled.
+func TestService_Run_CallerCancelledWithTransportError(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet, `=~^`+dohURL,
+		httpmock.NewErrorResponder(errors.New("connection reset by peer")))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	svc := quad9.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(ctx, "example.com")
+	require.NoError(t, err)
+
+	result, ok := raw.(*quad9.Result)
+	require.True(t, ok, "expected *quad9.Result")
+	assert.False(t, result.Blocked)
+}
+
+func TestService_Run_ProxyBypass(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet, `=~^`+dohURL,
+		httpmock.NewErrorResponder(fmt.Errorf("dial: %w", apperr.ErrProxyBypass)))
+
+	svc := quad9.NewService(client, testutil.NopLogger())
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrProxyBypass)
 	assert.Nil(t, raw)
 }
 

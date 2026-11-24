@@ -2,7 +2,6 @@ package quad9
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 
@@ -63,7 +62,10 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 
 	resp, err := dohpkg.MakeDoHRequest(ctx, s.client, domain, dns.TypeA)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		// Only the caller's own context ends a query quietly. An http.Client
+		// timeout also matches context.DeadlineExceeded while the caller is
+		// still waiting; reporting that as "not blocked" would be a false negative.
+		if ctx.Err() != nil {
 			s.logger.Debug("quad9 blocked: context cancelled", "domain", domain)
 			return result, nil
 		}
