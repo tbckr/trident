@@ -166,7 +166,7 @@ trident identify --cname abc.cloudfront.net --mx aspmx.l.google.com --txt "v=spf
 - **Bulk input** — pipe a target list via stdin or pass multiple arguments
 - **Three output formats** — `table` (tables), `json`, and `text` (one result per line for piping)
 - **PAP system** — Permissible Actions Protocol (RED/AMBER/GREEN/WHITE) prevents accidental active interaction
-- **Proxy support** — HTTP, HTTPS, and SOCKS5 proxies; honours `HTTP_PROXY`/`HTTPS_PROXY` env vars automatically
+- **Proxy support** — HTTP, HTTPS, and SOCKS5 (`socks5h://`) proxies via `--proxy` or the standard `HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY`/`NO_PROXY` variables, resolved once with curl-like rules; see [Proxy](#proxy)
 - **Auto-defanging** — URLs and IPs are defanged at strict PAP levels
 - **Rate limiting** — per-service token-bucket rate limiter with jitter to avoid detectable request patterns
 - **Concurrent processing** — configurable worker pool for fast bulk lookups
@@ -280,7 +280,7 @@ edit directly. The config file supports all global flags plus the `alias` block 
 output: json
 pap_limit: amber
 concurrency: 20
-proxy: socks5://127.0.0.1:9050
+proxy: socks5h://127.0.0.1:9050
 detect_patterns:
   url: https://example.com/custom-patterns.yaml  # optional: override download URL
   file: /path/to/patterns.yaml                   # optional: use this file instead of defaults
@@ -316,32 +316,131 @@ Environment variables override config file values using the `TRIDENT_` prefix:
 | `TRIDENT_DETECT_PATTERNS_URL` | `detect_patterns.url` |
 | `TRIDENT_DETECT_PATTERNS_FILE` | `--patterns-file` / `detect_patterns.file` |
 
-When `--proxy` / `TRIDENT_PROXY` is not set, trident honours the standard `HTTP_PROXY`,
-`HTTPS_PROXY`, and `NO_PROXY` environment variables automatically. Every service talks
-to its server over HTTPS, so set `HTTPS_PROXY` (or `--proxy`): `HTTP_PROXY` applies only
-to plain `http://` requests, and `ALL_PROXY` is ignored for HTTP requests. With only
-`ALL_PROXY` or `HTTP_PROXY` set, the HTTP-based services, including the `quad9` and
-`apex` DNS-over-HTTPS queries, connect directly, not through the proxy.
+### Proxy
 
-Behind a proxy, the HTTP-based services speak HTTP/1.1 only, and trident refuses any
-connection that would reach a proxied host directly instead of through the proxy
-(the request fails with "refusing direct connection while a proxy is configured").
-A `socks4://` proxy from the environment is refused as well, because SOCKS4 makes the
-client resolve host names locally; use `socks5://`.
-This works around HTTP/2 code paths in the HTTP library that ignore the proxy
+trident resolves its proxy once per run and uses that one answer for every network path: https
+requests, http requests, and DNS lookups. `trident config show` prints the result (see
+[`config`](#config--configuration-management)).
+
+**Which proxy applies.** `--proxy` (or `TRIDENT_PROXY`, or `proxy:` in the config file) applies to
+all three paths, and every proxy environment variable, `NO_PROXY` included, is then ignored. This
+differs from curl, which still applies `NO_PROXY` to `--proxy`. Without it, the environment
+decides; each variable may be spelled in lowercase or uppercase:
+
+| Path | Proxy used |
+|------|------------|
+| https requests | `https_proxy` / `HTTPS_PROXY`, else `all_proxy` / `ALL_PROXY` |
+| http requests | `http_proxy` / `HTTP_PROXY`, else `all_proxy` / `ALL_PROXY` |
+| DNS lookups | the https value, so DNS and HTTPS leave through the same exit |
+
+Every trident service talks HTTPS, so `HTTP_PROXY` alone is not enough (see Errors below). With
+only an https proxy set, `config show` reads `proxy_http=direct`, but trident still refuses to
+connect to `http://` targets directly, because a proxy is configured for https; this matters only
+for `http://` redirects and a custom `detect_patterns.url`. When a server runs trident as a CGI
+script (`REQUEST_METHOD` is set), uppercase `HTTP_PROXY` is ignored, because the web server fills it
+from the request's `Proxy:` header; lowercase `http_proxy` is kept.
+
+**Accepted values.** `http://`, `https://`, `socks5://` and `socks5h://`, with the scheme in any
+case. A value without `://` is read as `http://` plus the value (`proxy.corp:3128`). A user name
+and password (`user:pass@host`) are allowed; for a SOCKS proxy they become SOCKS username and
+password authentication. With `socks5://` as well as `socks5h://`, trident sends target host names
+to the proxy and never resolves them locally; `socks5h://` is the spelling that says so. Not
+accepted: `socks4://` and `socks4a://` (SOCKS4 makes the client resolve names itself), `socks://`
+(ambiguous; use `socks5h://`), whitespace or control characters, a missing host, a port outside
+1-65535, and a path (other than a trailing `/`), query or fragment. trident never trims or repairs
+a value, so a leading space is an error and not a silent direct connection. The proxy's own host
+name is resolved locally on every connection (inherent to Go and the HTTP library): prefer an IP
+literal, as in `socks5h://127.0.0.1:9050`.
+
+**`NO_PROXY`** follows curl's rules, and only applies to proxies taken from the environment:
+
+- Entries are separated by commas; spaces and case do not matter.
+- `example.com`, `.example.com` and `*.example.com` all match the host itself and every
+  subdomain, but not `badexample.com`.
+- IP addresses and CIDR ranges (IPv4 and IPv6) match only targets given as IP literals; no name
+  is looked up for matching. An entry with a port (`host:port`, `[::1]:8080`) matches only that
+  port. Internationalised names are compared in their ASCII (IDNA) form.
+- There is no implicit exemption for `localhost` or loopback addresses. If a local service (for
+  example a patterns server) must be reached directly, add it: `NO_PROXY=localhost,127.0.0.1`.
+- `NO_PROXY` does not affect DNS lookups, except for `*`.
+- A `*` among other entries (`localhost,*`) is an error: Go would bypass the proxy for everything
+  and curl for nothing. Use `NO_PROXY=*` alone.
+- When `NO_PROXY` exempts a host that trident is about to contact while a proxy is configured,
+  trident connects directly and logs a warning once per host: `NO_PROXY exempts this host from
+  the proxy; connecting directly`, with the host name attached.
+- **`NO_PROXY=*`** turns the proxy off for https, http and DNS alike, with no warning and no
+  validation of the proxy variables. This is the way to say "connect directly, on purpose" while
+  proxy variables are exported.
+
+**Errors.** When trident cannot honour a proxy setting it stops instead of connecting around the
+proxy. Only the commands that use the network stop; `identify`, `config`, `version` and shell
+completion keep working. Two situations only warn: a `NO_PROXY` exemption (above) and DNS behind
+an HTTP(S) proxy (below). Errors read `invalid proxy configuration: <source>: <reason>`, where the
+source is `proxy` (the flag, config file or `TRIDENT_PROXY`) or the exact variable name. They never
+contain the proxy value, and no output ever shows a user name or password.
+
+| Situation | What to do |
+|-----------|------------|
+| Only `http_proxy` / `HTTP_PROXY` is set. It covers `http://` URLs only, so every https request would bypass it: `HTTP_PROXY applies only to http:// URLs, but trident's services use https:// and would bypass the proxy; ...` | Set `HTTPS_PROXY` (or `ALL_PROXY`) to the same value, use `--proxy socks5h://...`, or set `NO_PROXY='*'` to connect directly. |
+| A lowercase variable and its uppercase twin are both set and differ: `https_proxy and HTTPS_PROXY are both set and differ; unset one` | Unset one of the two. An empty variable counts as unset. |
+| A selected value is not usable (`socks4://`, `socks://`, a leading space, a path, ...): for example `HTTPS_PROXY: socks4:// is not supported; use socks5h://` | Fix the value. Only values trident actually uses are checked: a broken `ALL_PROXY` next to valid `HTTPS_PROXY` and `HTTP_PROXY` is ignored. |
+| `NO_PROXY` has a `*` among other entries (checked only when a proxy applies) | Use `NO_PROXY=*` alone, or list the hosts. |
+| A connection would reach a proxied host directly, for example an `http://` URL while only an https proxy is set: `refusing direct connection while a proxy is configured` | Set `http_proxy` or `ALL_PROXY` as well, or exempt the host with `NO_PROXY`. |
+
+**DNS.** `dns`, `detect` and `cymru` (and `apex`, see below) look names up as follows:
+
+- **SOCKS5 proxy** (`socks5://` or `socks5h://` is the https value): every query goes over TCP
+  through the proxy to Quad9's unfiltered resolver at `9.9.9.10:53`, never to the nameserver in
+  `/etc/resolv.conf`: that is often a local stub such as `127.0.0.53`, which a remote proxy would
+  read as its own loopback, and Tor refuses it. Names are sent fully qualified, so the search
+  domains from `resolv.conf` never leave through the proxy. The nameserver is fixed for now, and
+  your proxy must allow TCP connections to `9.9.9.10:53`. Quad9 on this address does not validate
+  DNSSEC.
+- **HTTP or HTTPS proxy:** a proxy like that cannot carry DNS, so the system resolver is used,
+  outside the proxy, and trident warns: `DNS lookups cannot go through the configured proxy and use
+  the system resolver; use a socks5h:// proxy (apex already resolves through the proxy via DoH)`,
+  with the redacted proxy URL attached. The warning appears only in commands that look names up
+  this way, not in `crtsh` or `pgp`. Use a SOCKS5 proxy, or `apex`, which asks Quad9 over HTTPS and
+  so goes through the proxy.
+- **No proxy, or `NO_PROXY=*`:** the system resolver, with no warning.
+
+A VPN such as Mullvad needs no proxy setting: trident's traffic, DNS lookups included, already
+leaves through the tunnel. Turn on the VPN client's lockdown mode (Mullvad: "Lockdown mode") so
+that nothing leaves outside the tunnel while it is down.
+
+**How requests behave behind a proxy.** The HTTP-based services speak HTTP/1.1 only, and trident
+refuses any connection that would reach a proxied host directly instead of through the proxy
+(the request fails with "refusing direct connection while a proxy is configured"). This works
+around HTTP/2 code paths in the HTTP library that ignore the proxy
 ([imroc/req#541](https://github.com/imroc/req/pull/541)).
 
 `quad9` and `apex` are the exception: Quad9 no longer accepts DNS-over-HTTPS over HTTP/1.1
 (it answers `505`), so these two commands speak HTTP/2 through the proxy, on a separate
-transport that never connects around it. They work through `http://`, `https://` and
-`socks5://` proxies; `socks4://` and `socks4a://` proxies are refused for them. A
-TLS-intercepting proxy that only speaks HTTP/1.1 cannot carry DNS-over-HTTPS: Quad9 answers
-`505` and the command fails with an error. An `https://` proxy that itself negotiates
-HTTP/2 (Envoy and Caddy can, Squid does not) breaks the connection to it for these two
-commands, which then fail with an error as well; use an `http://` or `socks5://` proxy
-instead. Behind a proxy that applies to `dns.quad9.net` (see above: `HTTPS_PROXY` or
-`--proxy`), `apex` also sends its Team Cymru ASN lookups through DNS-over-HTTPS instead of
-plain DNS from the local resolver.
+transport that never connects around it. They work through `http://`, `https://`, `socks5://` and
+`socks5h://` proxies. A TLS-intercepting proxy that only speaks HTTP/1.1 cannot carry
+DNS-over-HTTPS: Quad9 answers `505` and the command fails with an error. An `https://` proxy that
+itself negotiates HTTP/2 (Envoy and Caddy can, Squid does not) breaks the connection to it for
+these two commands, which then fail with an error as well; use an `http://` or `socks5h://` proxy
+instead. Behind a proxy that applies to `dns.quad9.net` (that is, `--proxy`, `HTTPS_PROXY` or
+`ALL_PROXY`, and not exempted by `NO_PROXY`), `apex` also sends its Team Cymru ASN lookups through
+DNS-over-HTTPS instead of plain DNS from the local resolver. If one of those lookups would bypass
+the proxy, `apex` stops with an error.
+
+**If you used proxies with an earlier version,** these behaviours changed:
+
+- `ALL_PROXY` alone now proxies all HTTP services and the DNS-over-HTTPS queries (before, it
+  affected DNS lookups only).
+- With only `http_proxy` / `HTTP_PROXY` set, network commands now stop with an error (before,
+  everything went direct without a word).
+- A lowercase/uppercase mismatch, a broken value, and `socks://` now stop the network commands.
+- `--proxy` accepts `socks5h://`, and schemes in any case. DNS through a SOCKS proxy works with
+  `socks5h://`, uppercase schemes, a trailing `/` and credentials (before, such values sent DNS
+  direct or made every lookup fail), and goes to `9.9.9.10` instead of the system's nameserver.
+- `NO_PROXY` follows curl's rules, with no implicit `localhost` exemption, and exemptions of the
+  hosts trident contacts are warned about.
+- The DNS warning appears only in the commands that use the system resolver (before, it appeared
+  in every command run with an HTTP(S) `--proxy` or `ALL_PROXY`, `crtsh` and `pgp` included).
+- `config show` lists the proxy per path and never prints credentials.
 
 ---
 
@@ -353,7 +452,7 @@ plain DNS from the local resolver.
 | `--verbose`, `-v` | `false` | Enable debug logging |
 | `--output`, `-o` | `table` | Output format: `table`, `json`, `text` |
 | `--concurrency`, `-c` | `10` | Worker pool size for bulk input |
-| `--proxy` | — | Proxy URL (`http://`, `https://`, `socks5://`) |
+| `--proxy` | — | Proxy URL (`http://`, `https://`, `socks5://`, `socks5h://`; scheme in any case). Overrides the proxy environment variables, `NO_PROXY` included |
 | `--user-agent` | `trident/<version>` | HTTP User-Agent header |
 | `--pap-limit` | `white` | PAP limit: `red`, `amber`, `green`, `white` |
 | `--defang` | `false` | Force output defanging |
@@ -369,7 +468,8 @@ Use `trident config show` to see the effective configuration.
 ### `dns` — DNS Lookups
 
 Resolves A, AAAA, MX, NS, and TXT records for a domain, or performs a reverse PTR lookup for an
-IP address. Makes direct queries to the configured DNS resolver (PAP: GREEN).
+IP address. Makes direct queries to the configured DNS resolver (PAP: GREEN). Behind a SOCKS5
+proxy the queries go through the proxy to Quad9 at `9.9.9.10` instead; see [Proxy](#proxy).
 
 ```bash
 trident dns example.com
@@ -564,15 +664,53 @@ trident config set pap-limit amber
 trident config edit
 ```
 
+**Proxy rows.** Besides `proxy` (trident's own setting: `--proxy`, the config file or
+`TRIDENT_PROXY`; empty when only the environment is set), `config show` has four read-only rows
+that report the proxy trident actually uses per path, and where it comes from. See
+[Proxy](#proxy) for the rules.
+
+| Row | Value |
+|-----|-------|
+| `proxy_https` | The proxy for https requests and its source (a variable name, or `proxy` for trident's own setting), or `direct`, or `direct (NO_PROXY=*)` |
+| `proxy_http` | The same for http requests |
+| `proxy_dns` | Over SOCKS: `<proxy> (<source>), nameserver 9.9.9.10:53`. Behind an HTTP(S) proxy: `system resolver, not proxied (<source> is not a SOCKS5 proxy)`. Otherwise `system resolver`, or `system resolver (NO_PROXY=*)` |
+| `proxy_no_proxy` | The `NO_PROXY` value in effect (empty when `proxy` is set) |
+
+```console
+$ HTTPS_PROXY=http://proxy.corp:3128 HTTP_PROXY=http://proxy.corp:3128 NO_PROXY=.corp,localhost \
+    trident config show -o text | grep '^proxy'
+proxy=
+proxy_dns=system resolver, not proxied (HTTPS_PROXY is not a SOCKS5 proxy)
+proxy_http=http://proxy.corp:3128 (HTTP_PROXY)
+proxy_https=http://proxy.corp:3128 (HTTPS_PROXY)
+proxy_no_proxy=.corp,localhost
+
+$ trident --proxy socks5h://127.0.0.1:9050 config show -o text | grep '^proxy'
+proxy=socks5h://127.0.0.1:9050
+proxy_dns=socks5h://127.0.0.1:9050 (proxy), nameserver 9.9.9.10:53
+proxy_http=socks5h://127.0.0.1:9050 (proxy)
+proxy_https=socks5h://127.0.0.1:9050 (proxy)
+proxy_no_proxy=
+```
+
+No row ever shows credentials: a proxy URL with a user name or password appears as
+`scheme://***@host:port`. If a proxy setting cannot be honoured, the affected rows read
+`error: <message>`, the message the network commands stop with; `config show` itself keeps
+working.
+
 **Limitations:**
 - `config show` and `config get` report *effective* values — the result of merging built-in
   defaults, `TRIDENT_*` environment variables, and the config file. They do not show what is
   literally written in the file.
+- `config get` also reads the four `proxy_*` rows; `config set` rejects them, because they only
+  report. `config set proxy <value>` checks the value like `--proxy` does (an invalid value is
+  refused without being echoed back).
 - `config set` writes to the file but takes effect on the **next invocation**; the current
   process already loaded config at startup.
 - The `aliases` section is not managed by `config set` — use the `alias` subcommand instead.
 - Only known configuration keys are accepted (`output`, `pap_limit`, `proxy`, `user_agent`,
   `concurrency`, `verbose`, `defang`, `no_defang`, `detect_patterns.url`, `detect_patterns.file`).
+  `proxy` takes `http://`, `https://`, `socks5://` or `socks5h://` (scheme in any case).
 
 ### `alias` — Command Aliases
 
@@ -698,11 +836,12 @@ internal/
   cli/              # Cobra command tree, global flags, output wiring
   config/           # Viper config loading and flag registration
   httpclient/       # req.Client factories (proxy, UA rotation, debug tracing; HTTP/2 DoH client)
+  proxyconf/        # The one proxy resolution: --proxy/config + env, curl-like NO_PROXY, validation, redaction
   input/            # Line reader from io.Reader for stdin path
   pap/              # PAP level constants and enforcement
   doh/              # DNS-over-HTTPS client (Quad9 RFC 8484, shared by apex + quad9)
   ratelimit/        # Token-bucket rate limiter with ±20% jitter
-  resolver/         # net.Resolver factory with SOCKS5 DNS-leak prevention
+  resolver/         # DNS resolver factory: system resolver, or SOCKS5 to a pinned nameserver
   worker/           # Bounded goroutine pool for bulk input
   services/         # One package per OSINT service
     dns/            # DNS record lookups (net package, PAP: GREEN)
