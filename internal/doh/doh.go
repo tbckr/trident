@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	// dohURL is the Quad9 DNS-over-HTTPS endpoint.
-	dohURL = "https://dns.quad9.net/dns-query"
+	// Endpoint is the Quad9 DNS-over-HTTPS endpoint.
+	Endpoint = "https://dns.quad9.net/dns-query"
 
 	// DefaultRPS is the target request rate for the Quad9 service.
 	DefaultRPS float64 = 5
@@ -114,6 +114,23 @@ func parseDNSResponse(data []byte) (*Response, error) {
 // MakeDoHRequest performs a DNS-over-HTTPS query using RFC 8484 wire format.
 // It encodes the DNS query as base64url and sends it as the "dns" query parameter.
 func MakeDoHRequest(ctx context.Context, client *req.Client, domain string, recordType uint16) (*Response, error) {
+	data, err := exchange(ctx, client, domain, recordType)
+	if err != nil {
+		return nil, err
+	}
+	return parseDNSResponse(data)
+}
+
+// exchange sends the DoH query and returns the raw wire-format response body.
+//
+// Errors are classified for the callers: a done caller context is returned
+// unchanged (the caller cancelled or timed out), an [apperr.ErrProxyBypass]
+// stays detectable so a refused direct connection is not mistaken for a plain
+// network failure, and everything else is an [apperr.ErrRequestFailed]. Only
+// the caller's context counts as a context error: an http.Client timeout also
+// matches [context.DeadlineExceeded] while the caller is still waiting, and
+// that is a failed request.
+func exchange(ctx context.Context, client *req.Client, domain string, recordType uint16) ([]byte, error) {
 	query, err := buildDNSQuery(domain, recordType)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to build DNS query for %q type %d: %v", apperr.ErrRequestFailed, domain, recordType, err)
@@ -124,10 +141,13 @@ func MakeDoHRequest(ctx context.Context, client *req.Client, domain string, reco
 		SetContext(ctx).
 		SetHeader("Accept", "application/dns-message").
 		SetQueryParam("dns", encoded).
-		Get(dohURL)
+		Get(Endpoint)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		if ctx.Err() != nil {
 			return nil, err
+		}
+		if errors.Is(err, apperr.ErrProxyBypass) {
+			return nil, fmt.Errorf("%w: quad9 request for %q type %d: %v", apperr.ErrProxyBypass, domain, recordType, err)
 		}
 		return nil, fmt.Errorf("%w: quad9 request error for %q type %d: %v", apperr.ErrRequestFailed, domain, recordType, err)
 	}
@@ -138,5 +158,5 @@ func MakeDoHRequest(ctx context.Context, client *req.Client, domain string, reco
 		}
 		return nil, fmt.Errorf("%w: quad9 returned HTTP %d for %q type %d: %q", apperr.ErrRequestFailed, httpResp.StatusCode, domain, recordType, body)
 	}
-	return parseDNSResponse(httpResp.Bytes())
+	return httpResp.Bytes(), nil
 }
