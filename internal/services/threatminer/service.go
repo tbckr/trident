@@ -181,7 +181,7 @@ func (s *Service) fetch(ctx context.Context, url string) (json.RawMessage, error
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("%w: %s", services.ErrRequestFailed, err)
+		return nil, fmt.Errorf("%w: %v", services.RequestFailure(err), err)
 	}
 	if resp.Response == nil || !resp.IsSuccessState() {
 		body := resp.String()

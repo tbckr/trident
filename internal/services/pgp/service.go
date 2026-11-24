@@ -72,7 +72,7 @@ func (s *Service) Run(ctx context.Context, input string) (services.Result, error
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return &Result{Input: output.StripANSI(input)}, nil
 		}
-		return nil, fmt.Errorf("%w: %s", services.ErrRequestFailed, err)
+		return nil, fmt.Errorf("%w: %v", services.RequestFailure(err), err)
 	}
 	cleanInput := output.StripANSI(input)
 	if resp.Response != nil && resp.StatusCode == 404 {

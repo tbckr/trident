@@ -6,11 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"slices"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/imroc/req/v3"
+	"github.com/jarcoal/httpmock"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,6 +22,8 @@ import (
 	"github.com/tbckr/trident/internal/config"
 	"github.com/tbckr/trident/internal/pap"
 	"github.com/tbckr/trident/internal/services"
+	"github.com/tbckr/trident/internal/services/crtsh"
+	"github.com/tbckr/trident/internal/testutil"
 )
 
 // bulkResult is a JSON-encodable services.Result holding the inputs it came from.
@@ -167,4 +172,21 @@ func TestRunCmdBody_StopsAtProxyError(t *testing.T) {
 		assert.JSONEq(t, `["slow"]`, stdout)
 		assert.False(t, svc.ran("c"), "no input may start after the proxy error")
 	})
+}
+
+// The stop only works if the service keeps the proxy sentinel in its error:
+// run a real service whose transport refuses the direct connection.
+func TestRunCmdBody_StopsAtProxyErrorFromARealService(t *testing.T) {
+	client := req.NewClient()
+	httpmock.ActivateNonDefault(client.GetClient())
+	t.Cleanup(httpmock.DeactivateAndReset)
+	httpmock.RegisterResponder(http.MethodGet, "=~^https://crt\\.sh/",
+		httpmock.NewErrorResponder(fmt.Errorf("dial tcp: %w", apperr.ErrProxyBypass)))
+
+	svc := crtsh.NewService(client, testutil.NopLogger())
+	stdout, logs, err := runBulk(t, svc, 1, "a.example", "b.example")
+	require.ErrorIs(t, err, apperr.ErrProxyBypass)
+	assert.Empty(t, stdout)
+	assert.Contains(t, logs, "skipped=1")
+	assert.Equal(t, 1, httpmock.GetTotalCallCount(), "the second domain must not be queried")
 }

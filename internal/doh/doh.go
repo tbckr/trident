@@ -3,7 +3,6 @@ package doh
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -146,10 +145,7 @@ func exchange(ctx context.Context, client *req.Client, domain string, recordType
 		if ctx.Err() != nil {
 			return nil, err
 		}
-		if errors.Is(err, apperr.ErrProxyBypass) {
-			return nil, fmt.Errorf("%w: quad9 request for %q type %d: %v", apperr.ErrProxyBypass, domain, recordType, err)
-		}
-		return nil, fmt.Errorf("%w: quad9 request error for %q type %d: %v", apperr.ErrRequestFailed, domain, recordType, err)
+		return nil, fmt.Errorf("%w: quad9 request error for %q type %d: %v", apperr.RequestFailure(err), domain, recordType, err)
 	}
 	if !httpResp.IsSuccessState() {
 		body := httpResp.String()

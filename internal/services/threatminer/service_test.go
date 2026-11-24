@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tbckr/trident/internal/apperr"
 	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/services/threatminer"
 	"github.com/tbckr/trident/internal/testutil"
@@ -219,4 +220,18 @@ func TestService_AggregateResults(t *testing.T) {
 func TestService_PAP(t *testing.T) {
 	svc := threatminer.NewService(req.NewClient(), testutil.NopLogger())
 	assert.Equal(t, "amber", svc.PAP().String())
+}
+
+// A refused direct connection must stay detectable through the service's
+// error, so that a bulk run stops at it (internal/cli runCmdBody).
+func TestRun_ProxyBypassIsDetectable(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet,
+		"https://api.threatminer.org/v2/host.php?q=1.2.3.4&rt=2",
+		httpmock.NewErrorResponder(fmt.Errorf("dial tcp: %w", apperr.ErrProxyBypass)),
+	)
+
+	svc := threatminer.NewService(client, testutil.NopLogger())
+	_, err := svc.Run(context.Background(), "1.2.3.4")
+	require.ErrorIs(t, err, apperr.ErrProxyBypass)
 }

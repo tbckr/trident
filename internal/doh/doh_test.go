@@ -142,3 +142,12 @@ func TestMakeDoHRequest_CancelledCallerIsUnwrapped(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled)
 	assert.NotErrorIs(t, err, apperr.ErrRequestFailed)
 }
+
+func TestMakeDoHRequest_UnsupportedProxyIsDetectable(t *testing.T) {
+	client := newMockClient(t)
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+Endpoint,
+		httpmock.NewErrorResponder(fmt.Errorf("proxy: %w", apperr.ErrUnsupportedProxy)))
+
+	_, err := MakeDoHRequest(context.Background(), client, "example.com", dns.TypeA)
+	require.ErrorIs(t, err, apperr.ErrUnsupportedProxy)
+}

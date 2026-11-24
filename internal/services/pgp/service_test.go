@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tbckr/trident/internal/apperr"
 	"github.com/tbckr/trident/internal/services"
 	"github.com/tbckr/trident/internal/services/pgp"
 	"github.com/tbckr/trident/internal/testutil"
@@ -173,4 +174,18 @@ func TestService_AggregateResults(t *testing.T) {
 func TestService_PAP(t *testing.T) {
 	svc := pgp.NewService(req.NewClient(), testutil.NopLogger())
 	assert.Equal(t, "amber", svc.PAP().String())
+}
+
+// A refused direct connection must stay detectable through the service's
+// error, so that a bulk run stops at it (internal/cli runCmdBody).
+func TestRun_ProxyBypassIsDetectable(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet,
+		"https://keys.openpgp.org/pks/lookup?op=index&search=alice%40example.com&options=mr",
+		httpmock.NewErrorResponder(fmt.Errorf("dial tcp: %w", apperr.ErrProxyBypass)),
+	)
+
+	svc := pgp.NewService(client, testutil.NopLogger())
+	_, err := svc.Run(context.Background(), "alice@example.com")
+	require.ErrorIs(t, err, apperr.ErrProxyBypass)
 }

@@ -82,7 +82,7 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return result, nil
 		}
-		return nil, fmt.Errorf("%w: crt.sh request error for %q: %v", services.ErrRequestFailed, domain, err)
+		return nil, fmt.Errorf("%w: crt.sh request error for %q: %v", services.RequestFailure(err), domain, err)
 	}
 	if resp.Response == nil || !resp.IsSuccessState() {
 		body := resp.String()

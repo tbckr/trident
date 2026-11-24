@@ -20,6 +20,10 @@ var ErrRequestFailed = apperr.ErrRequestFailed
 // ErrPAPBlocked is re-exported from apperr for backward compatibility.
 var ErrPAPBlocked = apperr.ErrPAPBlocked
 
+// RequestFailure is apperr.RequestFailure: the sentinel to wrap a failed
+// request's error with, a proxy sentinel the error carries or ErrRequestFailed.
+var RequestFailure = apperr.RequestFailure
+
 // Result is the common interface every service's Run output must satisfy.
 type Result interface {
 	IsEmpty() bool
