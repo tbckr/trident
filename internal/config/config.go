@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/tbckr/trident/internal/appdir"
+	"github.com/tbckr/trident/internal/proxyconf"
 )
 
 // DefaultPatternsURL is the built-in URL used by `download detect` when no
@@ -31,10 +32,14 @@ const (
 	keyTypeString configKeyType = "string"
 )
 
-// configKeyMeta bundles the type and optional allowed values for one config key.
+// configKeyMeta bundles the type, optional allowed values and optional
+// validator for one config key.
 type configKeyMeta struct {
 	typ     configKeyType
 	allowed []string // non-nil → enum; nil → free-form
+	// validate, when set, checks a non-empty value (an empty one unsets the
+	// key). Its error must not echo the value: it may hold credentials.
+	validate func(string) error
 }
 
 // configKeys is the single source of truth for valid config keys.
@@ -42,7 +47,7 @@ type configKeyMeta struct {
 var configKeys = map[string]configKeyMeta{
 	"verbose":              {typ: keyTypeBool},
 	"output":               {typ: keyTypeString, allowed: []string{"table", "json", "text"}},
-	"proxy":                {typ: keyTypeString},
+	"proxy":                {typ: keyTypeString, validate: proxyconf.Validate},
 	"user_agent":           {typ: keyTypeString},
 	"pap_limit":            {typ: keyTypeString, allowed: []string{"red", "amber", "green", "white"}},
 	"defang":               {typ: keyTypeBool},
@@ -85,8 +90,9 @@ func ValidateKey(key string) error {
 }
 
 // ParseValue converts the raw string value to the correct Go type for key and
-// validates enum constraints. Returns an error for type mismatches or invalid
-// enum values.
+// validates enum constraints and, for a non-empty value, the key's validator.
+// Returns an error for type mismatches or invalid values; the error of a
+// validated key (proxy) never contains the value.
 func ParseValue(key, value string) (any, error) {
 	meta, ok := configKeys[NormalizeKey(key)]
 	if !ok {
@@ -112,6 +118,11 @@ func ParseValue(key, value string) (any, error) {
 			}
 			return value, nil
 		}
+		if meta.validate != nil && value != "" {
+			if err := meta.validate(value); err != nil {
+				return nil, err
+			}
+		}
 		return value, nil
 	}
 }
@@ -133,7 +144,7 @@ type Config struct {
 	ConfigFile     string               // set after Unmarshal — no mapstructure tag
 	Verbose        bool                 `mapstructure:"verbose"`
 	Output         string               `mapstructure:"output"`          // table | json | text
-	Proxy          string               `mapstructure:"proxy"`           // http://, https://, socks5://
+	Proxy          string               `mapstructure:"proxy"`           // http://, https://, socks5://, socks5h://
 	UserAgent      string               `mapstructure:"user_agent"`      // override or empty (→ rotation)
 	PAPLimit       string               `mapstructure:"pap_limit"`       // "white" (default)
 	Defang         bool                 `mapstructure:"defang"`          // force defang
@@ -149,7 +160,7 @@ func RegisterFlags(flags *pflag.FlagSet) {
 	flags.String("config", "", "config file (default: $XDG_CONFIG_HOME/trident/config.yaml)")
 	flags.BoolP("verbose", "v", false, "enable verbose (debug) logging")
 	flags.StringP("output", "o", "table", "output format: table, json, or text")
-	flags.String("proxy", "", "proxy URL (http://, https://, or socks5://)")
+	flags.String("proxy", "", "proxy URL (http://, https://, socks5:// or socks5h://)")
 	flags.String("user-agent", "", "HTTP User-Agent header (default: trident/<version>)")
 	flags.String("pap-limit", "white", "PAP limit: white, green, amber, or red")
 	flags.Bool("defang", false, "defang text/plain output (dots → [.], http → hxxp)")

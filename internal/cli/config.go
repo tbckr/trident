@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -49,12 +50,19 @@ type configRow struct {
 	value string
 }
 
-// buildConfigRows returns all config key–value pairs sorted alphabetically.
+// readOnlyKeys are the rows of `config show` that report the resolved proxy per
+// path. They are not config keys: `config get` reads them, `config set` rejects
+// them (change proxy or the proxy environment instead).
+var readOnlyKeys = []string{"proxy_dns", "proxy_http", "proxy_https", "proxy_no_proxy"}
+
+// buildConfigRows returns all config key–value pairs and the read-only proxy
+// rows, sorted alphabetically.
 // Values are sourced from the fully-resolved d.cfg (includes defaults, env vars,
-// flag overrides). This is intentional for show/get — they display effective state,
-// not just what is written to the file.
+// flag overrides) and d.proxy. This is intentional for show/get — they display
+// effective state, not just what is written to the file.
 func buildConfigRows(d *deps) []configRow {
-	keys := config.ValidKeys()
+	keys := slices.Concat(config.ValidKeys(), readOnlyKeys)
+	slices.Sort(keys)
 	rows := make([]configRow, 0, len(keys))
 	for _, k := range keys {
 		rows = append(rows, configRow{key: k, value: effectiveValue(d, k)})
@@ -62,15 +70,16 @@ func buildConfigRows(d *deps) []configRow {
 	return rows
 }
 
-// effectiveValue returns the current effective value for key from d.cfg.
+// effectiveValue returns the current effective value for key from d.cfg and,
+// for the proxy rows, from d.proxy. It never returns credentials.
 func effectiveValue(d *deps, key string) string {
 	switch key {
 	case "verbose":
 		return fmt.Sprintf("%v", d.cfg.Verbose)
 	case "output":
 		return d.cfg.Output
-	case "proxy":
-		return proxyRow(d, "proxy")
+	case "proxy", "proxy_dns", "proxy_http", "proxy_https", "proxy_no_proxy":
+		return proxyRow(d, key)
 	case "user_agent":
 		if d.cfg.UserAgent != "" {
 			return d.cfg.UserAgent
@@ -119,11 +128,26 @@ user_agent: shows the configured User-Agent string.
 If not explicitly configured, the built-in default is used:
   trident/<version> (+https://github.com/tbckr/trident)
 
-proxy: shows the resolved proxy configuration that will actually be used.
-If not explicitly configured, standard environment variables are honoured:
-  HTTP client  — HTTP_PROXY / HTTPS_PROXY / NO_PROXY
-  DNS resolver — ALL_PROXY / all_proxy (SOCKS5 only)
-If any of these variables are set, "<from environment>" is displayed.
+proxy rows: five rows describe the proxy trident actually uses, per path. The four
+proxy_* rows are read-only (config set rejects them; change proxy or the environment
+instead). No row shows credentials: a proxy URL with a user name or password appears
+as scheme://***@host:port.
+  proxy           trident's own setting (--proxy, config file or TRIDENT_PROXY);
+                  empty when only the environment is set
+  proxy_https     the proxy for https requests and where it comes from, or direct
+  proxy_http      the same for http requests
+  proxy_dns       how DNS lookups are made: through a SOCKS5 proxy (to the nameserver
+                  9.9.9.10:53), or by the system resolver, not proxied, behind an
+                  HTTP(S) proxy
+  proxy_no_proxy  the NO_PROXY value in effect (empty when proxy is set)
+Rule: when proxy is set it applies to every path and the proxy environment
+variables, NO_PROXY included, are ignored. Otherwise https and DNS use https_proxy
+(HTTPS_PROXY), then all_proxy (ALL_PROXY); http uses http_proxy (HTTP_PROXY), then
+all_proxy. A lowercase variable and its uppercase twin must agree, and HTTP_PROXY
+without an https or all proxy is refused (https requests would bypass it). NO_PROXY
+exempts hosts; NO_PROXY=* turns the proxy off for every path. A value that cannot be
+honoured is not hidden: the affected rows read "error: <reason>", and only the
+commands that use the network abort with it; config show itself still works.
 
 detect_patterns.file: shows the resolved patterns file that will actually be used.
 If not explicitly configured, trident searches in order:
@@ -176,14 +200,18 @@ func newConfigGetCmd(d *deps) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		ValidArgsFunction: func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
-				return config.ValidKeys(), cobra.ShellCompDirectiveNoFileComp
+				keys := slices.Concat(config.ValidKeys(), readOnlyKeys)
+				slices.Sort(keys)
+				return keys, cobra.ShellCompDirectiveNoFileComp
 			}
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := config.NormalizeKey(args[0])
-			if err := config.ValidateKey(key); err != nil {
-				return err
+			if !slices.Contains(readOnlyKeys, key) {
+				if err := config.ValidateKey(key); err != nil {
+					return err
+				}
 			}
 			_, err := fmt.Fprintln(cmd.OutOrStdout(), effectiveValue(d, key))
 			return err
@@ -208,6 +236,10 @@ func newConfigSetCmd(d *deps) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := config.NormalizeKey(args[0])
+			if slices.Contains(readOnlyKeys, key) {
+				return fmt.Errorf("%w: %q (read-only: it reports the resolved proxy; set proxy instead)",
+					config.ErrUnknownKey, key)
+			}
 			if err := config.ValidateKey(key); err != nil {
 				return err
 			}

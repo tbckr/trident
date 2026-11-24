@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tbckr/trident/internal/apperr"
 	"github.com/tbckr/trident/internal/config"
 )
 
@@ -167,6 +168,8 @@ func TestParseValue(t *testing.T) {
 		{key: "pap_limit", value: "invalid", wantErr: true},
 		// free-form string
 		{key: "proxy", value: "http://proxy:3128", want: "http://proxy:3128"},
+		{key: "proxy", value: "socks5h://127.0.0.1:9050", want: "socks5h://127.0.0.1:9050"},
+		{key: "proxy", value: "", want: ""}, // empty unsets the proxy
 		{key: "user_agent", value: "MyAgent/1.0", want: "MyAgent/1.0"},
 	}
 	for _, tc := range tests {
@@ -180,6 +183,35 @@ func TestParseValue(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestParseValue_InvalidProxy(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		leak  string // must not appear in the error
+	}{
+		{name: "unsupported scheme", value: "socks4://h:1"},
+		{name: "credentials and a bad port", value: "socks5://u:S3cr3t@h:abc", leak: "S3cr3t"},
+		{name: "credentials and an unsupported scheme", value: "socks4://u:S3cr3t@h:1", leak: "S3cr3t"},
+		{name: "token-only userinfo", value: "ftp://APIKEYTOKEN@h:1", leak: "APIKEYTOKEN"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := config.ParseValue("proxy", tc.value)
+			require.ErrorIs(t, err, apperr.ErrProxyConfig)
+			assert.NotContains(t, err.Error(), tc.value, "the error must not echo the value")
+			if tc.leak != "" {
+				assert.NotContains(t, err.Error(), tc.leak)
+			}
+		})
+	}
+}
+
+func TestRegisterFlags_ProxyHelpNamesSocks5h(t *testing.T) {
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	config.RegisterFlags(flags)
+	assert.Contains(t, flags.Lookup("proxy").Usage, "socks5h://")
 }
 
 func TestParseValue_UnknownKey(t *testing.T) {
