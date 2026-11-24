@@ -147,11 +147,80 @@ func TestTXTResolver_HTTPError(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-func TestTXTResolver_MalformedResponse(t *testing.T) {
-	r := newTXTResolver(t, []byte("garbage bytes"))
+// TestTXTResolver_TruncatedResponse cuts a well-formed NOERROR response at
+// each structural boundary, so every step of the wire parser fails in turn.
+// A non-DNS body such as "garbage bytes" would not do: it is long enough for a
+// header whose flags decode to SERVFAIL, so it never reaches the parser.
+func TestTXTResolver_TruncatedResponse(t *testing.T) {
+	const (
+		headerLen      = 12 // fixed DNS header
+		questionFixed  = 4  // QTYPE + QCLASS after the name
+		answerFixedLen = 10 // TYPE + CLASS + TTL + RDLENGTH after the name
+	)
+	// A response without answers is exactly header + question.
+	questionEnd := len(buildTXTWire(t, dnsmessage.RCodeSuccess))
+	nameLen := questionEnd - headerLen - questionFixed
+	answerHeaderEnd := questionEnd + nameLen + answerFixedLen
 
-	got, err := r.LookupTXT(context.Background(), txtTestName)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, apperr.ErrRequestFailed)
-	assert.Nil(t, got)
+	tests := []struct {
+		name string
+		wire func(t *testing.T) []byte
+	}{
+		{
+			name: "header cut short",
+			wire: func(t *testing.T) []byte {
+				return buildTXTWire(t, dnsmessage.RCodeSuccess, txtRecord("v=spf1 -all"))[:headerLen-1]
+			},
+		},
+		{
+			name: "question cut inside the name",
+			wire: func(t *testing.T) []byte {
+				return buildTXTWire(t, dnsmessage.RCodeSuccess, txtRecord("v=spf1 -all"))[:headerLen+3]
+			},
+		},
+		{
+			name: "answer section missing",
+			wire: func(t *testing.T) []byte {
+				return buildTXTWire(t, dnsmessage.RCodeSuccess, txtRecord("v=spf1 -all"))[:questionEnd]
+			},
+		},
+		{
+			name: "answer header cut inside the fixed fields",
+			wire: func(t *testing.T) []byte {
+				return buildTXTWire(t, dnsmessage.RCodeSuccess, txtRecord("v=spf1 -all"))[:answerHeaderEnd-3]
+			},
+		},
+		{
+			name: "non-TXT answer body cut short",
+			wire: func(t *testing.T) []byte {
+				data := buildTXTWire(t, dnsmessage.RCodeSuccess, cnameRecord("alias.example.com."))
+				return data[:len(data)-1]
+			},
+		},
+		{
+			name: "TXT answer body cut short",
+			wire: func(t *testing.T) []byte {
+				data := buildTXTWire(t, dnsmessage.RCodeSuccess, txtRecord("v=spf1 -all"))
+				return data[:len(data)-1]
+			},
+		},
+		{
+			name: "second answer cut short after a good one",
+			wire: func(t *testing.T) []byte {
+				data := buildTXTWire(t, dnsmessage.RCodeSuccess, txtRecord("first"), txtRecord("second"))
+				return data[:len(data)-1]
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newTXTResolver(t, tt.wire(t))
+
+			got, err := r.LookupTXT(context.Background(), txtTestName)
+			require.Error(t, err)
+			assert.ErrorIs(t, err, apperr.ErrRequestFailed)
+			assert.Contains(t, err.Error(), "failed to parse DNS response")
+			assert.Nil(t, got, "a partial answer must not leak out of a failed parse")
+		})
+	}
 }
