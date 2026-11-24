@@ -13,10 +13,19 @@ import (
 // is masked whole and "https://example.com/a@b" is left alone.
 var userinfoPattern = regexp.MustCompile(`(?i)([a-z][a-z0-9+.-]*://)[^\s/]+@`)
 
+// aliasSpace lists the runes unicode.IsSpace reports, which strings.Fields
+// splits an alias expansion on. RE2's \s covers ASCII whitespace only, so an
+// alias written with a no-break space or a vertical tab after --proxy would
+// work but escape the masking.
+const aliasSpace = `\t\n\v\f\r \x{85}\x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}`
+
 // proxyFlagPattern matches a --proxy flag and its value: "--proxy v",
 // "--proxy=v", where v is a quoted string (which may hold spaces) and whatever
-// is glued to its end, or else a token of non-space characters.
-var proxyFlagPattern = regexp.MustCompile(`(--proxy(?:=|\s+))("[^"]*"\S*|'[^']*'\S*|\S+)`)
+// is glued to its end, or else a token of non-space characters. Space means
+// every aliasSpace rune.
+var proxyFlagPattern = regexp.MustCompile(
+	`(--proxy(?:=|[` + aliasSpace + `]+))` +
+		`("[^"]*"[^` + aliasSpace + `]*|'[^']*'[^` + aliasSpace + `]*|[^` + aliasSpace + `]+)`)
 
 // schemePrefix matches a value that starts with a URL scheme.
 var schemePrefix = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*://`)

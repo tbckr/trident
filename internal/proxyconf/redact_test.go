@@ -2,7 +2,9 @@ package proxyconf_test
 
 import (
 	"net/url"
+	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -173,4 +175,45 @@ func TestRedactText(t *testing.T) {
 			assert.NotContains(t, got, "alice")
 		})
 	}
+}
+
+// An alias expansion is split with strings.Fields, i.e. on every rune for
+// which unicode.IsSpace is true, so "--proxy" followed by a no-break space or a
+// vertical tab and a value is a working alias. RedactText must recognise the
+// same separators, or such an alias shows its password in its help.
+func TestRedactText_MasksAfterEveryAliasSeparator(t *testing.T) {
+	var spaces []rune
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if unicode.IsSpace(r) {
+			spaces = append(spaces, r)
+		}
+	}
+	require.NotEmpty(t, spaces)
+
+	for _, sp := range spaces {
+		s := string(sp)
+		for _, value := range []string{"alice:S3cr3t@h:1", "socks5h://alice:S3/cr3t@h:1", "http://alice:S3cr3t@h:1"} {
+			alias := "crtsh" + s + "--proxy" + s + value + s + "example.com"
+			fields := strings.Fields(alias)
+			require.Equal(t, []string{"crtsh", "--proxy", value, "example.com"}, fields, "%U", sp)
+
+			got := proxyconf.RedactText(alias)
+			assert.NotContains(t, got, "cr3t", "%U %q", sp, value)
+			assert.NotContains(t, got, "alice", "%U %q", sp, value)
+			assert.True(t, strings.HasSuffix(got, "@h:1"+s+"example.com"), "%U: the text after the value must stay: %q", sp, got)
+		}
+	}
+
+	t.Run("no-break space", func(t *testing.T) {
+		got := proxyconf.RedactText("crtsh --proxy\u00a0alice:S3cr3t@h:1 example.com")
+		assert.Equal(t, "crtsh --proxy\u00a0***@h:1 example.com", got)
+	})
+	t.Run("vertical tab, scheme and / in the password", func(t *testing.T) {
+		got := proxyconf.RedactText("crtsh --proxy\vsocks5h://alice:S3/cr3t@h:1")
+		assert.Equal(t, "crtsh --proxy\vsocks5h://***@h:1", got)
+	})
+	t.Run("no-break space after the value ends it", func(t *testing.T) {
+		got := proxyconf.RedactText("--proxy 127.0.0.1:9050\u00a0pgp\u00a0bob@example.com")
+		assert.Equal(t, "--proxy 127.0.0.1:9050\u00a0pgp\u00a0bob@example.com", got)
+	})
 }
