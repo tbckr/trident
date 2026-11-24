@@ -190,3 +190,32 @@ func TestRunCmdBody_StopsAtProxyErrorFromARealService(t *testing.T) {
 	assert.Contains(t, logs, "skipped=1")
 	assert.Equal(t, 1, httpmock.GetTotalCallCount(), "the second domain must not be queried")
 }
+
+// failingWriter fails every write.
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("disk full") }
+
+// When writing the collected results fails, that error is returned; the proxy
+// error that stopped the run must still reach the log, with its input.
+func TestRunCmdBody_WriteErrorKeepsTheProxyErrorInTheLog(t *testing.T) {
+	svc := &bulkService{fn: func(_ context.Context, input string) (services.Result, error) {
+		if input == "b" {
+			return nil, fmt.Errorf("crt.sh: %w", apperr.ErrProxyBypass)
+		}
+		return bulkResult{input}, nil
+	}}
+	var logs bytes.Buffer
+	d := &deps{
+		logger: slog.New(slog.NewTextHandler(&logs, nil)),
+		cfg:    &config.Config{Concurrency: 1, Output: "json"},
+	}
+	cmd := &cobra.Command{}
+	cmd.SetOut(failingWriter{})
+	cmd.SetContext(context.Background())
+
+	err := runCmdBody(cmd, d, svc, []string{"a", "b"})
+	require.ErrorContains(t, err, "disk full")
+	assert.Contains(t, logs.String(), "refusing direct connection")
+	assert.Contains(t, logs.String(), "input=b")
+}

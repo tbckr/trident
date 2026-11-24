@@ -202,6 +202,7 @@ func runCmdBody(cmd *cobra.Command, d *deps, svc services.Service, args []string
 	workerResults := worker.Run(cmd.Context(), svc, inputs, d.cfg.Concurrency, isProxyError)
 	var valid []services.Result
 	var proxyErr error
+	var proxyInput string
 	skipped := 0
 	for _, r := range workerResults {
 		switch {
@@ -209,7 +210,7 @@ func runCmdBody(cmd *cobra.Command, d *deps, svc services.Service, args []string
 			skipped++
 			continue
 		case r.Err != nil && proxyErr == nil && isProxyError(r.Err):
-			proxyErr = r.Err // returned below; main prints it
+			proxyErr, proxyInput = r.Err, r.Input // returned below; main prints it
 			continue
 		case r.Err != nil:
 			d.logger.Error("lookup failed", "service", svc.Name(), "input", r.Input, "error", r.Err)
@@ -225,6 +226,11 @@ func runCmdBody(cmd *cobra.Command, d *deps, svc services.Service, args []string
 		d.logger.Warn("stopped after a proxy error; inputs not started", "service", svc.Name(), "skipped", skipped)
 	}
 	if err := writeCollected(cmd.OutOrStdout(), d, svc, valid); err != nil {
+		if proxyErr != nil {
+			// The write error is returned; keep the proxy error that stopped
+			// the run in the log.
+			d.logger.Error("lookup failed", "service", svc.Name(), "input", proxyInput, "error", proxyErr)
+		}
 		return err
 	}
 	return proxyErr

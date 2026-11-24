@@ -24,8 +24,9 @@ var ErrSkipped = errors.New("not started: the run was stopped")
 // Results are returned in the same order as inputs regardless of completion order.
 //
 // stopOn, if not nil, is asked about every error svc.Run returns. Once it
-// reports true, no worker starts another input: each input not yet started
-// gets ErrSkipped. Lookups already running keep ctx and finish.
+// reports true, workers start no further input and each input not started
+// gets ErrSkipped; only an input another worker took up while the stop was
+// being recorded may still run. Lookups already running keep ctx and finish.
 func Run(ctx context.Context, svc services.Service, inputs []string, concurrency int, stopOn func(error) bool) []Result {
 	results := make([]Result, len(inputs))
 	var stopped atomic.Bool
