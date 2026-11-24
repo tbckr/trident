@@ -20,3 +20,8 @@ var ErrPAPBlocked = errors.New("PAP limit exceeded")
 // the HTTP client refuses to dial a host directly that the proxy is meant to
 // reach. Retrying cannot help, so it is never retried.
 var ErrProxyBypass = errors.New("refusing direct connection while a proxy is configured")
+
+// ErrUnsupportedProxy is returned when a client cannot speak the configured
+// proxy's scheme, such as socks4:// for DNS-over-HTTPS. Retrying cannot help,
+// so it is never retried.
+var ErrUnsupportedProxy = errors.New("proxy scheme not supported")

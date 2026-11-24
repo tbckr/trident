@@ -19,6 +19,9 @@ import (
 // nil to connect directly.
 type proxyFunc func(*http.Request) (*url.URL, error)
 
+// dialFunc is the type of a transport's DialContext.
+type dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
 // guardProxyBypass makes the client fail closed instead of leaking around its
 // proxy. req's HTTP/2 code paths dial the origin directly even when a proxy is
 // configured (imroc/req#206, #541), and so would any future path that forgets
@@ -34,12 +37,19 @@ func guardProxyBypass(client *req.Client, proxyFor proxyFunc) {
 		var d net.Dialer
 		next = d.DialContext
 	}
-	client.SetDial(func(ctx context.Context, network, addr string) (net.Conn, error) {
+	client.SetDial(guardedDial(proxyFor, next))
+}
+
+// guardedDial wraps next so that it refuses (apperr.ErrProxyBypass) every dial
+// that checkDirectDial judges a proxy bypass. It is the dial guard of both
+// req's transport (guardProxyBypass) and the DoH transport (newDoH).
+func guardedDial(proxyFor proxyFunc, next dialFunc) dialFunc {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
 		if err := checkDirectDial(proxyFor, addr); err != nil {
 			return nil, err
 		}
 		return next(ctx, network, addr)
-	})
+	}
 }
 
 // checkDirectDial returns apperr.ErrProxyBypass if a dial to addr
@@ -117,5 +127,26 @@ func refuseLocalDNSProxies(proxyFor proxyFunc) proxyFunc {
 				apperr.ErrProxyBypass, p.Redacted())
 		}
 		return p, err
+	}
+}
+
+// refuseUnsupportedSchemes wraps a proxy function so that a proxy whose scheme
+// Go's transport cannot speak fails with apperr.ErrUnsupportedProxy. Go's
+// transport speaks http, https, socks5 and socks5h; for any other scheme
+// (socks4, socks4a, ...) it would send an HTTP CONNECT to the proxy's port, or,
+// with no port in the URL, the dial guard would report a misleading proxy
+// bypass.
+func refuseUnsupportedSchemes(proxyFor proxyFunc) proxyFunc {
+	return func(r *http.Request) (*url.URL, error) {
+		p, err := proxyFor(r)
+		if err != nil || p == nil {
+			return p, err
+		}
+		switch strings.ToLower(p.Scheme) {
+		case "http", "https", "socks5", "socks5h":
+			return p, nil
+		}
+		return nil, fmt.Errorf("%w: proxy %s uses %s://; DNS-over-HTTPS supports http://, https://, socks5:// and socks5h:// proxies",
+			apperr.ErrUnsupportedProxy, p.Redacted(), p.Scheme)
 	}
 }

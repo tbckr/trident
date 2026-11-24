@@ -54,6 +54,40 @@ func ResolveProxy(proxy string) string {
 // that logs the HTTP method, URL, and status code at DEBUG level.
 // Returns an error if the proxy URL is syntactically invalid.
 func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client, error) {
+	proxyFor, err := proxyFuncFor(proxy)
+	if err != nil {
+		return nil, err
+	}
+	return newClient(proxyFor, ResolveProxy(proxy) != "", userAgent, logger, debug), nil
+}
+
+// proxyFuncFor returns the proxy function for proxy as passed to New: the
+// proxy environment variables when it is empty (a socks4:// proxy there is
+// refused, see refuseLocalDNSProxies), else proxy itself for every request.
+// It returns an error if proxy is not a valid http://, https:// or socks5://
+// URL.
+func proxyFuncFor(proxy string) (proxyFunc, error) {
+	if proxy == "" {
+		return refuseLocalDNSProxies(http.ProxyFromEnvironment), nil
+	}
+	if err := validateProxy(proxy); err != nil {
+		return nil, fmt.Errorf("invalid proxy URL %q: %w", proxy, err)
+	}
+	u, err := url.Parse(proxy)
+	if err != nil {
+		return nil, fmt.Errorf("invalid proxy URL %q: %w", proxy, err)
+	}
+	// With a socks5:// URL, req forwards hostnames (not pre-resolved IPs)
+	// through the proxy with its own SOCKS5 dialer, preventing DNS leaks for
+	// HTTP-based services. DNS-based services (dns, cymru) use
+	// resolver.NewResolver instead.
+	return http.ProxyURL(u), nil
+}
+
+// newClient builds the client New describes, with proxyFor as its proxy
+// function. forceH1 makes it speak HTTP/1.1 only; it must be set whenever
+// proxyFor can return a proxy.
+func newClient(proxyFor proxyFunc, forceH1 bool, userAgent string, logger *slog.Logger, debug bool) *req.Client {
 	client := req.NewClient()
 
 	if userAgent != "" {
@@ -62,24 +96,9 @@ func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client,
 		client.SetUserAgent(DefaultUserAgent)
 	}
 
-	proxyFor := refuseLocalDNSProxies(http.ProxyFromEnvironment)
-	if proxy != "" {
-		if err := validateProxy(proxy); err != nil {
-			return nil, fmt.Errorf("invalid proxy URL %q: %w", proxy, err)
-		}
-		u, err := url.Parse(proxy)
-		if err != nil {
-			return nil, fmt.Errorf("invalid proxy URL %q: %w", proxy, err)
-		}
-		// With a socks5:// URL, req forwards hostnames (not pre-resolved IPs)
-		// through the proxy with its own SOCKS5 dialer, preventing DNS leaks for
-		// HTTP-based services. DNS-based services (dns, cymru) use
-		// resolver.NewResolver instead.
-		proxyFor = http.ProxyURL(u)
-	}
 	client.SetProxy(proxyFor)
 
-	if ResolveProxy(proxy) != "" {
+	if forceH1 {
 		// req ignores the proxy on its HTTP/2 paths: forced HTTP/2 never uses it
 		// (imroc/req#206), and once a proxied HTTP/2 connection dies, req dials
 		// the origin directly (imroc/req#541). HTTP/1.1 takes neither path.
@@ -96,7 +115,7 @@ func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client,
 		attachDebugHook(client, logger)
 	}
 
-	return client, nil
+	return client
 }
 
 // ForceHTTP2 makes a client from New speak HTTP/2 only, unless a proxy is

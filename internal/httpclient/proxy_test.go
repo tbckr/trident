@@ -61,6 +61,13 @@ func newTestProxy(t *testing.T, scheme string) *testProxy {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
+	return newTestProxyOn(t, scheme, ln)
+}
+
+// newTestProxyOn starts the proxy on ln, for an address other than IPv4
+// loopback.
+func newTestProxyOn(t *testing.T, scheme string, ln net.Listener) *testProxy {
+	t.Helper()
 	p := &testProxy{ln: ln, scheme: scheme}
 	go p.serve()
 	t.Cleanup(func() {
@@ -281,6 +288,13 @@ type testOrigin struct {
 // delay before it answers (or until the client has gone away).
 func newTestOrigin(t *testing.T, h2 bool, delay time.Duration) *testOrigin {
 	t.Helper()
+	return newTestOriginWith(t, h2, delay, nil)
+}
+
+// newTestOriginWith is newTestOrigin with configure, if non-nil, applied to the
+// server's http.Server before it starts (e.g. to set its HTTP2 config).
+func newTestOriginWith(t *testing.T, h2 bool, delay time.Duration, configure func(*http.Server)) *testOrigin {
+	t.Helper()
 	o := &testOrigin{}
 	o.Server = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		o.active.Add(1)
@@ -306,6 +320,9 @@ func newTestOrigin(t *testing.T, h2 bool, delay time.Duration) *testOrigin {
 		o.addrs = append(o.addrs, c.RemoteAddr().String())
 		o.accepted.Add(1)
 		o.mu.Unlock()
+	}
+	if configure != nil {
+		configure(o.Config)
 	}
 	o.StartTLS()
 	t.Cleanup(o.Close)
