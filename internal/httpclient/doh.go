@@ -1,6 +1,8 @@
 package httpclient
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -35,9 +37,11 @@ var (
 //
 // The Go transport keeps the dial guard (apperr.ErrProxyBypass), refuses proxy
 // schemes it cannot speak (apperr.ErrUnsupportedProxy: socks4, socks4a, ...),
-// health-checks its HTTP/2 connections, and bounds a request at 30 s. Without
-// a proxy for endpoint it multiplexes all requests over one connection to the
-// host (Go opens another only when that one is at its stream limit).
+// health-checks its HTTP/2 connections, and bounds a request at 30 s. A
+// request that times out is retried while its caller still waits for it (the
+// retry count is AttachRateLimit's). Without a proxy for endpoint it
+// multiplexes all requests over one connection to the host (Go opens another
+// only when that one is at its stream limit).
 //
 // proxied reports whether a proxy applies to endpoint. Clone and RoundTrip on
 // the client use req's transport, not Go's. NewDoH returns an error if proxy
@@ -86,6 +90,23 @@ func newDoH(proxyFor proxyFunc, forceH1 bool, endpoint, userAgent string, logger
 	}
 	client.GetClient().Transport = tr
 	client.SetTimeout(dohRequestTimeout)
+	client.AddCommonRetryCondition(retryTimeoutWhileCallerWaits)
 
 	return client, proxied, nil
+}
+
+// retryTimeoutWhileCallerWaits is a retry condition: it retries a request that
+// timed out while the caller's own context is still alive. Go runs a proxy
+// handshake on a context detached from the request, and a stalled one has no
+// timeout of its own (SOCKS) or Go's fixed 1 min (HTTP CONNECT), so it ends
+// the request in the client timeout. That error, like the CONNECT timeout,
+// matches context.DeadlineExceeded as the caller's own deadline does, and
+// AttachRateLimit never retries it; yet a retry dials a new tunnel (behind a
+// proxy there is no MaxConnsPerHost cap) and gets an answer. A caller that
+// cancelled, or whose own deadline passed, gets no retry.
+func retryTimeoutWhileCallerWaits(resp *req.Response, err error) bool {
+	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	return resp != nil && resp.Request != nil && resp.Request.Context().Err() == nil
 }

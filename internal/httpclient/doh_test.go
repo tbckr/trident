@@ -283,3 +283,140 @@ func TestNewDoH_IPv6Proxy(t *testing.T) {
 	assert.EqualValues(t, 1, proxy.tunnels.Load())
 	assertNoDirectConns(t, proxy, origin)
 }
+
+func TestNewDoH_SurvivesMidFlightKill(t *testing.T) {
+	for _, scheme := range []string{"http", "socks5"} {
+		t.Run(scheme, func(t *testing.T) {
+			origin := newTestOrigin(t, true, 200*time.Millisecond)
+			proxy := newTestProxy(t, scheme)
+			client, _ := newDoHTestClient(t, proxy.url(), origin)
+			httpclient.AttachRateLimit(client, ratelimit.New(100, 10))
+
+			type result struct {
+				err      error
+				attempts int
+			}
+			results := make(chan result, 10)
+			var wg sync.WaitGroup
+			for range 10 {
+				wg.Go(func() {
+					r := client.R()
+					_, err := r.Get(origin.URL)
+					results <- result{err, r.RetryAttempt}
+				})
+			}
+			require.Eventually(t, func() bool { return origin.inFlight() > 0 }, 5*time.Second, time.Millisecond)
+			proxy.killTunnels()
+			wg.Wait()
+			close(results)
+
+			retried := 0
+			for res := range results {
+				require.NoError(t, res.err, "a request on a killed tunnel must be retried on a new one")
+				if res.attempts > 0 {
+					retried++
+				}
+			}
+			// A request was in flight on a killed tunnel; Go does not replay a
+			// sent HTTP/2 request, so req's retry is what rescued it.
+			assert.Positive(t, retried, "a request in flight on a killed tunnel must have been retried")
+			assert.GreaterOrEqual(t, proxy.tunnels.Load(), int32(2), "the retries must use a new tunnel")
+			assertNoDirectConns(t, proxy, origin)
+		})
+	}
+}
+
+func TestNewDoH_RecoversFromFrozenTunnel(t *testing.T) {
+	httpclient.SetDoHTimeouts(t, 2*time.Second, 200*time.Millisecond, 200*time.Millisecond)
+	origin := newTestOrigin(t, true, 0)
+	proxy := newTestProxy(t, "socks5")
+	client, _ := newDoHTestClient(t, proxy.url(), origin)
+	httpclient.AttachRateLimit(client, ratelimit.New(100, 10))
+
+	_, err := client.R().Get(origin.URL)
+	require.NoError(t, err)
+	// The tunnel goes silent without closing, as a dead Tor circuit does.
+	proxy.freezeTunnels()
+
+	failed := 0
+	for range 5 {
+		if _, err := client.R().Get(origin.URL); err != nil {
+			failed++
+		}
+	}
+	assert.LessOrEqual(t, failed, 1, "the health check must retire the frozen connection")
+	assert.GreaterOrEqual(t, proxy.tunnels.Load(), int32(2), "requests after the freeze must use a new tunnel")
+	assertNoDirectConns(t, proxy, origin)
+}
+
+func TestNewDoH_RecoversFromStalledHandshake(t *testing.T) {
+	httpclient.SetDoHTimeouts(t, 500*time.Millisecond, 15*time.Second, 15*time.Second)
+	cases := []struct {
+		name   string
+		scheme string
+		stall  func(p *testProxy)
+	}{
+		{"socks5", "socks5", func(p *testProxy) { p.stallNext(1) }},
+		{"http", "http", func(p *testProxy) { p.stallNext(1) }},
+		{"socks5 after the reply", "socks5", func(p *testProxy) { p.stallTLSNext(1) }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			origin := newTestOrigin(t, true, 0)
+			proxy := newTestProxy(t, tc.scheme)
+			client, _ := newDoHTestClient(t, proxy.url(), origin)
+			httpclient.AttachRateLimit(client, ratelimit.New(100, 10))
+			tc.stall(proxy)
+
+			// The stalled handshake runs on, detached from the request; the
+			// request times out and must be retried on a new tunnel.
+			r := client.R()
+			_, err := r.Get(origin.URL)
+			require.NoError(t, err, "a request that timed out on a stalled handshake must be retried")
+			assert.GreaterOrEqual(t, r.RetryAttempt, 1)
+
+			for range 5 {
+				_, err := client.R().Get(origin.URL)
+				require.NoError(t, err)
+			}
+			assertNoDirectConns(t, proxy, origin)
+		})
+	}
+}
+
+func TestNewDoH_CancelledCallerIsNotRetried(t *testing.T) {
+	cases := []struct {
+		name string
+		ctx  func() (context.Context, context.CancelFunc)
+		want error
+	}{
+		{"cancelled", func() (context.Context, context.CancelFunc) {
+			ctx, cancel := context.WithCancel(context.Background())
+			time.AfterFunc(100*time.Millisecond, cancel)
+			return ctx, cancel
+		}, context.Canceled},
+		// The caller's own deadline ends the request with a timeout too, but
+		// one that must not be retried.
+		{"deadline", func() (context.Context, context.CancelFunc) {
+			return context.WithTimeout(context.Background(), 100*time.Millisecond)
+		}, context.DeadlineExceeded},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			origin := newTestOrigin(t, true, 0)
+			proxy := newTestProxy(t, "socks5")
+			client, _ := newDoHTestClient(t, proxy.url(), origin)
+			httpclient.AttachRateLimit(client, ratelimit.New(100, 10))
+			proxy.stallNext(1)
+
+			ctx, cancel := tc.ctx()
+			defer cancel()
+			start := time.Now()
+			r := client.R().SetContext(ctx)
+			_, err := r.Get(origin.URL)
+			require.ErrorIs(t, err, tc.want)
+			assert.Zero(t, r.RetryAttempt, "a request whose caller gave up must not be retried")
+			assert.Less(t, time.Since(start), time.Second)
+		})
+	}
+}
