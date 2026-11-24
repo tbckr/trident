@@ -7,6 +7,7 @@ import (
 	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/ratelimit"
 	apexsvc "github.com/tbckr/trident/internal/services/apex"
+	cymrusvc "github.com/tbckr/trident/internal/services/cymru"
 )
 
 func newApexCmd(d *deps) *cobra.Command {
@@ -55,15 +56,23 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 				return err
 			}
 			httpclient.AttachRateLimit(client, ratelimit.New(doh.DefaultRPS, doh.DefaultBurst))
-			r, err := d.newResolver()
-			if err != nil {
-				return err
+			// The system resolver cannot use an HTTP proxy. When the DoH
+			// endpoint is proxied the ASN lookups go through DoH as well, so
+			// the resolver (and its warning about unproxied DNS) is only
+			// built when apex falls back to it.
+			var system cymrusvc.TXTResolver
+			if !proxied {
+				r, err := d.newResolver()
+				if err != nil {
+					return err
+				}
+				system = r
 			}
 			patterns, err := d.loadPatterns()
 			if err != nil {
 				return err
 			}
-			svc := apexsvc.NewService(client, apexsvc.CymruResolver(client, proxied, r), d.logger, patterns)
+			svc := apexsvc.NewService(client, apexsvc.CymruResolver(client, proxied, system), d.logger, patterns)
 			return runAggregateCmd(cmd, d, svc, args)
 		},
 	}

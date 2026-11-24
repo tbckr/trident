@@ -6,7 +6,8 @@ import (
 )
 
 // DNSResolverInterface abstracts net.Resolver for the dns and detect services.
-// *net.Resolver satisfies this interface directly. The cymru and apex services
+// *net.Resolver and *resolver.Resolver (the proxy-aware resolver the CLI
+// builds) satisfy this interface directly. The cymru and apex services
 // need only LookupTXT and depend on cymru.TXTResolver instead.
 // NOTE: No HTTP interface — *req.Client is a hard dependency for crt.sh, not abstracted.
 type DNSResolverInterface interface {

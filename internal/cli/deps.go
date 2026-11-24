@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"os"
-	"strings"
 
 	"github.com/imroc/req/v3"
 	"github.com/spf13/cobra"
@@ -68,7 +66,6 @@ func buildDeps(cmd *cobra.Command, stderr io.Writer) (*deps, error) {
 
 	doDefang := output.ResolveDefang(papLevel, format, cfg.Defang, cfg.NoDefang)
 
-	warnDNSLeak(cfg.Proxy, logger)
 	if warn := config.WarnInsecurePermissions(cfg.ConfigFile); warn != "" {
 		logger.Warn(warn)
 	}
@@ -78,27 +75,6 @@ func buildDeps(cmd *cobra.Command, stderr io.Writer) (*deps, error) {
 	proxy := proxyconf.Resolve(cfg.Proxy, os.Getenv)
 
 	return &deps{cfg: cfg, logger: logger, proxy: proxy, doDefang: doDefang, papLevel: papLevel}, nil
-}
-
-// warnDNSLeak logs a warning when the effective proxy is HTTP/HTTPS (not SOCKS5),
-// because DNS queries are not tunnelled through HTTP/HTTPS proxies and may leak
-// to the local ISP resolver.
-func warnDNSLeak(proxy string, logger *slog.Logger) {
-	effective := proxy
-	if effective == "" {
-		if v := os.Getenv("ALL_PROXY"); v != "" {
-			effective = v
-		} else if v := os.Getenv("all_proxy"); v != "" {
-			effective = v
-		}
-	}
-	if effective == "" {
-		return
-	}
-	if strings.HasPrefix(effective, "socks5://") {
-		return
-	}
-	logger.Warn("proxy is HTTP/HTTPS — DNS queries are NOT tunnelled and may leak to your ISP; use socks5:// to prevent DNS leaks")
 }
 
 // newHTTPClient creates a new HTTP client configured with the proxy settings,
@@ -126,12 +102,23 @@ func (d *deps) newDoHClient() (client *req.Client, proxied bool, err error) {
 	return client, proxied, nil
 }
 
-// newResolver creates a new DNS resolver configured with the proxy from the
-// resolved config.
-func (d *deps) newResolver() (*net.Resolver, error) {
-	r, err := resolver.NewResolver(d.cfg.Proxy)
+// dnsUnproxiedWarning is logged by newResolver when DNS cannot use the
+// configured proxy.
+const dnsUnproxiedWarning = "DNS lookups cannot go through the configured proxy and use the system resolver; " +
+	"use a socks5h:// proxy (apex already resolves through the proxy via DoH)"
+
+// newResolver creates the DNS resolver for the run's proxy settings. It fails
+// with the run's proxy error, if any. Behind an HTTP(S) proxy, which cannot
+// carry DNS, the lookups use the system resolver: newResolver warns about it,
+// and it is the only place that does, so only the commands that resolve
+// through it show the warning.
+func (d *deps) newResolver() (*resolver.Resolver, error) {
+	r, err := resolver.NewResolver(d.proxy)
 	if err != nil {
 		return nil, fmt.Errorf("creating DNS resolver: %w", err)
+	}
+	if d.proxy.DNSUnproxied() {
+		d.logger.Warn(dnsUnproxiedWarning, "proxy", proxyconf.Redact(d.proxy.HTTPSProxy()))
 	}
 	return r, nil
 }

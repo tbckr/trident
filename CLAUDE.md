@@ -112,9 +112,9 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 **httpmock patterns** — regex match: `"=~^"+baseURL`; transport failure (nil `resp.Response`): `httpmock.NewErrorResponder(err)` (not a 500 response).
 
 ### DNS / resolver
-**`proxy.FromEnvironment()` caching** — uses `sync.Once`; `t.Setenv` has no effect after first call in a test binary. Read proxy vars with `os.Getenv` directly in `NewResolver`.
+**Proxy variables are read only in `internal/proxyconf`** — tests pass an env map to `proxyconf.Resolve` (semgrep `trident-proxy-env-single-source`).
 
-**`resolver.NewResolver` naming** — use `r`, not `resolver` (shadows the package import → compile error).
+**`resolver.NewResolver` naming** — use `r`, not `resolver` (shadows the package import → compile error). Inside `internal/resolver` the `*proxyconf.Settings` parameter is `settings`, not `proxy` (shadows `golang.org/x/net/proxy`).
 
 **`codeberg.org/miekg/dns`** — moved from `github.com/miekg/dns` to Codeberg; NOT a v2 module (no `/v2` suffix in import path). RR struct literals in tests need `codeberg.org/miekg/dns/rdata` import. `rdata.TXT{Txt: []string{...}}` (slice, not string). Set `m.Response = true` in test response messages. In `dns.TXT{}` struct literals, the embedded rdata field is `TXT:` (uppercase) not `Txt:`.
 
@@ -167,7 +167,7 @@ Every service exports package-level `Name` and `PAP` constants; aggregate servic
 
 **`gofmt` alignment** — never manually align struct field types or map key→value pairs (lint fails). `const` blocks may be pre-aligned (gofmt preserves it). No trailing blank line before closing `)`.
 
-**Semgrep custom rules** — `.semgrep/` is the single source of truth for project-specific gotchas that can be expressed as a pattern. When you encounter a new codifiable gotcha, add a rule in `.semgrep/` (rule message addressed to the AI assistant, with full rationale) rather than just documenting it here; this file should only describe things Semgrep cannot enforce. Existing rule IDs: `trident-no-double-percent-w`, `trident-req-response-nil-guard`, `trident-no-direct-httpclient-new`, `trident-no-direct-resolver-new`, `trident-no-papmustparse-in-services`, `trident-httpmock-activate-scoped`, `trident-strings-index-url-slash`, `trident-waitgroup-use-go`, `trident-req-proxy-safe-transport`. Bypass with inline `// nosemgrep: <rule-id> -- reason`. Registry packs `p/golang` + `p/gosec` also run; suppress justified findings the same way.
+**Semgrep custom rules** — `.semgrep/` is the single source of truth for project-specific gotchas that can be expressed as a pattern. When you encounter a new codifiable gotcha, add a rule in `.semgrep/` (rule message addressed to the AI assistant, with full rationale) rather than just documenting it here; this file should only describe things Semgrep cannot enforce. Existing rule IDs: `trident-no-double-percent-w`, `trident-req-response-nil-guard`, `trident-no-direct-httpclient-new`, `trident-no-direct-resolver-new`, `trident-no-papmustparse-in-services`, `trident-httpmock-activate-scoped`, `trident-strings-index-url-slash`, `trident-waitgroup-use-go`, `trident-req-proxy-safe-transport`, `trident-proxy-env-single-source`. Bypass with inline `// nosemgrep: <rule-id> -- reason`. Registry packs `p/golang` + `p/gosec` also run; suppress justified findings the same way.
 
 ### Other
 **Context cancel in HTTP services** — check `errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)` *before* wrapping as `ErrRequestFailed`; return a partial/empty result instead. Pattern: crtsh, threatminer, pgp. Exception `doh`, `quad9` and `apex`: the test is the caller's `ctx.Err() != nil`, because the DoH client's own timeout and Go's CONNECT timeout also match `DeadlineExceeded` while the caller is still waiting; those are failures (an error from `doh`/`quad9`, counted by `apex`), never an empty or "not blocked" result.

@@ -1,0 +1,59 @@
+rules:
+  - id: trident-proxy-env-single-source
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Don't read the proxy environment outside `internal/proxyconf`. trident
+      resolves its proxy exactly once per run: `proxyconf.Resolve(cfg.Proxy,
+      os.Getenv)` in `buildDeps` turns `--proxy`/the config file/
+      `TRIDENT_PROXY` and `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`,
+      `NO_PROXY` (either case) and the CGI rule (`REQUEST_METHOD`) into one
+      validated `*proxyconf.Settings`, and every network client (`d.proxy`
+      via `d.newHTTPClient()`, `d.newDoHClient()`, `d.newResolver()`) uses
+      it. A second reader disagrees with that plan and leaks: Go's
+      `http.ProxyFromEnvironment` and `httpproxy.FromEnvironment` ignore
+      `ALL_PROXY`, cache the environment once per process and exempt
+      localhost implicitly; `x/net/proxy`'s `FromEnvironment`,
+      `FromEnvironmentUsing` and package-level `Dial` read only `ALL_PROXY`
+      and return a direct dialer when it is unset or unusable; a raw
+      `os.Getenv`/`os.LookupEnv` of a proxy variable skips the validation,
+      the case-conflict and http-only rules and NO_PROXY, so traffic or DNS
+      goes around the proxy without an error. Take the proxy from the
+      `*proxyconf.Settings` you were given (`ProxyFunc`, `HTTPSProxy`,
+      `DNSProxy`, `Configured`, `Err`) instead; build a SOCKS dialer from
+      `Settings.DNSProxy()` with `proxy.FromURL`, as `internal/resolver`
+      does. Tests pass an environment map to `proxyconf.Resolve` (or use
+      `t.Setenv` with the CLI harness) rather than reading variables. If
+      the plan needs another input, change `internal/proxyconf` and its
+      tests.
+    metadata:
+      category: security
+      confidence: HIGH
+    paths:
+      exclude:
+        - "/internal/proxyconf/"
+    pattern-either:
+      - pattern: http.ProxyFromEnvironment
+      - pattern: httpproxy.FromEnvironment(...)
+      # x/net/proxy's functions are matched only in files that import that
+      # package, so that a variable or parameter named `proxy` (deps.proxy,
+      # `proxy *proxyconf.Settings`) never matches. The second branch covers
+      # an aliased import.
+      - patterns:
+          - pattern-inside: |
+              import "golang.org/x/net/proxy"
+              ...
+          - pattern-either:
+              - pattern: proxy.FromEnvironment()
+              - pattern: proxy.FromEnvironmentUsing(...)
+              - pattern: proxy.Dial(...)
+      - patterns:
+          - pattern-inside: |
+              import $PKG "golang.org/x/net/proxy"
+              ...
+          - pattern-either:
+              - pattern: $PKG.FromEnvironment()
+              - pattern: $PKG.FromEnvironmentUsing(...)
+              - pattern: $PKG.Dial(...)
+      - pattern-regex: >-
+          \bos\.(?:Getenv|LookupEnv)\(\s*"(?i:(?:https?|all|no)_proxy|request_method)"\s*\)
