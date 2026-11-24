@@ -317,7 +317,11 @@ Environment variables override config file values using the `TRIDENT_` prefix:
 | `TRIDENT_DETECT_PATTERNS_FILE` | `--patterns-file` / `detect_patterns.file` |
 
 When `--proxy` / `TRIDENT_PROXY` is not set, trident honours the standard `HTTP_PROXY`,
-`HTTPS_PROXY`, and `NO_PROXY` environment variables automatically.
+`HTTPS_PROXY`, and `NO_PROXY` environment variables automatically. Every service talks
+to its server over HTTPS, so set `HTTPS_PROXY` (or `--proxy`): `HTTP_PROXY` applies only
+to plain `http://` requests, and `ALL_PROXY` is ignored for HTTP requests. With only
+`ALL_PROXY` or `HTTP_PROXY` set, the HTTP-based services, including the `quad9` and
+`apex` DNS-over-HTTPS queries, connect directly, not through the proxy.
 
 Behind a proxy, the HTTP-based services speak HTTP/1.1 only, and trident refuses any
 connection that would reach a proxied host directly instead of through the proxy
@@ -332,8 +336,12 @@ This works around HTTP/2 code paths in the HTTP library that ignore the proxy
 transport that never connects around it. They work through `http://`, `https://` and
 `socks5://` proxies; `socks4://` and `socks4a://` proxies are refused for them. A
 TLS-intercepting proxy that only speaks HTTP/1.1 cannot carry DNS-over-HTTPS: Quad9 answers
-`505` and the command fails with an error. Behind a proxy, `apex` also sends its Team Cymru
-ASN lookups through DNS-over-HTTPS instead of plain DNS from the local resolver.
+`505` and the command fails with an error. An `https://` proxy that itself negotiates
+HTTP/2 (Envoy and Caddy can, Squid does not) breaks the connection to it for these two
+commands, which then fail with an error as well; use an `http://` or `socks5://` proxy
+instead. Behind a proxy that applies to `dns.quad9.net` (see above: `HTTPS_PROXY` or
+`--proxy`), `apex` also sends its Team Cymru ASN lookups through DNS-over-HTTPS instead of
+plain DNS from the local resolver.
 
 ---
 

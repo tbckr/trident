@@ -105,8 +105,9 @@ func (d *deps) newHTTPClient() (*req.Client, error) {
 // newDoHClient creates the HTTP client for DNS-over-HTTPS requests to
 // doh.Endpoint, configured like newHTTPClient. proxied reports whether a proxy
 // applies to the endpoint. It runs inside the commands that need it, not in
-// buildDeps: it fails for a proxy it cannot speak (such as HTTPS_PROXY=socks4://),
-// which must not break the commands that do not use DoH.
+// buildDeps: it fails when the proxy for the endpoint cannot be determined or
+// is refused (such as HTTPS_PROXY=socks4://), which must not break the commands
+// that do not use DoH.
 func (d *deps) newDoHClient() (client *req.Client, proxied bool, err error) {
 	client, proxied, err = httpclient.NewDoH(d.cfg.Proxy, doh.Endpoint, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
 	if err != nil {

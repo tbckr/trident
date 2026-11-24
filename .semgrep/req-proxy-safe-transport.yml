@@ -24,8 +24,10 @@ rules:
       replace the guard or desynchronise it from the proxy. Assigning
       `GetClient().Transport` replaces the guarded transport outright, and
       `Clone()` and `RoundTrip` on a `*req.Client` run on req's fallback
-      transport, so a DoH client loses its HTTP/2, timeouts and health checks
-      (Quad9 then answers 505). Get clients from the deps factories
+      transport, not on the Go transport: a cloned DoH client keeps its
+      timeout and retry options, but loses HTTP/2 and the ping health check
+      (behind a proxy, req's fallback transport is forced to HTTP/1.1, so
+      Quad9 then answers 505). Get clients from the deps factories
       (`d.newHTTPClient()`, `d.newDoHClient()`). If a command really needs
       anything else here, change `internal/httpclient` and its proxy tests
       (proxy_test.go, doh_test.go) instead.
