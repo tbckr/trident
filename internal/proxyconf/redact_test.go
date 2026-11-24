@@ -114,7 +114,51 @@ func TestRedactText(t *testing.T) {
 			in:   "--proxy socks5h://alice:S3cr3t@h:1 x",
 			want: "--proxy socks5h://***@h:1 x",
 		},
+		// A "/" in the password ends the authority for the generic pattern,
+		// so the --proxy value is masked up to its last "@".
+		{
+			name: "--proxy URL value, / in the password, after a space",
+			in:   "crtsh --proxy socks5h://alice:S3/cr3t@127.0.0.1:9050",
+			want: "crtsh --proxy socks5h://***@127.0.0.1:9050",
+		},
+		{
+			name: "--proxy=URL value, / in the password",
+			in:   "--proxy=http://alice:S3/cr3t@h:1 dns example.com",
+			want: "--proxy=http://***@h:1 dns example.com",
+		},
+		{
+			name: "--proxy URL value, / in the password, tab as separator",
+			in:   "--proxy\tsocks5h://alice:S3/cr3t@h:1",
+			want: "--proxy\tsocks5h://***@h:1",
+		},
+		{
+			name: "--proxy URL value, @ before and / after in the password",
+			in:   "--proxy socks5h://alice@x:S3/cr3t@h:1",
+			want: "--proxy socks5h://***@h:1",
+		},
+		{
+			name: "--proxy URL value in quotes, / in the password",
+			in:   `--proxy 'socks5h://alice:S3/cr3t@h:1' x`,
+			want: `--proxy 'socks5h://***@h:1' x`,
+		},
+		// A quoted value may hold a space before its "@".
+		{
+			name: "--proxy URL value in quotes, space in the password",
+			in:   `--proxy "http://alice:S3 cr3t@h:1" --pap-limit=red`,
+			want: `--proxy "http://***@h:1" --pap-limit=red`,
+		},
+		{
+			name: "scheme-less --proxy=value in quotes, space in the password",
+			in:   `--proxy="alice:S3 cr3t@h:1" x`,
+			want: `--proxy="***@h:1" x`,
+		},
+		{
+			name: "--proxy value, text glued to the closing quote",
+			in:   `--proxy "alice"S3cr3t@h:1`,
+			want: `--proxy "***@h:1`,
+		},
 		{name: "--proxy value without userinfo", in: "--proxy 127.0.0.1:9050", want: "--proxy 127.0.0.1:9050"},
+		{name: "quoted --proxy value without userinfo", in: `--proxy "127.0.0.1:9050" a@b`, want: `--proxy "127.0.0.1:9050" a@b`},
 		{name: "--proxy URL without userinfo", in: "--proxy=socks5h://[::1]:9050", want: "--proxy=socks5h://[::1]:9050"},
 		{name: "another flag that starts with --proxy", in: "--proxy-foo a@b", want: "--proxy-foo a@b"},
 		{name: "e-mail address elsewhere", in: "mail bob@example.com about --proxy x", want: "mail bob@example.com about --proxy x"},
@@ -125,7 +169,8 @@ func TestRedactText(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := proxyconf.RedactText(tt.in)
 			assert.Equal(t, tt.want, got)
-			assert.NotContains(t, got, "S3cr3t")
+			assert.NotContains(t, got, "cr3t")
+			assert.NotContains(t, got, "alice")
 		})
 	}
 }

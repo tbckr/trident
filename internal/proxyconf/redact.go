@@ -13,9 +13,10 @@ import (
 // is masked whole and "https://example.com/a@b" is left alone.
 var userinfoPattern = regexp.MustCompile(`(?i)([a-z][a-z0-9+.-]*://)[^\s/]+@`)
 
-// proxyFlagPattern matches a --proxy flag and its value token: "--proxy v",
-// "--proxy=v", with an optional opening quote kept out of the value.
-var proxyFlagPattern = regexp.MustCompile(`(--proxy(?:=|\s+)["']?)(\S+)`)
+// proxyFlagPattern matches a --proxy flag and its value: "--proxy v",
+// "--proxy=v", where v is a quoted string (which may hold spaces) and whatever
+// is glued to its end, or else a token of non-space characters.
+var proxyFlagPattern = regexp.MustCompile(`(--proxy(?:=|\s+))("[^"]*"\S*|'[^']*'\S*|\S+)`)
 
 // schemePrefix matches a value that starts with a URL scheme.
 var schemePrefix = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*://`)
@@ -39,33 +40,36 @@ func Redact(u *url.URL) string {
 }
 
 // RedactText masks the userinfo of every scheme://userinfo@ in free text, such
-// as a command line or an error message that quotes one. It also masks the
-// userinfo of a --proxy value that has no scheme (a user:password@host:port
-// value, which trident reads as an http:// URL); the generic pattern is not
-// widened to scheme-less text, as that would mask e-mail addresses. A password
-// that itself holds an unescaped "/" ends the authority early, so that URL is
-// not recognised and not masked; such a value is not a valid proxy URL anyway
-// (parseProxyURL never echoes it).
+// as a command line or an error message that quotes one. A --proxy value is
+// masked up to its last "@" in addition, with or without a scheme: a value
+// without one (user:password@host:port, which trident reads as an http:// URL)
+// is not caught by the generic pattern, which is not widened to scheme-less
+// text because that would mask e-mail addresses, and neither is a password
+// holding a "/" (which ends the generic pattern's authority) or, in a quoted
+// value, a space. Outside a --proxy value such a URL is not recognised and not
+// masked; it is not a valid proxy URL either, and parseProxyURL never echoes
+// a value.
 func RedactText(s string) string {
 	s = userinfoPattern.ReplaceAllString(s, "${1}***@")
 	return proxyFlagPattern.ReplaceAllStringFunc(s, maskProxyFlag)
 }
 
-// maskProxyFlag masks everything up to and including the last "@" of the value
-// in a --proxy match, unless the value starts with a scheme (the generic
-// pattern has handled those) or has no "@".
+// maskProxyFlag masks the value in a --proxy match from after its opening
+// quote and scheme (each if present) up to and including the last "@"; a value
+// with no "@" stays as it is. Masking up to the last "@" can hide part of a
+// path holding an "@" as well, never too little.
 func maskProxyFlag(match string) string {
 	m := proxyFlagPattern.FindStringSubmatch(match)
 	if m == nil {
 		return match
 	}
 	flag, value := m[1], m[2]
-	if schemePrefix.MatchString(value) {
-		return match
+	if q := value[:1]; q == `"` || q == "'" {
+		flag, value = flag+q, value[1:]
 	}
 	i := strings.LastIndex(value, "@")
 	if i < 0 {
 		return match
 	}
-	return flag + "***" + value[i:]
+	return flag + schemePrefix.FindString(value) + "***" + value[i:]
 }
