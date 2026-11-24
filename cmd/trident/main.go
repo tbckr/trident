@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/tbckr/trident/internal/cli"
+	"github.com/tbckr/trident/internal/output"
 )
 
 func main() {
@@ -18,7 +19,7 @@ func main() {
 		if errors.Is(err, context.Canceled) {
 			os.Exit(0)
 		}
-		fmt.Fprintf(os.Stderr, "Error: %v\n\nRun 'trident --help' for usage.\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n\nRun 'trident --help' for usage.\n", output.SanitizeTerminal(err.Error()))
 		os.Exit(1)
 	}
 }
