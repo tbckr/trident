@@ -144,8 +144,9 @@ type directQuery struct {
 // Partial results are returned when context is cancelled mid-query.
 //
 // A failed query is one that errors while the caller's context is still live.
-// A refused proxy bypass fails the run, and so does every query failing; when
-// only some fail the result is partial and one warning says so.
+// A refused proxy bypass, in a DoH query or in a Cymru ASN lookup, fails the
+// run, and so does every DoH query failing; when only some queries or ASN
+// lookups fail the result is partial and one warning says so.
 func (s *Service) Run(ctx context.Context, domain string) (services.Result, error) {
 	domain = output.StripANSI(domain)
 	if !services.IsDomain(domain) {
@@ -376,6 +377,12 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 			})
 		}
 		asnWg.Wait()
+		// The Cymru service swallows lookup errors, so a refused bypass is only
+		// visible on the resolver underneath it. It fails the run, like the DoH
+		// queries, instead of ending up in the partial-failure warning.
+		if err := counter.bypassErr(); err != nil {
+			return nil, err
+		}
 		if failed, total, firstErr := counter.failures(); failed > 0 {
 			s.logger.Warn("apex: some ASN lookups failed; ASN data is incomplete",
 				"domain", domain, "failed", failed, "total", total, "error", firstErr)
@@ -435,7 +442,8 @@ func (s *Service) checkQueryFailures(domain string, errs []error) error {
 
 // countingResolver wraps a Cymru TXT resolver and counts the lookups that
 // failed. A failure is an error while the caller's context is still live that
-// is not the resolver's "no such record" answer.
+// is not the resolver's "no such record" answer. It also remembers the first
+// lookup that was refused as a proxy bypass.
 type countingResolver struct {
 	inner cymrusvc.TXTResolver
 
@@ -443,6 +451,7 @@ type countingResolver struct {
 	total    int
 	failed   int
 	firstErr error
+	bypass   error
 }
 
 // LookupTXT implements [cymrusvc.TXTResolver].
@@ -452,6 +461,9 @@ func (c *countingResolver) LookupTXT(ctx context.Context, name string) ([]string
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.total++
+	if c.bypass == nil && errors.Is(err, apperr.ErrProxyBypass) {
+		c.bypass = err
+	}
 	if failed {
 		c.failed++
 		if c.firstErr == nil {
@@ -467,6 +479,14 @@ func (c *countingResolver) failures() (failed, total int, firstErr error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.failed, c.total, c.firstErr
+}
+
+// bypassErr returns the first lookup error that is an [apperr.ErrProxyBypass],
+// or nil when no lookup was refused as a proxy bypass.
+func (c *countingResolver) bypassErr() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.bypass
 }
 
 // isLookupFailure reports whether err from a TXT lookup made under ctx is a

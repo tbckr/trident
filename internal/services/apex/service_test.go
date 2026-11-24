@@ -900,6 +900,79 @@ func TestApexService_Run_ASNLookupCanceledDoesNotWarn(t *testing.T) {
 	assert.NotContains(t, buf.String(), "some ASN lookups failed")
 }
 
+func TestApexService_Run_ASNLookupProxyBypassAborts(t *testing.T) {
+	client := newTestClient(t)
+	registerAnswerA(t)
+
+	// A Cymru lookup that would leave the proxy fails the run: continuing with a
+	// warning would hand back a result that was assembled around the proxy.
+	txt := &fakeTXT{fn: func(string) ([]string, error) {
+		return nil, fmt.Errorf("lookup: %w", apperr.ErrProxyBypass)
+	}}
+	logger, buf := newBufLogger()
+	svc := apex.NewService(client, txt, logger, embeddedPatterns(t))
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrProxyBypass)
+	assert.Nil(t, raw)
+	assert.NotContains(t, buf.String(), "some ASN lookups failed")
+}
+
+func TestApexService_Run_ASNLookupProxyBypassAbortsAmongOtherFailures(t *testing.T) {
+	client := newTestClient(t)
+
+	aRR1 := &dns.A{Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300}}
+	aRR1.Addr = netip.MustParseAddr("93.184.216.34")
+	aRR2 := &dns.A{Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300}}
+	aRR2.Addr = netip.MustParseAddr("198.51.100.7")
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexWireResponder(t, func(qname string, qtype uint16) []byte {
+			if qname == "example.com" && qtype == dns.TypeA {
+				return buildWireResponse(t, 0, []dns.RR{aRR1, aRR2}, nil)
+			}
+			return buildWireResponse(t, 0, nil, nil)
+		}))
+
+	// Several ASN goroutines run at once: a plain failure in one of them must not
+	// hide the refused bypass in another.
+	txt := &fakeTXT{fn: func(name string) ([]string, error) {
+		if strings.HasPrefix(name, "7.100.51.198.") {
+			return nil, fmt.Errorf("lookup: %w", apperr.ErrProxyBypass)
+		}
+		return nil, errors.New("timeout")
+	}}
+	svc := apex.NewService(client, txt, testutil.NopLogger(), embeddedPatterns(t))
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrProxyBypass)
+	assert.Nil(t, raw)
+}
+
+func TestApexService_Run_ASNLookupOverDoHProxyBypassAborts(t *testing.T) {
+	client := newTestClient(t)
+
+	aRR := &dns.A{Hdr: dns.Header{Name: "example.com.", Class: dns.ClassINET, TTL: 300}}
+	aRR.Addr = netip.MustParseAddr("93.184.216.34")
+	httpmock.RegisterResponder(http.MethodGet, "=~^"+dohURL,
+		apexQueryResponder(t, func(qname string, qtype uint16) (*http.Response, error) {
+			if qtype == dns.TypeTXT && strings.HasSuffix(qname, ".asn.cymru.com") {
+				return nil, fmt.Errorf("dial: %w", apperr.ErrProxyBypass)
+			}
+			if qname == "example.com" && qtype == dns.TypeA {
+				return httpmock.NewBytesResponse(http.StatusOK, buildWireResponse(t, 0, []dns.RR{aRR}, nil)), nil
+			}
+			return httpmock.NewBytesResponse(http.StatusOK, buildWireResponse(t, 0, nil, nil)), nil
+		}))
+
+	// The real DoH TXT resolver, as the CLI wires it behind an HTTPS proxy: the
+	// refused dial must stay detectable through the resolver and Cymru lookups.
+	svc := apex.NewService(client, doh.NewTXTResolver(client), testutil.NopLogger(), embeddedPatterns(t))
+	raw, err := svc.Run(context.Background(), "example.com")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrProxyBypass)
+	assert.Nil(t, raw)
+}
+
 func TestCymruResolver(t *testing.T) {
 	client := req.NewClient()
 	system := &testutil.MockResolver{}
