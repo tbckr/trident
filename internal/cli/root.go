@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/tbckr/trident/internal/apperr"
 	"github.com/tbckr/trident/internal/config"
 	"github.com/tbckr/trident/internal/input"
 	"github.com/tbckr/trident/internal/pap"
@@ -194,11 +196,22 @@ func runCmdBody(cmd *cobra.Command, d *deps, svc services.Service, args []string
 		return writeResult(cmd.OutOrStdout(), d, result)
 	}
 
-	// Bulk path
-	workerResults := worker.Run(cmd.Context(), svc, inputs, d.cfg.Concurrency)
+	// Bulk path. A proxy error stops the run: inputs not started yet are
+	// skipped, the results collected so far are written, and the first proxy
+	// error (in input order) is returned, so the run exits non-zero.
+	workerResults := worker.Run(cmd.Context(), svc, inputs, d.cfg.Concurrency, isProxyError)
 	var valid []services.Result
+	var proxyErr error
+	skipped := 0
 	for _, r := range workerResults {
-		if r.Err != nil {
+		switch {
+		case errors.Is(r.Err, worker.ErrSkipped):
+			skipped++
+			continue
+		case r.Err != nil && proxyErr == nil && isProxyError(r.Err):
+			proxyErr = r.Err // returned below; main prints it
+			continue
+		case r.Err != nil:
 			d.logger.Error("lookup failed", "service", svc.Name(), "input", r.Input, "error", r.Err)
 			continue
 		}
@@ -208,14 +221,35 @@ func runCmdBody(cmd *cobra.Command, d *deps, svc services.Service, args []string
 		}
 		valid = append(valid, r.Output)
 	}
+	if skipped > 0 {
+		d.logger.Warn("stopped after a proxy error; inputs not started", "service", svc.Name(), "skipped", skipped)
+	}
+	if err := writeCollected(cmd.OutOrStdout(), d, svc, valid); err != nil {
+		return err
+	}
+	return proxyErr
+}
+
+// writeCollected writes the results of a bulk run: nothing for none, a single
+// result as is, several aggregated.
+func writeCollected(w io.Writer, d *deps, svc services.Service, valid []services.Result) error {
 	switch len(valid) {
 	case 0:
 		return nil
 	case 1:
-		return writeResult(cmd.OutOrStdout(), d, valid[0])
+		return writeResult(w, d, valid[0])
 	default:
-		return writeResult(cmd.OutOrStdout(), d, svc.AggregateResults(valid))
+		return writeResult(w, d, svc.AggregateResults(valid))
 	}
+}
+
+// isProxyError reports whether err means the proxy setting cannot be honoured
+// (a refused direct connection, an invalid proxy configuration or an
+// unsupported proxy scheme). Such an error stops a bulk run.
+func isProxyError(err error) bool {
+	return errors.Is(err, apperr.ErrProxyBypass) ||
+		errors.Is(err, apperr.ErrProxyConfig) ||
+		errors.Is(err, apperr.ErrUnsupportedProxy)
 }
 
 // runServiceCmd is the shared RunE body for all OSINT subcommands.
