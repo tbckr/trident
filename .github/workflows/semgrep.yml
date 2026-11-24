@@ -42,7 +42,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - run: semgrep scan --config=.semgrep --config=p/golang --config=p/gosec --sarif --output=semgrep.sarif --error --metrics=off
+      # Rule tests: each `.semgrep/<rule>.go` fixture marks the findings its
+      # rule must report (`// ruleid:`) and must not report (`// ok:`).
+      - run: semgrep --test --metrics=off .semgrep/
+
+      # The fixtures contain findings on purpose, so the scan skips them.
+      - run: semgrep scan --config=.semgrep --config=p/golang --config=p/gosec --exclude=.semgrep --sarif --output=semgrep.sarif --error --metrics=off
 
       - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066  # v4.39.3
         if: always()

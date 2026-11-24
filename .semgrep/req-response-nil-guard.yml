@@ -35,7 +35,7 @@ rules:
               }
       - patterns:
           - pattern-inside: |
-              $C.OnAfterResponse(func($X *req.Client, $R *req.Response) error {
+              $C.OnAfterResponse(func(..., $R *req.Response) error {
                 ...
               })
           - pattern-either:

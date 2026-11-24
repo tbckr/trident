@@ -23,9 +23,10 @@ coverage:
 lint:
     golangci-lint run
 
-# Run semgrep with custom rules + registry packs (requires nix develop or semgrep on PATH)
+# Run the semgrep rule tests, then semgrep with custom rules + registry packs (requires nix develop or semgrep on PATH)
 semgrep:
-    semgrep scan --config=.semgrep --config=p/golang --config=p/gosec --error --metrics=off
+    semgrep --test --metrics=off .semgrep/
+    semgrep scan --config=.semgrep --config=p/golang --config=p/gosec --exclude=.semgrep --error --metrics=off
 
 # Run betterleaks (secret scanning) against the working tree (requires nix develop or betterleaks on PATH)
 leaks:
