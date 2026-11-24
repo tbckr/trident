@@ -2,6 +2,7 @@ package httpclient_test
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -9,12 +10,14 @@ import (
 	"encoding/pem"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -26,6 +29,7 @@ import (
 
 	"github.com/tbckr/trident/internal/apperr"
 	"github.com/tbckr/trident/internal/httpclient"
+	"github.com/tbckr/trident/internal/proxyconf"
 	"github.com/tbckr/trident/internal/ratelimit"
 )
 
@@ -342,9 +346,18 @@ func (o *testOrigin) remoteAddrs() []string {
 	return slices.Clone(o.addrs)
 }
 
+// newTestClient builds a client for the origin through proxy (the --proxy
+// value, or "" for none) and trusts the origin.
 func newTestClient(t *testing.T, proxy string, origin *testOrigin) *req.Client {
 	t.Helper()
-	client, err := httpclient.New(proxy, "", nil, false)
+	return newTestClientWith(t, settings(proxy), nil, origin)
+}
+
+// newTestClientWith builds a client for the origin with the resolved proxy
+// settings s, logging to logger, and trusts the origin.
+func newTestClientWith(t *testing.T, s *proxyconf.Settings, logger *slog.Logger, origin *testOrigin) *req.Client {
+	t.Helper()
+	client, err := httpclient.New(s, "", logger, false)
 	require.NoError(t, err)
 	client.SetRootCertFromString(string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: origin.Certificate().Raw})))
 	return client
@@ -432,9 +445,6 @@ func TestNew_ProxyBypassIsNotRetried(t *testing.T) {
 }
 
 func TestNew_NoProxyKeepsHTTP2(t *testing.T) {
-	for _, env := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"} {
-		t.Setenv(env, "")
-	}
 	origin := newTestOrigin(t, true, 0)
 	client := newTestClient(t, "", origin)
 
@@ -444,11 +454,149 @@ func TestNew_NoProxyKeepsHTTP2(t *testing.T) {
 	assert.EqualValues(t, 1, origin.conns())
 }
 
-func clearProxyEnv(t *testing.T) {
-	t.Helper()
-	for _, env := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"} {
-		t.Setenv(env, "")
+func TestNew_AllProxyOnlyGoesThroughProxy(t *testing.T) {
+	origin := newTestOrigin(t, true, 0)
+	proxy := newTestProxy(t, "socks5")
+	s := settings("", "ALL_PROXY", "socks5h://"+proxy.ln.Addr().String())
+
+	client := newTestClientWith(t, s, nil, origin)
+	_, err := client.R().Get(origin.URL)
+	require.NoError(t, err, "ALL_PROXY alone must proxy https")
+
+	doh, proxied := newDoHTestClientWith(t, s, nil, origin)
+	assert.True(t, proxied, "ALL_PROXY alone must proxy the DoH endpoint")
+	resp, err := doh.R().Get(origin.URL)
+	require.NoError(t, err)
+	assert.Equal(t, "HTTP/2.0", resp.String())
+
+	assert.GreaterOrEqual(t, proxy.tunnels.Load(), int32(2), "both clients must have tunnelled")
+	assertNoDirectConns(t, proxy, origin)
+}
+
+func TestNew_FlagAcceptsSocks5h(t *testing.T) {
+	origin := newTestOrigin(t, true, 0)
+	proxy := newTestProxy(t, "socks5")
+	s := settings("SOCKS5H://" + proxy.ln.Addr().String())
+
+	client := newTestClientWith(t, s, nil, origin)
+	resp, err := client.R().Get(origin.URL)
+	require.NoError(t, err, "--proxy must accept socks5h:// in any case")
+	assert.Equal(t, "HTTP/1.1", resp.String(), "behind a proxy the client must not use HTTP/2")
+
+	doh, proxied := newDoHTestClientWith(t, s, nil, origin)
+	assert.True(t, proxied)
+	resp, err = doh.R().Get(origin.URL)
+	require.NoError(t, err)
+	assert.Equal(t, "HTTP/2.0", resp.String())
+
+	assert.GreaterOrEqual(t, proxy.tunnels.Load(), int32(2), "both clients must have tunnelled")
+	assertNoDirectConns(t, proxy, origin)
+}
+
+func TestNew_BrokenEnvValueFailsConstruction(t *testing.T) {
+	for _, value := range []string{" socks5://127.0.0.1:9", "socks5h://127.0.0.1:9050\n"} {
+		t.Run(strconv.Quote(value), func(t *testing.T) {
+			s := settings("", "HTTPS_PROXY", value)
+
+			client, err := httpclient.New(s, "", nil, false)
+			require.ErrorIs(t, err, apperr.ErrProxyConfig, "a broken value must never turn into a direct connection")
+			assert.Nil(t, client)
+
+			doh, proxied, err := httpclient.NewDoH(s, "https://dns.example/dns-query", "", nil, false)
+			require.ErrorIs(t, err, apperr.ErrProxyConfig)
+			assert.Nil(t, doh)
+			assert.False(t, proxied)
+		})
 	}
+}
+
+func TestNew_CGIInjectedHTTPProxyIsIgnored(t *testing.T) {
+	origin := newTestOrigin(t, true, 0)
+	proxy := newTestProxy(t, "http")
+	// Under CGI, HTTP_PROXY can come from a client's Proxy: header; it must
+	// neither steer trident nor make the dial guard fail every dial.
+	s := settings("", "REQUEST_METHOD", "GET", "HTTP_PROXY", "http://127.0.0.1:1", "HTTPS_PROXY", proxy.url())
+
+	client := newTestClientWith(t, s, nil, origin)
+	_, err := client.R().Get(origin.URL)
+	require.NoError(t, err)
+
+	doh, proxied := newDoHTestClientWith(t, s, nil, origin)
+	require.True(t, proxied)
+	_, err = doh.R().Get(origin.URL)
+	require.NoError(t, err)
+
+	assert.GreaterOrEqual(t, proxy.tunnels.Load(), int32(2), "both clients must have tunnelled")
+	assertNoDirectConns(t, proxy, origin)
+}
+
+func TestNew_NoProxyStarKeepsHTTP2(t *testing.T) {
+	origin := newTestOrigin(t, true, 0)
+	proxy := newTestProxy(t, "http")
+	var buf bytes.Buffer
+	s := settings("", "HTTPS_PROXY", proxy.url(), "NO_PROXY", "*")
+
+	client := newTestClientWith(t, s, slog.New(slog.NewTextHandler(&buf, nil)), origin)
+	resp, err := client.R().Get(origin.URL)
+	require.NoError(t, err)
+	assert.Equal(t, "HTTP/2.0", resp.String(), "with NO_PROXY=* nothing is proxied, so HTTP/2 stays")
+	assert.Zero(t, proxy.tunnels.Load())
+	assert.NotContains(t, buf.String(), "NO_PROXY exempts", "NO_PROXY=* turns the proxy off on purpose: no warning")
+}
+
+func TestNew_WarnsOnceWhenNoProxyExempts(t *testing.T) {
+	origin := newTestOrigin(t, true, 0)
+	proxy := newTestProxy(t, "http")
+	s := settings("", "HTTPS_PROXY", proxy.url(), "NO_PROXY", "127.0.0.1")
+	newLogger := func(buf *bytes.Buffer) *slog.Logger { return slog.New(slog.NewTextHandler(buf, nil)) }
+
+	var plainLog, dohLog bytes.Buffer
+	client := newTestClientWith(t, s, newLogger(&plainLog), origin)
+	doh, proxied := newDoHTestClientWith(t, s, newLogger(&dohLog), origin)
+	assert.False(t, proxied, "NO_PROXY exempts the endpoint")
+	assert.Empty(t, dohLog.String(), "building the client contacts nothing and must not warn")
+
+	for range 2 {
+		_, err := client.R().Get(origin.URL)
+		require.NoError(t, err)
+		_, err = doh.R().Get(origin.URL)
+		require.NoError(t, err)
+	}
+	assert.Zero(t, proxy.tunnels.Load(), "NO_PROXY exempts the origin: it must be reached directly")
+	for name, buf := range map[string]*bytes.Buffer{"New": &plainLog, "NewDoH": &dohLog} {
+		out := buf.String()
+		assert.Equal(t, 1, strings.Count(out, "NO_PROXY exempts"), "%s must warn once per host: %s", name, out)
+		assert.Contains(t, out, "level=WARN", name)
+		assert.Contains(t, out, "host=127.0.0.1", name)
+	}
+}
+
+func TestNew_DialGuardDoesNotWarn(t *testing.T) {
+	// NO_PROXY exempts the proxy's own host, not the origin: the requests are
+	// proxied, and only the dial guard, checking the dial to the proxy, sees
+	// an exempt host. Its lookups contact nothing and must not warn.
+	ln, err := net.Listen("tcp", "[::1]:0")
+	if err != nil {
+		t.Skipf("IPv6 loopback unavailable: %v", err)
+	}
+	origin := newTestOrigin(t, true, 0)
+	proxy := newTestProxyOn(t, "http", ln)
+	s := settings("", "HTTPS_PROXY", proxy.url(), "NO_PROXY", "::1")
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+	client := newTestClientWith(t, s, logger, origin)
+	doh, proxied := newDoHTestClientWith(t, s, logger, origin)
+	require.True(t, proxied)
+	for range 2 {
+		_, err := client.R().Get(origin.URL)
+		require.NoError(t, err)
+		_, err = doh.R().Get(origin.URL)
+		require.NoError(t, err)
+	}
+	assert.GreaterOrEqual(t, proxy.tunnels.Load(), int32(2))
+	assertNoDirectConns(t, proxy, origin)
+	assert.NotContains(t, buf.String(), "NO_PROXY exempts")
 }
 
 // getParallel sends n concurrent GETs and fails on the first error.
@@ -475,18 +623,16 @@ func TestNew_ProxiedClientKeepsABurstOfIdleConns(t *testing.T) {
 	// per host, every burst opens about 8 new tunnels. (Asserted on the
 	// setting: when a connection returns to the idle pool is up to req's
 	// read loop, so counting tunnels across back-to-back bursts is racy.)
-	proxied, err := httpclient.New("socks5://127.0.0.1:9050", "", nil, false)
+	proxied, err := httpclient.New(settings("socks5://127.0.0.1:9050"), "", nil, false)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, proxied.GetTransport().MaxIdleConnsPerHost, 10)
 
-	clearProxyEnv(t)
-	direct, err := httpclient.New("", "", nil, false)
+	direct, err := httpclient.New(settings(""), "", nil, false)
 	require.NoError(t, err)
 	assert.Zero(t, direct.GetTransport().MaxIdleConnsPerHost, "without a proxy req's default stays")
 }
 
 func TestHarness_DetectsDirectConnection(t *testing.T) {
-	clearProxyEnv(t)
 	o := newTestOrigin(t, true, 0)
 	p := newTestProxy(t, "http")
 

@@ -70,7 +70,7 @@ func effectiveValue(d *deps, key string) string {
 	case "output":
 		return d.cfg.Output
 	case "proxy":
-		return httpclient.ResolveProxy(d.cfg.Proxy)
+		return proxyRow(d, "proxy")
 	case "user_agent":
 		if d.cfg.UserAgent != "" {
 			return d.cfg.UserAgent
@@ -91,6 +91,18 @@ func effectiveValue(d *deps, key string) string {
 	default:
 		return ""
 	}
+}
+
+// proxyRow returns the value of the proxy report row key (proxy, proxy_dns,
+// proxy_http, proxy_https or proxy_no_proxy; see proxyconf.Settings.Describe),
+// or "" for any other key. Proxy URLs in it are redacted.
+func proxyRow(d *deps, key string) string {
+	for _, r := range d.proxy.Describe() {
+		if r.Key == key {
+			return r.Value
+		}
+	}
+	return ""
 }
 
 func newConfigShowCmd(d *deps) *cobra.Command {

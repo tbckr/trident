@@ -17,13 +17,18 @@ import (
 	"github.com/tbckr/trident/internal/httpclient"
 	"github.com/tbckr/trident/internal/output"
 	"github.com/tbckr/trident/internal/pap"
+	"github.com/tbckr/trident/internal/proxyconf"
 	"github.com/tbckr/trident/internal/resolver"
 )
 
 // deps holds fully-resolved runtime dependencies for a subcommand.
 type deps struct {
-	logger   *slog.Logger
-	cfg      *config.Config
+	logger *slog.Logger
+	cfg    *config.Config
+	// proxy is the run's one proxy resolution (cfg.Proxy and the proxy
+	// environment). A deferred error in it aborts only the commands that
+	// build a network client.
+	proxy    *proxyconf.Settings
 	doDefang bool
 	papLevel pap.Level
 }
@@ -68,7 +73,11 @@ func buildDeps(cmd *cobra.Command, stderr io.Writer) (*deps, error) {
 		logger.Warn(warn)
 	}
 
-	return &deps{cfg: cfg, logger: logger, doDefang: doDefang, papLevel: papLevel}, nil
+	// Resolve never fails: a proxy problem surfaces only when a command
+	// builds a network client.
+	proxy := proxyconf.Resolve(cfg.Proxy, os.Getenv)
+
+	return &deps{cfg: cfg, logger: logger, proxy: proxy, doDefang: doDefang, papLevel: papLevel}, nil
 }
 
 // warnDNSLeak logs a warning when the effective proxy is HTTP/HTTPS (not SOCKS5),
@@ -92,10 +101,11 @@ func warnDNSLeak(proxy string, logger *slog.Logger) {
 	logger.Warn("proxy is HTTP/HTTPS — DNS queries are NOT tunnelled and may leak to your ISP; use socks5:// to prevent DNS leaks")
 }
 
-// newHTTPClient creates a new HTTP client configured with the proxy, user-agent,
-// logger, and verbosity from the resolved config.
+// newHTTPClient creates a new HTTP client configured with the proxy settings,
+// user-agent, logger, and verbosity from the resolved config. It fails with
+// the run's proxy error, if any.
 func (d *deps) newHTTPClient() (*req.Client, error) {
-	client, err := httpclient.New(d.cfg.Proxy, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
+	client, err := httpclient.New(d.proxy, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
 	if err != nil {
 		return nil, fmt.Errorf("creating HTTP client: %w", err)
 	}
@@ -105,11 +115,11 @@ func (d *deps) newHTTPClient() (*req.Client, error) {
 // newDoHClient creates the HTTP client for DNS-over-HTTPS requests to
 // doh.Endpoint, configured like newHTTPClient. proxied reports whether a proxy
 // applies to the endpoint. It runs inside the commands that need it, not in
-// buildDeps: it fails when the proxy for the endpoint cannot be determined or
-// is refused (such as HTTPS_PROXY=socks4://), which must not break the commands
-// that do not use DoH.
+// buildDeps: it fails with the run's proxy error (such as
+// HTTPS_PROXY=socks4://), which must not break the commands that do not use
+// the network.
 func (d *deps) newDoHClient() (client *req.Client, proxied bool, err error) {
-	client, proxied, err = httpclient.NewDoH(d.cfg.Proxy, doh.Endpoint, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
+	client, proxied, err = httpclient.NewDoH(d.proxy, doh.Endpoint, d.cfg.UserAgent, d.logger, d.cfg.Verbose)
 	if err != nil {
 		return nil, false, fmt.Errorf("creating DoH client: %w", err)
 	}

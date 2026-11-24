@@ -7,9 +7,9 @@ import (
 
 // Exported for the external test package.
 var (
-	CheckDirectDial       = checkDirectDial
-	RefuseLocalDNSProxies = refuseLocalDNSProxies
-	NewDoHWithProxyFunc   = newDoH
+	CheckDirectDial     = checkDirectDial
+	NewDoHWithProxyFunc = newDoH
+	ExemptionWarner     = exemptionWarner
 )
 
 // SetDoHTimeouts sets the DoH request timeout and HTTP/2 ping interval and

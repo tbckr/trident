@@ -5,7 +5,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -19,6 +21,7 @@ import (
 
 	"github.com/tbckr/trident/internal/apperr"
 	"github.com/tbckr/trident/internal/httpclient"
+	"github.com/tbckr/trident/internal/proxyconf"
 	"github.com/tbckr/trident/internal/ratelimit"
 )
 
@@ -47,17 +50,25 @@ func trustOrigin(t *testing.T, client *req.Client, o *testOrigin) {
 // --proxy flag value, or "" for none) and trusts the origin.
 func newDoHTestClient(t *testing.T, proxy string, o *testOrigin) (*req.Client, bool) {
 	t.Helper()
-	client, proxied, err := httpclient.NewDoH(proxy, o.URL, "", nil, false)
+	return newDoHTestClientWith(t, settings(proxy), nil, o)
+}
+
+// newDoHTestClientWith builds a DoH client for the origin with the resolved
+// proxy settings s, logging to logger, and trusts the origin.
+func newDoHTestClientWith(t *testing.T, s *proxyconf.Settings, logger *slog.Logger, o *testOrigin) (*req.Client, bool) {
+	t.Helper()
+	client, proxied, err := httpclient.NewDoH(s, o.URL, "", logger, false)
 	require.NoError(t, err)
 	trustOrigin(t, client, o)
 	return client, proxied
 }
 
 // newDoHSeamClient builds a DoH client for the origin with the proxy function
-// proxyFor, as HTTPS_PROXY would set it, and trusts the origin.
+// proxyFor for both its transports and its dial guard, for proxies the
+// resolved settings never hand out, and trusts the origin.
 func newDoHSeamClient(t *testing.T, proxyFor func(*http.Request) (*url.URL, error), o *testOrigin) (*req.Client, bool) {
 	t.Helper()
-	client, proxied, err := httpclient.NewDoHWithProxyFunc(proxyFor, true, o.URL, "", nil, false)
+	client, proxied, err := httpclient.NewDoHWithProxyFunc(proxyFor, proxyFor, true, o.URL, "", nil, false)
 	require.NoError(t, err)
 	trustOrigin(t, client, o)
 	return client, proxied
@@ -77,7 +88,7 @@ func TestNewDoH_HTTP2ThroughProxy(t *testing.T) {
 			return newDoHTestClient(t, p.url(), o)
 		}},
 		{"socks5h", "socks5", func(t *testing.T, p *testProxy, o *testOrigin) (*req.Client, bool) {
-			return newDoHSeamClient(t, proxyURL(t, "socks5h://"+p.ln.Addr().String()), o)
+			return newDoHTestClient(t, "socks5h://"+p.ln.Addr().String(), o)
 		}},
 	}
 	for _, tc := range cases {
@@ -97,7 +108,6 @@ func TestNewDoH_HTTP2ThroughProxy(t *testing.T) {
 }
 
 func TestNewDoH_NoProxyUsesOneConnection(t *testing.T) {
-	clearProxyEnv(t)
 	origin := newTestOrigin(t, true, 0)
 	client, proxied := newDoHTestClient(t, "", origin)
 	assert.False(t, proxied)
@@ -110,7 +120,6 @@ func TestNewDoH_NoProxyUsesOneConnection(t *testing.T) {
 }
 
 func TestNewDoH_StreamLimitDoesNotDeadlock(t *testing.T) {
-	clearProxyEnv(t)
 	origin := newTestOriginWith(t, true, 300*time.Millisecond, func(s *http.Server) {
 		s.HTTP2 = &http.HTTP2Config{MaxConcurrentStreams: 2}
 	})
@@ -150,30 +159,31 @@ func TestNewDoH_ProxiedFollowsProxyFunc(t *testing.T) {
 		}
 		return socks, nil
 	}
-	client, proxied, err := httpclient.NewDoHWithProxyFunc(exempt, true, endpoint, "", nil, false)
+	client, proxied, err := httpclient.NewDoHWithProxyFunc(exempt, exempt, true, endpoint, "", nil, false)
 	require.NoError(t, err)
 	assert.False(t, proxied, "no proxy applies to the endpoint")
 	assert.Equal(t, 1, dohTransport(t, client).MaxConnsPerHost, "direct: one multiplexed connection")
 
-	client, proxied, err = httpclient.NewDoHWithProxyFunc(http.ProxyURL(socks), true, endpoint, "", nil, false)
+	client, proxied, err = httpclient.NewDoHWithProxyFunc(http.ProxyURL(socks), http.ProxyURL(socks), true, endpoint, "", nil, false)
 	require.NoError(t, err)
 	assert.True(t, proxied)
 	assert.Zero(t, dohTransport(t, client).MaxConnsPerHost, "behind a proxy a stalled handshake must not starve the host")
 }
 
 func TestNewDoH_ProxyFuncErrorFailsConstruction(t *testing.T) {
-	// As HTTPS_PROXY=socks4://... would: whether the endpoint is proxied is
-	// unknown, so there is no client to fall back on.
-	socks4 := httpclient.RefuseLocalDNSProxies(proxyURL(t, "socks4://user:secret@127.0.0.1:1080"))
-	client, proxied, err := httpclient.NewDoHWithProxyFunc(socks4, true, "https://dns.example/dns-query", "", nil, false)
+	// Whether the endpoint is proxied is unknown, so there is no client to
+	// fall back on.
+	failing := func(*http.Request) (*url.URL, error) {
+		return nil, fmt.Errorf("%w: test proxy function", apperr.ErrProxyBypass)
+	}
+	client, proxied, err := httpclient.NewDoHWithProxyFunc(failing, failing, true, "https://dns.example/dns-query", "", nil, false)
 	require.ErrorIs(t, err, apperr.ErrProxyBypass)
-	assert.NotContains(t, err.Error(), "secret", "proxy credentials must not appear in errors")
 	assert.Nil(t, client)
 	assert.False(t, proxied)
 }
 
 func TestNewDoH_TransportConfig(t *testing.T) {
-	client, _, err := httpclient.NewDoH("socks5://127.0.0.1:9050", "https://dns.example/dns-query", "", nil, false)
+	client, _, err := httpclient.NewDoH(settings("socks5://127.0.0.1:9050"), "https://dns.example/dns-query", "", nil, false)
 	require.NoError(t, err)
 	tr := dohTransport(t, client)
 
@@ -189,7 +199,7 @@ func TestNewDoH_TransportConfig(t *testing.T) {
 	assert.Nil(t, tr.DialTLSContext, "a TLS dialer would bypass DialContext and the guard")
 
 	httpclient.SetDoHTimeouts(t, time.Second, 2*time.Second, 3*time.Second)
-	client, _, err = httpclient.NewDoH("socks5://127.0.0.1:9050", "https://dns.example/dns-query", "", nil, false)
+	client, _, err = httpclient.NewDoH(settings("socks5://127.0.0.1:9050"), "https://dns.example/dns-query", "", nil, false)
 	require.NoError(t, err)
 	tr = dohTransport(t, client)
 	assert.Equal(t, time.Second, client.GetClient().Timeout)
@@ -261,6 +271,7 @@ func TestNewDoH_RefusesUnsupportedSchemes(t *testing.T) {
 			require.ErrorIs(t, err, apperr.ErrUnsupportedProxy)
 			assert.Contains(t, err.Error(), "uses "+tt.scheme+"://")
 			assert.NotContains(t, err.Error(), "secret", "proxy credentials must not appear in errors")
+			assert.NotContains(t, err.Error(), "user:", "no part of the userinfo may appear in errors")
 			assert.Zero(t, r.RetryAttempt, "an unsupported proxy must not be retried")
 			assert.Zero(t, origin.conns())
 		})

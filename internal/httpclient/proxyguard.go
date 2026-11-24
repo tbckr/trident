@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/idna"
 
 	"github.com/tbckr/trident/internal/apperr"
+	"github.com/tbckr/trident/internal/proxyconf"
 )
 
 // proxyFunc is the type of http.Transport.Proxy: the proxy for a request, or
@@ -60,8 +61,9 @@ func guardedDial(proxyFor proxyFunc, next dialFunc) dialFunc {
 // The dialer does not see the request's scheme, so it judges by HTTPS: every
 // endpoint trident ships with is HTTPS, and req's direct-dial paths are all
 // HTTP/2 over TLS. The one case this refuses wrongly fails closed: a plain
-// http:// URL (a custom detect_patterns.url) with HTTPS_PROXY but no
-// HTTP_PROXY in the environment, which Go would send directly.
+// http:// URL (a custom detect_patterns.url) with a proxy for https but none
+// for http (HTTPS_PROXY without HTTP_PROXY or ALL_PROXY), which the proxy
+// function sends directly.
 func checkDirectDial(proxyFor proxyFunc, addr string) error {
 	viaHTTPS, err := proxyFor(&http.Request{URL: &url.URL{Scheme: "https", Host: addr}})
 	if err != nil {
@@ -79,7 +81,7 @@ func checkDirectDial(proxyFor proxyFunc, addr string) error {
 	if viaHTTPS == nil {
 		return nil
 	}
-	return fmt.Errorf("%w: %s would not go through proxy %s", apperr.ErrProxyBypass, addr, viaHTTPS.Redacted())
+	return fmt.Errorf("%w: %s would not go through proxy %s", apperr.ErrProxyBypass, addr, proxyconf.Redact(viaHTTPS))
 }
 
 // proxyAddr is the "host:port" req dials for proxy p: the host in IDNA ASCII
@@ -115,27 +117,13 @@ func isASCII(s string) bool {
 	return true
 }
 
-// refuseLocalDNSProxies wraps a proxy function so that a socks4:// proxy (not
-// socks4a://) fails closed: with SOCKS4, req resolves the target's host name
-// locally and sends only the IP to the proxy, which leaks every lookup. The
-// --proxy flag already rejects socks4; this covers HTTPS_PROXY/HTTP_PROXY.
-func refuseLocalDNSProxies(proxyFor proxyFunc) proxyFunc {
-	return func(r *http.Request) (*url.URL, error) {
-		p, err := proxyFor(r)
-		if err == nil && p != nil && strings.EqualFold(p.Scheme, "socks4") {
-			return nil, fmt.Errorf("%w: proxy %s is socks4, which resolves host names locally; use socks5:// (socks4a:// does not leak either, but quad9 and apex do not support it)",
-				apperr.ErrProxyBypass, p.Redacted())
-		}
-		return p, err
-	}
-}
-
 // refuseUnsupportedSchemes wraps a proxy function so that a proxy whose scheme
 // Go's transport cannot speak fails with apperr.ErrUnsupportedProxy. Go's
 // transport speaks http, https, socks5 and socks5h; for any other scheme
 // (socks4, socks4a, ...) it would send an HTTP CONNECT to the proxy's port, or,
 // with no port in the URL, the dial guard would report a misleading proxy
-// bypass.
+// bypass. The resolved proxy settings never hand out such a scheme; this is
+// defence in depth for the DoH transport.
 func refuseUnsupportedSchemes(proxyFor proxyFunc) proxyFunc {
 	return func(r *http.Request) (*url.URL, error) {
 		p, err := proxyFor(r)
@@ -147,6 +135,6 @@ func refuseUnsupportedSchemes(proxyFor proxyFunc) proxyFunc {
 			return p, nil
 		}
 		return nil, fmt.Errorf("%w: proxy %s uses %s://; DNS-over-HTTPS supports http://, https://, socks5:// and socks5h:// proxies",
-			apperr.ErrUnsupportedProxy, p.Redacted(), p.Scheme)
+			apperr.ErrUnsupportedProxy, proxyconf.Redact(p), p.Scheme)
 	}
 }

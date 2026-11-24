@@ -1,14 +1,13 @@
 package httpclient
 
 import (
-	"fmt"
 	"log/slog"
-	"net/http"
-	"net/url"
-	"os"
+	"strings"
+	"sync"
 
 	"github.com/imroc/req/v3"
 
+	"github.com/tbckr/trident/internal/proxyconf"
 	"github.com/tbckr/trident/internal/version"
 )
 
@@ -22,72 +21,59 @@ const proxiedIdleConnsPerHost = 16
 // var (not const) because version.Version is a link-time variable, not a compile-time constant.
 var DefaultUserAgent = "trident/" + version.Version + " (+https://github.com/tbckr/trident)"
 
-// ResolveProxy returns the proxy value that will actually be used.
-// If proxy is explicitly configured, it is returned as-is.
-// Otherwise the standard proxy env vars are checked
-// (HTTPS_PROXY, HTTP_PROXY, ALL_PROXY and their lowercase variants);
-// if any are set "<from environment>" is returned.
-// If none are set, an empty string is returned.
-func ResolveProxy(proxy string) string {
-	if proxy != "" {
-		return proxy
-	}
-	for _, env := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"} {
-		if os.Getenv(env) != "" {
-			return "<from environment>"
-		}
-	}
-	return ""
-}
-
-// New builds a *req.Client with optional proxy and user-agent configuration.
-// If userAgent is empty, DefaultUserAgent is used.
-// proxy supports http://, https://, and socks5:// URLs.
-// When proxy is empty, HTTP_PROXY / HTTPS_PROXY / NO_PROXY environment variables
-// are honoured automatically via http.ProxyFromEnvironment.
-// Whenever a proxy is configured, the client speaks HTTP/1.1 only, and it
-// refuses (apperr.ErrProxyBypass) to connect around the proxy to a host the
-// proxy is meant to reach (see guardProxyBypass), or to use a socks4:// proxy
-// from the environment (see refuseLocalDNSProxies). For HTTP/2 behind a proxy
-// use NewDoH, not client.EnableForceHTTP2.
+// New builds a *req.Client that sends its requests as proxy (the run's one
+// proxy resolution, from proxyconf.Resolve; never nil) says, with the
+// User-Agent userAgent (DefaultUserAgent if empty). If proxy has a deferred
+// error, New returns it before building anything: a proxy setting trident
+// cannot honour never turns into a direct connection.
+//
+// The transport's proxy function is always proxy's, also when no proxy
+// applies. Whenever a proxy is configured, the client speaks HTTP/1.1 only,
+// and it refuses (apperr.ErrProxyBypass) to connect around the proxy to a host
+// the proxy is meant to reach (see guardProxyBypass). For HTTP/2 behind a proxy
+// use NewDoH, not client.EnableForceHTTP2. With a logger, a request that
+// NO_PROXY exempts from the proxy is warned about once per host (see
+// exemptionWarner).
 // When debug is true and logger is non-nil, an OnAfterResponse hook is attached
 // that logs the HTTP method, URL, and status code at DEBUG level.
-// Returns an error if the proxy URL is syntactically invalid.
-func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client, error) {
-	proxyFor, err := proxyFuncFor(proxy)
-	if err != nil {
+func New(proxy *proxyconf.Settings, userAgent string, logger *slog.Logger, debug bool) (*req.Client, error) {
+	if err := proxy.Err(); err != nil {
 		return nil, err
 	}
-	return newClient(proxyFor, ResolveProxy(proxy) != "", userAgent, logger, debug), nil
+	return newClient(proxy.ProxyFunc(nil), proxy.ProxyFunc(exemptionWarner(logger)), proxy.Configured(), userAgent, logger, debug), nil
 }
 
-// proxyFuncFor returns the proxy function for proxy as passed to New: the
-// proxy environment variables when it is empty (a socks4:// proxy there is
-// refused, see refuseLocalDNSProxies), else proxy itself for every request.
-// It returns an error if proxy is not a valid http://, https:// or socks5://
-// URL.
-func proxyFuncFor(proxy string) (proxyFunc, error) {
-	if proxy == "" {
-		return refuseLocalDNSProxies(http.ProxyFromEnvironment), nil
+// exemptionMessage is the warning exemptionWarner logs.
+const exemptionMessage = "NO_PROXY exempts this host from the proxy; connecting directly"
+
+// exemptionWarner returns the notify function for proxyconf's ProxyFunc on a
+// client's transports: it logs at Warn level that NO_PROXY exempts a host the
+// client is about to contact from the configured proxy, once per host. The
+// host is normalised first (lowercase, one trailing dot removed), so "A.CORP."
+// and "a.corp" warn once. It is safe for concurrent use, as services send
+// requests in parallel. Every call returns a warner with a memory of its own;
+// a client hands the same one to all its transports. The dial guard must not
+// get one: its lookups contact nothing. It returns nil for a nil logger.
+func exemptionWarner(logger *slog.Logger) func(host string) {
+	if logger == nil {
+		return nil
 	}
-	if err := validateProxy(proxy); err != nil {
-		return nil, fmt.Errorf("invalid proxy URL %q: %w", proxy, err)
+	var warned sync.Map
+	return func(host string) {
+		host = strings.TrimSuffix(strings.ToLower(host), ".")
+		if _, seen := warned.LoadOrStore(host, struct{}{}); seen {
+			return
+		}
+		logger.Warn(exemptionMessage, "host", host)
 	}
-	u, err := url.Parse(proxy)
-	if err != nil {
-		return nil, fmt.Errorf("invalid proxy URL %q: %w", proxy, err)
-	}
-	// With a socks5:// URL, req forwards hostnames (not pre-resolved IPs)
-	// through the proxy with its own SOCKS5 dialer, preventing DNS leaks for
-	// HTTP-based services. DNS-based services (dns, cymru) use
-	// resolver.NewResolver instead.
-	return http.ProxyURL(u), nil
 }
 
-// newClient builds the client New describes, with proxyFor as its proxy
-// function. forceH1 makes it speak HTTP/1.1 only; it must be set whenever
-// proxyFor can return a proxy.
-func newClient(proxyFor proxyFunc, forceH1 bool, userAgent string, logger *slog.Logger, debug bool) *req.Client {
+// newClient builds the client New describes. Its transport sends requests
+// through transportProxy, and its dial guard judges every dial by guardProxy;
+// both must describe the same proxies (guardProxy is the one without the
+// exemption warning). forceH1 makes the client speak HTTP/1.1 only; it must be
+// set whenever the proxy functions can return a proxy.
+func newClient(guardProxy, transportProxy proxyFunc, forceH1 bool, userAgent string, logger *slog.Logger, debug bool) *req.Client {
 	client := req.NewClient()
 
 	if userAgent != "" {
@@ -96,7 +82,7 @@ func newClient(proxyFor proxyFunc, forceH1 bool, userAgent string, logger *slog.
 		client.SetUserAgent(DefaultUserAgent)
 	}
 
-	client.SetProxy(proxyFor)
+	client.SetProxy(transportProxy)
 
 	if forceH1 {
 		// req ignores the proxy on its HTTP/2 paths: forced HTTP/2 never uses it
@@ -109,7 +95,7 @@ func newClient(proxyFor proxyFunc, forceH1 bool, userAgent string, logger *slog.
 		// them instead of opening new proxy tunnels (slow through Tor).
 		client.GetTransport().MaxIdleConnsPerHost = proxiedIdleConnsPerHost
 	}
-	guardProxyBypass(client, proxyFor)
+	guardProxyBypass(client, guardProxy)
 
 	if debug && logger != nil {
 		attachDebugHook(client, logger)
@@ -148,16 +134,4 @@ func attachDebugHook(client *req.Client, logger *slog.Logger) {
 		}
 		return nil
 	})
-}
-
-// validateProxy performs a basic check that the proxy URL has a recognised scheme.
-func validateProxy(proxy string) error {
-	// req.SetProxyURL will log a warning on empty strings but we already gate on that.
-	// Just verify scheme is one we expect.
-	for _, scheme := range []string{"http://", "https://", "socks5://"} {
-		if len(proxy) >= len(scheme) && proxy[:len(scheme)] == scheme {
-			return nil
-		}
-	}
-	return fmt.Errorf("proxy scheme must be http://, https://, or socks5://")
 }
