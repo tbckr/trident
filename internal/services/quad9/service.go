@@ -68,7 +68,7 @@ func (s *Service) Run(ctx context.Context, domain string) (services.Result, erro
 		// means the query never finished, so there is no verdict; "not blocked"
 		// would be a false negative. main exits 0 quietly on context.Canceled.
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			s.logger.Debug("quad9 blocked: context cancelled", "domain", domain)
+			s.logger.Debug("quad9: query cancelled", "domain", domain)
 			return nil, ctxErr
 		}
 		return nil, err
