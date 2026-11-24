@@ -74,6 +74,51 @@ func TestRedactText(t *testing.T) {
 			in:   `invalid value "http://alice:S3cr3t@h:1" for flag`,
 			want: `invalid value "http://***@h:1" for flag`,
 		},
+		{
+			name: "scheme glued to a word character",
+			in:   "X_socks5h://alice:S3cr3t@h:1",
+			want: "X_socks5h://***@h:1",
+		},
+		{
+			name: "scheme-less --proxy value after a space",
+			in:   "crtsh --proxy alice:S3cr3t@127.0.0.1:9050",
+			want: "crtsh --proxy ***@127.0.0.1:9050",
+		},
+		{
+			name: "scheme-less --proxy=value",
+			in:   "--proxy=alice:S3cr3t@h:1",
+			want: "--proxy=***@h:1",
+		},
+		{
+			name: "scheme-less --proxy value, @ inside the password",
+			in:   "--proxy=u:p@ss@h:1 dns example.com",
+			want: "--proxy=***@h:1 dns example.com",
+		},
+		{
+			name: "scheme-less --proxy value, user name only",
+			in:   "--proxy alice@h:1",
+			want: "--proxy ***@h:1",
+		},
+		{
+			name: "scheme-less --proxy value in quotes",
+			in:   `--proxy "alice:S3cr3t@h:1" --pap-limit=red`,
+			want: `--proxy "***@h:1" --pap-limit=red`,
+		},
+		{
+			name: "scheme-less --proxy value, tab as separator",
+			in:   "--proxy\talice:S3cr3t@h:1",
+			want: "--proxy\t***@h:1",
+		},
+		{
+			name: "--proxy with a URL value keeps its scheme",
+			in:   "--proxy socks5h://alice:S3cr3t@h:1 x",
+			want: "--proxy socks5h://***@h:1 x",
+		},
+		{name: "--proxy value without userinfo", in: "--proxy 127.0.0.1:9050", want: "--proxy 127.0.0.1:9050"},
+		{name: "--proxy URL without userinfo", in: "--proxy=socks5h://[::1]:9050", want: "--proxy=socks5h://[::1]:9050"},
+		{name: "another flag that starts with --proxy", in: "--proxy-foo a@b", want: "--proxy-foo a@b"},
+		{name: "e-mail address elsewhere", in: "mail bob@example.com about --proxy x", want: "mail bob@example.com about --proxy x"},
+		{name: "--proxy at the end", in: "crtsh --proxy", want: "crtsh --proxy"},
 		{name: "empty", in: "", want: ""},
 	}
 	for _, tt := range tests {

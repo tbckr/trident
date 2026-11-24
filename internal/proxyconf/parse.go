@@ -26,6 +26,22 @@ func configError(source, reason string) error {
 	return fmt.Errorf("%w: %s: %s", apperr.ErrProxyConfig, source, reason)
 }
 
+// textProblem returns the reason s must be refused, or "" if it is fine to
+// parse and show: no whitespace or control characters, and valid UTF-8. Format
+// characters (zero-width space, bidi overrides, BOM) are invisible or reorder
+// what is displayed, so they count as control here.
+func textProblem(s string) string {
+	for _, r := range s {
+		if unicode.IsSpace(r) || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return "contains whitespace or control characters"
+		}
+	}
+	if !utf8.ValidString(s) {
+		return "not a valid URL"
+	}
+	return ""
+}
+
 // parseProxyURL validates a proxy value and returns it as a URL with a
 // lowercase scheme and an empty path. A value without "://" means http://
 // plus the value. The value is never trimmed or repaired: anything the rules
@@ -35,15 +51,9 @@ func configError(source, reason string) error {
 func parseProxyURL(raw, source string) (*url.URL, error) {
 	// Whitespace and control characters first, before anything else could
 	// misread them: a value with a leading space would otherwise have gone
-	// direct. Format characters (zero-width space, bidi overrides, BOM) are
-	// invisible or reorder what is displayed, so they count as control here.
-	for _, r := range raw {
-		if unicode.IsSpace(r) || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
-			return nil, configError(source, "contains whitespace or control characters")
-		}
-	}
-	if !utf8.ValidString(raw) {
-		return nil, configError(source, "not a valid URL")
+	// direct.
+	if reason := textProblem(raw); reason != "" {
+		return nil, configError(source, reason)
 	}
 
 	// Detect the scheme by "://", not by url.Parse: "localhost:9050" parses
@@ -73,6 +83,12 @@ func parseProxyURL(raw, source string) (*url.URL, error) {
 	if err != nil || u.Opaque != "" {
 		// err quotes the whole value, credentials included: drop it.
 		return nil, configError(source, "not a valid URL")
+	}
+	// url.Parse decodes %XX in the host ("%C2%9B" becomes a C1 control) and
+	// Redact prints the host as is, so the decoded host gets the same check
+	// as the raw value.
+	if reason := textProblem(u.Host); reason != "" {
+		return nil, configError(source, reason)
 	}
 	// ":9050" has a non-empty Host but no host.
 	if u.Hostname() == "" {

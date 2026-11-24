@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,6 +57,12 @@ func TestParseProxyURL(t *testing.T) {
 		{name: "bidi override", raw: "socks5h://\u202eh:1", wantErr: "contains whitespace or control characters"},
 		{name: "byte order mark", raw: "\ufeffsocks5h://h:1", wantErr: "contains whitespace or control characters"},
 		{name: "invalid utf-8", raw: "socks5h://h\xff:1", wantErr: "not a valid URL"},
+		{name: "percent-encoded C1 control in host", raw: "http://%C2%9B31m:1", wantErr: "contains whitespace or control characters"},
+		{name: "percent-encoded bidi override in host", raw: "http://%E2%80%AE.moc.live:1", wantErr: "contains whitespace or control characters"},
+		{name: "percent-encoded no-break space in host", raw: "http://%C2%A0h:1", wantErr: "contains whitespace or control characters"},
+		{name: "percent-encoded zero-width space in host", raw: "socks5h://h%E2%80%8B:1", wantErr: "contains whitespace or control characters"},
+		{name: "percent-encoded invalid utf-8 in host", raw: "http://%ff:1", wantErr: "not a valid URL"},
+		{name: "percent-encoded invalid utf-8 without scheme", raw: "%ff:1", wantErr: "not a valid URL"},
 
 		{name: "scheme only", raw: "socks5://", wantErr: "missing host"},
 		{name: "authority-less double slash", raw: "//h:1", wantErr: "missing host"},
@@ -159,12 +167,27 @@ var reasonPattern = regexp.MustCompile(`^(contains whitespace or control charact
 	`|socks:// is ambiguous; use socks5h://` +
 	`|unsupported scheme( "[a-z][a-z0-9+.-]*")?; use http://, https://, socks5:// or socks5h://)$`)
 
+// unsafeText is the fuzz test's own notion of "must never be displayed":
+// whitespace, control and format characters, and invalid UTF-8.
+func unsafeText(s string) bool {
+	if !utf8.ValidString(s) {
+		return true
+	}
+	for _, r := range s {
+		if unicode.IsSpace(r) || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return true
+		}
+	}
+	return false
+}
+
 func FuzzParseProxyURL(f *testing.F) {
 	for _, seed := range []string{
 		"socks5h://127.0.0.1:9050", "SOCKS5://Host:1080", "127.0.0.1:9050", "localhost:9050",
 		"socks5h://alice:S3cr3t@127.0.0.1:9050", "socks5h://[::1]:9050", "http://[::1", "http://h:abc",
 		"%", "//h:1", ":9050", "socks5:/127.0.0.1:9050", "socks4://h:1080", "socks://h:1080/",
 		"ftp://h:1", " socks5://x:1", "http://h:1#", "http://h:1?", "alice:S3cr3t@h://x", "\xff",
+		"http://%C2%9B31m:1", "http://%E2%80%AE.moc.live:1", "http://%C2%A0h:1", "http://%ff:1",
 	} {
 		f.Add(seed)
 	}
@@ -185,7 +208,9 @@ func FuzzParseProxyURL(f *testing.F) {
 		require.Empty(t, u.Path)
 		require.Empty(t, u.RawQuery)
 		require.Empty(t, u.Fragment)
-		require.False(t, strings.ContainsAny(Redact(u), " \t\r\n"))
+		// What is shown must hold nothing invisible, whether it came in raw or
+		// percent-encoded (net/url decodes %XX in the host).
+		require.False(t, unsafeText(Redact(u)), "Redact shows %q", Redact(u))
 		if u.User != nil {
 			require.Contains(t, Redact(u), "://***@")
 		}
