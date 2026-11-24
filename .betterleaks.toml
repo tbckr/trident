@@ -20,6 +20,11 @@ targetRules = ["generic-credential-uri"]
 paths = ['''(?:^|/)internal/output/defang_fuzz_test\.go$''']
 
 [[allowlists]]
+description = "proxyconf tests: fake proxy credentials (alice:S3cr3t) in URLs, to prove redaction masks them"
+targetRules = ["generic-credential-uri"]
+paths = ['''(?:^|/)internal/proxyconf/[^/]+_test\.go$''']
+
+[[allowlists]]
 description = "Deleted Claude skill docs: linter example with a dummy password literal (history only)"
 targetRules = ["generic-password"]
 paths = ['''(?:^|/)\.claude/skills/[^/]+/references/linter-guide\.md$''']
