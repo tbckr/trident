@@ -4,12 +4,18 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/imroc/req/v3"
 
 	"github.com/tbckr/trident/internal/version"
 )
+
+// proxiedIdleConnsPerHost is how many idle connections per host a client keeps
+// behind a proxy, where it speaks HTTP/1.1 only: more than the largest
+// rate-limit burst (doh.DefaultBurst, 10) and the default concurrency (10).
+const proxiedIdleConnsPerHost = 16
 
 // DefaultUserAgent is the User-Agent sent when no explicit value is configured.
 // It identifies trident honestly so server operators can recognise its traffic.
@@ -36,9 +42,14 @@ func ResolveProxy(proxy string) string {
 
 // New builds a *req.Client with optional proxy and user-agent configuration.
 // If userAgent is empty, DefaultUserAgent is used.
-// proxy supports http://, https://, and socks5:// URLs via req's SetProxyURL.
+// proxy supports http://, https://, and socks5:// URLs.
 // When proxy is empty, HTTP_PROXY / HTTPS_PROXY / NO_PROXY environment variables
 // are honoured automatically via http.ProxyFromEnvironment.
+// Whenever a proxy is configured, the client speaks HTTP/1.1 only, and it
+// refuses (apperr.ErrProxyBypass) to connect around the proxy to a host the
+// proxy is meant to reach (see guardProxyBypass), or to use a socks4:// proxy
+// from the environment (see refuseLocalDNSProxies). Use ForceHTTP2, not
+// client.EnableForceHTTP2, for HTTP/2.
 // When debug is true and logger is non-nil, an OnAfterResponse hook is attached
 // that logs the HTTP method, URL, and status code at DEBUG level.
 // Returns an error if the proxy URL is syntactically invalid.
@@ -51,23 +62,55 @@ func New(proxy, userAgent string, logger *slog.Logger, debug bool) (*req.Client,
 		client.SetUserAgent(DefaultUserAgent)
 	}
 
+	proxyFor := refuseLocalDNSProxies(http.ProxyFromEnvironment)
 	if proxy != "" {
 		if err := validateProxy(proxy); err != nil {
 			return nil, fmt.Errorf("invalid proxy URL %q: %w", proxy, err)
 		}
-		// SetProxyURL with a socks5:// URL forwards hostnames (not pre-resolved IPs)
-		// through the proxy via golang.org/x/net/proxy.SOCKS5, preventing DNS leaks
-		// for HTTP-based services. DNS-based services (dns, cymru) use resolver.NewResolver instead.
-		client.SetProxyURL(proxy)
-	} else {
-		client.SetProxy(http.ProxyFromEnvironment)
+		u, err := url.Parse(proxy)
+		if err != nil {
+			return nil, fmt.Errorf("invalid proxy URL %q: %w", proxy, err)
+		}
+		// With a socks5:// URL, req forwards hostnames (not pre-resolved IPs)
+		// through the proxy with its own SOCKS5 dialer, preventing DNS leaks for
+		// HTTP-based services. DNS-based services (dns, cymru) use
+		// resolver.NewResolver instead.
+		proxyFor = http.ProxyURL(u)
 	}
+	client.SetProxy(proxyFor)
+
+	if ResolveProxy(proxy) != "" {
+		// req ignores the proxy on its HTTP/2 paths: forced HTTP/2 never uses it
+		// (imroc/req#206), and once a proxied HTTP/2 connection dies, req dials
+		// the origin directly (imroc/req#541). HTTP/1.1 takes neither path.
+		// Revisit once a req release contains the fix of imroc/req#541.
+		client.EnableForceHTTP1()
+		// Without HTTP/2 multiplexing, each concurrent request needs its own
+		// connection; keep a burst's worth idle so that the next burst reuses
+		// them instead of opening new proxy tunnels (slow through Tor).
+		client.GetTransport().MaxIdleConnsPerHost = proxiedIdleConnsPerHost
+	}
+	guardProxyBypass(client, proxyFor)
 
 	if debug && logger != nil {
 		attachDebugHook(client, logger)
 	}
 
 	return client, nil
+}
+
+// ForceHTTP2 makes a client from New speak HTTP/2 only, unless a proxy is
+// configured (proxy as passed to New, or the proxy environment variables).
+// Forced HTTP/2 puts every request to a host on one multiplexed connection;
+// with ALPN alone, req dials once per concurrent request until the first
+// connection is pooled. Behind a proxy the client stays on HTTP/1.1, because
+// req's forced HTTP/2 ignores the proxy (imroc/req#206). Use it instead of
+// client.EnableForceHTTP2().
+func ForceHTTP2(client *req.Client, proxy string) {
+	if ResolveProxy(proxy) != "" {
+		return
+	}
+	client.EnableForceHTTP2()
 }
 
 // attachDebugHook registers an OnAfterResponse hook that logs the HTTP method,

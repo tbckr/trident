@@ -45,7 +45,7 @@ Bulk stdin input is processed concurrently (see --concurrency).`,
 			if err != nil {
 				return err
 			}
-			client.EnableForceHTTP2()
+			httpclient.ForceHTTP2(client, d.cfg.Proxy)
 			httpclient.AttachRateLimit(client, ratelimit.New(doh.DefaultRPS, doh.DefaultBurst))
 			svc := quad9svc.NewService(client, d.logger)
 			return runServiceCmd(cmd, d, svc, args)

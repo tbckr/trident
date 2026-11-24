@@ -319,6 +319,14 @@ Environment variables override config file values using the `TRIDENT_` prefix:
 When `--proxy` / `TRIDENT_PROXY` is not set, trident honours the standard `HTTP_PROXY`,
 `HTTPS_PROXY`, and `NO_PROXY` environment variables automatically.
 
+Behind a proxy, the HTTP-based services speak HTTP/1.1 only, and trident refuses any
+connection that would reach a proxied host directly instead of through the proxy
+(the request fails with "refusing direct connection while a proxy is configured").
+A `socks4://` proxy from the environment is refused as well, because SOCKS4 makes the
+client resolve host names locally; use `socks4a://` or `socks5://`.
+This works around HTTP/2 code paths in the HTTP library that ignore the proxy
+([imroc/req#541](https://github.com/imroc/req/pull/541)).
+
 ---
 
 ## Global Flags

@@ -1,0 +1,44 @@
+rules:
+  - id: trident-req-proxy-safe-transport
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Don't change the HTTP version, the dialer or the proxy of a `*req.Client`
+      outside `internal/httpclient`. `httpclient.New` sets all three so that
+      traffic cannot leave the configured proxy: req ignores the proxy on its
+      HTTP/2 paths (forced HTTP/2: imroc/req#206; a redial after a proxied
+      HTTP/2 connection died: imroc/req#541), so behind a proxy New forces
+      HTTP/1.1, and it installs a dial guard (`guardProxyBypass`) that refuses
+      direct connections with `apperr.ErrProxyBypass`. `EnableForceHTTP2`
+      re-enables the leaking path (the guard then fails every request),
+      HTTP/3 is QUIC over UDP and bypasses both the proxy and the guard, and
+      `SetDial`/`SetDialTLS`/`SetProxy`/`SetProxyURL` (and `SetResolver`,
+      `SetHosts`, `SetUnixSocket`, which call `SetDial` internally, or
+      assigning the transport's `DialContext`/`DialTLSContext`/`Proxy`)
+      replace the guard or desynchronise it from the proxy. For HTTP/2 without
+      a proxy use `httpclient.ForceHTTP2(client, proxy)`, which stays on
+      HTTP/1.1 behind one. If a command really needs anything else here,
+      change `httpclient.New` and its proxy tests
+      (internal/httpclient/proxy_test.go) instead.
+    metadata:
+      category: security
+      confidence: HIGH
+    paths:
+      exclude:
+        - "/internal/httpclient/"
+    pattern-either:
+      - pattern: $C.EnableForceHTTP2()
+      - pattern: $C.EnableForceHTTP3()
+      - pattern: $C.EnableHTTP3()
+      - pattern: $C.EnableH2C()
+      - pattern: $C.DisableForceHttpVersion()
+      - pattern: $C.SetDial(...)
+      - pattern: $C.SetDialTLS(...)
+      - pattern: $C.SetProxy(...)
+      - pattern: $C.SetProxyURL(...)
+      - pattern: $C.SetResolver(...)
+      - pattern: $C.SetHosts(...)
+      - pattern: $C.SetUnixSocket(...)
+      - pattern: $T.DialContext = $X
+      - pattern: $T.DialTLSContext = $X
+      - pattern: $T.Proxy = $X

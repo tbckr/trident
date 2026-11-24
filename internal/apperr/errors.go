@@ -15,3 +15,8 @@ var ErrRequestFailed = errors.New("request failed")
 
 // ErrPAPBlocked is returned when a service's PAP level exceeds the user-defined limit.
 var ErrPAPBlocked = errors.New("PAP limit exceeded")
+
+// ErrProxyBypass is returned when a connection would leave the configured proxy:
+// the HTTP client refuses to dial a host directly that the proxy is meant to
+// reach. Retrying cannot help, so it is never retried.
+var ErrProxyBypass = errors.New("refusing direct connection while a proxy is configured")

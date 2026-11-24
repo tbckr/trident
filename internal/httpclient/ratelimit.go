@@ -9,6 +9,7 @@ import (
 
 	"github.com/imroc/req/v3"
 
+	"github.com/tbckr/trident/internal/apperr"
 	"github.com/tbckr/trident/internal/ratelimit"
 )
 
@@ -38,12 +39,14 @@ func AttachRateLimit(client *req.Client, limiter *ratelimit.Limiter) {
 		return resp != nil && resp.Response != nil && resp.StatusCode == http.StatusTooManyRequests
 	})
 	// Also retry on transient transport-level failures (e.g. connection reset by peer).
-	// Context cancellations and deadlines are never retried.
+	// Context cancellations and deadlines are never retried, nor is a refused
+	// proxy bypass, which fails the same way every time.
 	client.AddCommonRetryCondition(func(_ *req.Response, err error) bool {
 		if err == nil {
 			return false
 		}
-		return !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded)
+		return !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) &&
+			!errors.Is(err, apperr.ErrProxyBypass)
 	})
 	client.SetCommonRetryInterval(func(resp *req.Response, _ int) time.Duration {
 		if resp == nil || resp.Response == nil {
