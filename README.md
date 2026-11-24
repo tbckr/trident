@@ -382,6 +382,9 @@ an HTTP(S) proxy (below). Errors read `invalid proxy configuration: <source>: <r
 source is `proxy` (the flag, config file or `TRIDENT_PROXY`) or the exact variable name; the
 lowercase/uppercase conflict and the http-only error name their variables in the sentence instead.
 They never contain the proxy value, and no output ever shows a user name or password.
+With several targets (arguments or stdin), the first such error ends the run: trident starts no
+further target, lets the lookups already running finish, prints the results it has and exits
+with status 1. Other per-target errors are logged and the run goes on.
 
 | Situation | What to do |
 |-----------|------------|
@@ -698,7 +701,7 @@ proxy_https=socks5h://127.0.0.1:9050 (proxy)
 proxy_no_proxy=
 ```
 
-No row ever shows credentials: a proxy URL with a user name or password appears as
+No proxy row ever shows credentials: a proxy URL with a user name or password appears as
 `scheme://***@host:port`. If a proxy setting cannot be honoured, the affected rows read
 `error: <message>`, the message the network commands stop with; `config show` itself keeps
 working.

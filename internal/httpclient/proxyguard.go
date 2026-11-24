@@ -60,10 +60,13 @@ func guardedDial(proxyFor proxyFunc, next dialFunc) dialFunc {
 // refused when proxyFor would send an HTTPS request to addr through a proxy.
 // The dialer does not see the request's scheme, so it judges by HTTPS: every
 // endpoint trident ships with is HTTPS, and req's direct-dial paths are all
-// HTTP/2 over TLS. The one case this refuses wrongly fails closed: a plain
-// http:// URL (a custom detect_patterns.url) with a proxy for https but none
-// for http (HTTPS_PROXY without HTTP_PROXY or ALL_PROXY), which the proxy
-// function sends directly.
+// HTTP/2 over TLS. So a plain http:// URL (a custom detect_patterns.url, an
+// http:// redirect) with a proxy for https but none for http (HTTPS_PROXY
+// without HTTP_PROXY or ALL_PROXY) is refused, although the proxy function
+// returns no proxy for it. That is intended: it fails closed instead of
+// leaving the proxied host directly, and `config show` reports the http path
+// as refused. A NO_PROXY exemption of the host lets the dial through, with the
+// exemption warning.
 func checkDirectDial(proxyFor proxyFunc, addr string) error {
 	viaHTTPS, err := proxyFor(&http.Request{URL: &url.URL{Scheme: "https", Host: addr}})
 	if err != nil {
