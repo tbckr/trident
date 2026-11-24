@@ -125,6 +125,12 @@ func attachDebugHook(client *req.Client, logger *slog.Logger) {
 		if resp.Request == nil || resp.Request.RawRequest == nil {
 			return nil
 		}
+		// The hook also runs for transport errors, where the embedded
+		// *http.Response is nil and StatusCode, IsSuccessState and String would
+		// panic on it. The error itself reaches the caller through the request.
+		if resp.Response == nil {
+			return nil
+		}
 		logger.Debug("http response",
 			"method", resp.Request.RawRequest.Method,
 			"url", resp.Request.RawRequest.URL.String(),

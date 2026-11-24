@@ -3,25 +3,50 @@ rules:
     languages: [go]
     severity: ERROR
     message: >-
-      Don't access `.Response.StatusCode` or `.Response.Header` on a
-      `*req.Response` without a nil-guard. On transport-level errors the outer
-      `*req.Response` is non-nil but the embedded `*http.Response` is nil —
-      touching the field will panic. Guard with `if resp.Response != nil { ... }`
-      first, then read the field.
+      Don't read `StatusCode` or `Header` of a `*req.Response` without a
+      nil-guard on the embedded `*http.Response`. On transport-level errors
+      (connection refused, a refused proxy, a timeout) the outer
+      `*req.Response` is non-nil but the embedded `*http.Response` is nil,
+      so touching the field will panic: `resp.Response.StatusCode` and
+      `resp.Response.Header` directly, and the promoted `resp.StatusCode` and
+      `resp.Header` inside an `OnAfterResponse` hook, which req runs for
+      transport errors too. Guard with `if resp.Response != nil { ... }`
+      first, or return early with `if resp.Response == nil { return nil }`,
+      then read the field. The promoted form is only flagged inside
+      `OnAfterResponse` hooks: services read `resp.StatusCode` after
+      `err == nil`, where the embedded response is always set.
     metadata:
       category: correctness
       confidence: MEDIUM
-    patterns:
-      - pattern-either:
-          - pattern: $R.Response.StatusCode
-          - pattern: $R.Response.Header
-      - pattern-not-inside: |
-          if $R.Response != nil {
-            ...
-          }
-      - pattern-not-inside: |
-          if $R.Response == nil {
-            ...
-          } else {
-            ...
-          }
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $R.Response.StatusCode
+              - pattern: $R.Response.Header
+          - pattern-not-inside: |
+              if $R.Response != nil {
+                ...
+              }
+          - pattern-not-inside: |
+              if $R.Response == nil {
+                ...
+              } else {
+                ...
+              }
+      - patterns:
+          - pattern-inside: |
+              $C.OnAfterResponse(func($X *req.Client, $R *req.Response) error {
+                ...
+              })
+          - pattern-either:
+              - pattern: $R.StatusCode
+              - pattern: $R.Header
+          - pattern-not-inside: |
+              if $R.Response != nil {
+                ...
+              }
+          - pattern-not-inside: |
+              if $R.Response == nil {
+                return ...
+              }
+              ...

@@ -1,8 +1,10 @@
 package httpclient_test
 
 import (
+	"bytes"
 	"io"
 	"log/slog"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,6 +60,22 @@ func TestNew_WithDebugLogger(t *testing.T) {
 	client, err := httpclient.New("", "", logger, true)
 	require.NoError(t, err)
 	assert.NotNil(t, client)
+}
+
+func TestNew_DebugHookSurvivesTransportError(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := ln.Addr().String()
+	require.NoError(t, ln.Close()) // nothing listens: connection refused
+
+	var buf bytes.Buffer
+	client, err := httpclient.New("", "", slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})), true)
+	require.NoError(t, err)
+	client.SetCommonRetryCount(0)
+	assert.NotPanics(t, func() {
+		_, err = client.R().Get("https://" + addr + "/")
+	})
+	require.Error(t, err)
 }
 
 func TestNew_WithNilLoggerDebugFalse(t *testing.T) {
